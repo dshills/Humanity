@@ -100,7 +100,7 @@ Then run `node --test test/` and `node build.mjs`.
 | 6 | ≥ 10 years | Matters at a decade scale |
 | 7 | < 10 years | Only shown below a decade |
 
-Current distribution of the 490 events: tier 0: 16, 1: 36, 2: 58, 3: 92, 4: 93, 5: 104, 6: 54, 7: 37.
+Current distribution of the 526 events: tier 0: 16, 1: 36, 2: 38, 3: 135, 4: 97, 5: 113, 6: 55, 7: 36.
 
 ## Time model
 
@@ -208,7 +208,7 @@ Choices the spec left open, as implemented:
 - System font stack for UI, a serif display face for the title and panel heading, tabular figures on date readouts, 40 px minimum touch targets.
 
 **Data**
-- 490 events (spec minimum 300) across eight era files, sparse in prehistory and dense after 1500; every event since September 1945 has a day-precision date.
+- 526 events (spec minimum 300) across eight era files, sparse in prehistory and dense after 1500; every event since September 1945 has a day-precision date.
 - Prehistory dates are round figures via `ya(n)`. Ranged events (wars, reigns, movements) use `end`; a range that begins in one era but ends in a later one stays in the file where it starts.
 - The `id` of an event is its index in `HT.events`, assigned by the app, never authored.
 
