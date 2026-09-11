@@ -802,6 +802,14 @@
     dom.panelTitle.textContent = ev.title;
     dom.panelDate.textContent = eventDateLabel(ev);
     dom.panelDetail.textContent = ev.detail || '';
+    if (typeof ev.link === 'string' && /^https:\/\//.test(ev.link)) {
+      dom.panelLink.href = ev.link;
+      dom.panelLink.textContent = /^https:\/\/[a-z-]+\.wikipedia\.org\//.test(ev.link) ? 'Read more on Wikipedia ↗' : 'Read more ↗';
+      dom.panelLink.hidden = false;
+    } else {
+      dom.panelLink.hidden = true;
+      dom.panelLink.removeAttribute('href');
+    }
     hideTooltip();
     const wasHidden = dom.panel.hidden;
     dom.panel.hidden = false;
@@ -1158,7 +1166,8 @@
       stage: $('stage') || svg.parentNode, svg: svg, tooltip: $('tooltip'), legend: $('legend'),
       panel: $('panel'), panelClose: $('panel-close'), panelCategory: $('panel-category'),
       panelTitle: $('panel-title'), panelDate: $('panel-date'), panelDetail: $('panel-detail'),
-      panelZoom: $('panel-zoom')
+      panelZoom: $('panel-zoom'),
+      panelLink: $('panel-link')
     };
     NOW = HT.time.now();
     buildSvgScaffold();

@@ -508,6 +508,19 @@ body.panel-open #app {
   overflow-wrap: anywhere;
 }
 
+#panel-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+  margin: -6px 0 10px;
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+#panel-link:hover { text-decoration-thickness: 2px; }
+
 #panel-zoom {
   margin-top: 20px;
   min-height: var(--hit);

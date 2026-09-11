@@ -4,7 +4,7 @@
 
 ![The timeline zoomed to 1945–today, with events stacked in lanes above a year axis](docs/screenshot.png)
 
-A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 526 events in 15 color-coded categories are bundled into the page. There are no frameworks, no network requests and nothing to install to view it.
+A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 834 events in 15 color-coded categories, each with a link for further reading, are bundled into the page. There are no frameworks, no network requests and nothing to install to view it.
 
 ## Open it
 
@@ -14,7 +14,7 @@ A single self-contained `index.html` that draws a horizontal timeline of human h
 
 ```
 node build.mjs        # inlines src/ into index.html (fails loudly on problems)
-node --test test/     # runs the 269 tests
+node --test test/     # runs the 270 tests
 ```
 
 Node 18 or newer, zero dependencies. The build concatenates `time.js, tiers.js, ticks.js, layout.js, data/*.js (sorted by filename), app.js` into one `<script>`, inlines `styles.css`, appends `HT.app.init();`, and refuses to write output if any source is missing, the bundle has a syntax error, a source uses `import`/`export`/`require(`, or the page would reference an external URL.
@@ -87,6 +87,15 @@ Convention (not machine-checked): events after 1900 carry day precision (`ymd(y,
 
 Then run `node --test test/` and `node build.mjs`.
 
+### Links
+
+Any event may carry an optional `link` (an `https://` URL, normally the English Wikipedia article). When present, the detail panel shows a **Read more** link that opens in a new tab. Following a link is the only way the page ever reaches the network; it makes no requests on its own.
+
+```js
+{ t: ymd(1969, 7, 20), title: 'Apollo 11 lands on the Moon', detail: '…', tier: 0, category: 'space',
+  link: 'https://en.wikipedia.org/wiki/Apollo_11' }
+```
+
 ## Tier-to-span mapping
 
 `tierForSpan(span)` in `src/tiers.js`. An event is drawn when `event.tier <= tierForSpan(end - start)`:
@@ -102,7 +111,7 @@ Then run `node --test test/` and `node build.mjs`.
 | 6 | ≥ 10 years | Matters at a decade scale |
 | 7 | < 10 years | Only shown below a decade |
 
-Current distribution of the 526 events: tier 0: 16, 1: 36, 2: 38, 3: 135, 4: 97, 5: 113, 6: 55, 7: 36.
+Current distribution of the 834 events: tier 0: 16, 1: 36, 2: 38, 3: 151, 4: 184, 5: 224, 6: 147, 7: 38.
 
 ## Time model
 
@@ -210,7 +219,7 @@ Choices the spec left open, as implemented:
 - System font stack for UI, a serif display face for the title and panel heading, tabular figures on date readouts, 40 px minimum touch targets.
 
 **Data**
-- 526 events (spec minimum 300) across eight era files, sparse in prehistory and dense after 1500; every event since September 1945 has a day-precision date.
+- 834 events (spec minimum 300), every one with a verified English Wikipedia link, across eight era files, sparse in prehistory and dense after 1500; every event since September 1945 has a day-precision date.
 - Prehistory dates are round figures via `ya(n)`. Ranged events (wars, reigns, movements) use `end`; a range that begins in one era but ends in a later one stays in the file where it starts.
 - The `id` of an event is its index in `HT.events`, assigned by the app, never authored.
 

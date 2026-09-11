@@ -23,7 +23,7 @@ const { ROOT_START, bce, ce, now } = HT.time;
 const { CATEGORIES, tierForSpan } = HT.tiers;
 
 const DATA_DIR = path.join(__dirname, '..', 'src', 'data');
-const ALLOWED_KEYS = ['t', 'end', 'title', 'detail', 'tier', 'category'];
+const ALLOWED_KEYS = ['t', 'end', 'title', 'detail', 'tier', 'category', 'link'];
 const MAX_TIER = 7;
 const TITLE_MAX = 80;
 const DETAIL_MIN = 20;
@@ -298,4 +298,14 @@ describe('representative windows (section 6)', () => {
         `  hidden:  ${hidden.length ? listing(hidden.map(entry), '           ') : '(none)'}`);
     });
   }
+});
+
+describe('link (optional)', () => {
+  test('is an https URL when present', () => {
+    for (const e of globalThis.HT.events) {
+      if (e.link === undefined) continue;
+      assert.equal(typeof e.link, 'string', `link must be a string: ${e.title}`);
+      assert.match(e.link, /^https:\/\/[^\s]+$/, `link must be an https URL without spaces: ${e.title}`);
+    }
+  });
 });

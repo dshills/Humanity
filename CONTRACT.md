@@ -177,6 +177,7 @@ if none in 0..maxLanes-1 → dropped. Pure function, no DOM.
 
 Rules (enforced by test/data.test.js):
 - `t` in [ROOT_START, now()]; `end` (optional) > t and ≤ now(); tier integer 0..7; category ∈ CATEGORIES
+- `link` (optional): an `https://` URL for further reading (normally the English Wikipedia article); shown in the panel as "Read more", opened in a new tab. The page itself never fetches it.
 - title: 1–80 chars, no trailing period; detail: 1–2 sentences, 20–300 chars
 - no duplicate titles across all files; `id` is NOT authored (app derives it from index)
 - day precision (ymd with month/day) is required for events after 1900 wherever the exact date is well known
