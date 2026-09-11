@@ -231,3 +231,7 @@ Choices the spec left open, as implemented:
 - The panel's category caption uses the muted text colour with a coloured dot instead of the category hue as text, for contrast.
 - Minimum span is 1/365 of a year so a day-level view always contains a midnight tick; `computeTicks` additionally falls back to quarter-day positions for sub-day windows.
 - Event dates authored as round "years ago" figures before 10,000 BCE are shown as `c. N years ago` in the tooltip and panel rather than a spuriously precise BCE year.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
