@@ -2,6 +2,8 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
+![The timeline zoomed to 1945–today, with events stacked in lanes above a year axis](docs/screenshot.png)
+
 A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 526 events in 15 color-coded categories are bundled into the page. There are no frameworks, no network requests and nothing to install to view it.
 
 ## Open it
