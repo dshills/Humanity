@@ -1,0 +1,226 @@
+# Humanity Timeline — Module Contract
+
+This is the binding interface between modules. Every builder codes against THIS file, not against
+other modules' source (which may not exist yet). PROMPT.md is the product spec; when the two
+disagree, this contract wins for interfaces and PROMPT.md wins for behavior.
+
+## 0. Repository layout
+
+```
+index.html                 built artifact: ONE self-contained file (output of `node build.mjs`)
+build.mjs                  node ≥ 18, zero dependencies: inlines CSS + JS into the template
+src/index.template.html    HTML skeleton with two placeholders: <!--STYLES--> and <!--SCRIPTS-->
+src/styles.css             all CSS
+src/time.js                HT.time
+src/tiers.js               HT.tiers
+src/ticks.js               HT.ticks
+src/layout.js              HT.layout
+src/data/NN-<era>.js       HT.events.push(...)   (NN = two-digit order)
+src/app.js                 HT.app — rendering, interaction, URL state
+test/*.test.js             node:test + node:assert, CommonJS `require`
+```
+
+Build order (concatenated in this exact order inside ONE `<script>` in index.html):
+`time.js, tiers.js, ticks.js, layout.js, data/*.js (sorted by filename), app.js`.
+The final `<script>` ends with `HT.app.init();` — app.js itself must NOT auto-run on load, and
+must not use `DOMContentLoaded` (the script tag is placed at the end of `<body>`).
+
+## 1. Script wrapper (every src/*.js file, no exceptions)
+
+Plain browser scripts. No ES modules, no `import`/`export`, no `require` inside src/.
+
+```js
+(function (root) {
+  'use strict';
+  const HT = root.HT || (root.HT = {});
+  // ... define HT.<module> = { ... }  (or, for data files, push events)
+})(typeof window !== 'undefined' ? window : globalThis);
+```
+
+Node tests load modules with `require('../src/time.js')` and read `globalThis.HT.time`.
+Data files and ticks/layout/app may read `HT.time` etc. at *call* time. Modules must not call
+each other at *definition* time except `HT.data` files, which may destructure `HT.time` helpers
+at the top of the file (time.js is always loaded first).
+
+## 2. Time model — `HT.time`
+
+`t` is a floating-point astronomical year: `1 CE = 1`, `1 BCE = 0`, `2 BCE = -1`, `3000 BCE = -2999`.
+Fractional part = fraction of that calendar year elapsed (proleptic Gregorian, UTC).
+
+```
+PRESENT          = 1950                          // "years ago" / BP reference year
+ROOT_START       = ya(300000)                    // = -298050
+now()            -> t for the current instant (new Date())
+isLeap(y), daysInYear(y)                         // proleptic Gregorian, astronomical year
+fromDate(date)   -> t                            // uses UTC fields
+toParts(t)       -> { year, month, day, hour, minute, dayOfYear }   // year astronomical int, month 1-12, day 1-31
+ymd(year, month = 1, day = 1) -> t               // astronomical year
+ce(y, month = 1, day = 1)  -> t                  // same as ymd, y ≥ 1
+bce(y, month = 1, day = 1) -> t                  // 3000 BCE -> ymd(-2999, ...)
+ya(n)            -> t                            // n years before PRESENT: 1950 - n
+histYear(t)      -> integer historical year: t ≥ 1 -> floor(t); t < 1 -> floor(t) - 1  (never 0; -1 = 1 BCE)
+fromHistYear(h)  -> t at Jan 1 of historical year h (h > 0 -> h; h < 0 -> h + 1). h = 0 is invalid -> throws
+formatYear(t)    -> "3000 BCE" | "79 CE" | "1492"     // CE suffix only for years 1..999; thousands separators for ≥ 10,000
+formatAgo(t)     -> "250,000 years ago"               // n = round(PRESENT - t), thousands separators
+formatDate(t, span) -> label per regime (see table)   // span = end - start of the CURRENT VIEW, in years
+formatRange(start, end) -> e.g. "10,000 BCE – 1 CE", "500 BCE – 400 BCE", "1500 – 1800", "Jul 1969 – Aug 1969",
+                          "300,000 years ago – today"   // en dash with spaces; if either side is BCE, CE years get " CE"
+formatDateFull(t)  -> "Jul 20, 1969", "Mar 15, 44 BCE", "c. 250,000 years ago" (if t < bce(20000))   // for tooltips/panel
+regimeForSpan(span) -> 'ago' | 'year' | 'month' | 'day'
+```
+
+formatDate regimes (span in years):
+
+| regime  | condition          | style                                | examples                   |
+|---------|--------------------|--------------------------------------|----------------------------|
+| 'ago'   | span > 20000       | formatAgo                            | `250,000 years ago`        |
+| 'year'  | 2 < span ≤ 20000   | formatYear                           | `3000 BCE`, `79 CE`, `1492`|
+| 'month' | 0.25 < span ≤ 2    | `Mon YYYY`                           | `Jul 1969`, `Mar 44 BCE`   |
+| 'day'   | span ≤ 0.25        | `Mon D, YYYY`                        | `Jul 20, 1969`             |
+
+Month abbreviations: Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec. Year part in month/day regimes uses formatYear rules.
+
+## 3. Tiers and categories — `HT.tiers`
+
+```
+CATEGORIES = ['origins','migration','technology','agriculture','civilization','empire','religion',
+              'science','art','war','exploration','politics','medicine','computing','space']
+COLORS     = { origins: '#…', ... }      // 15 hues, distinguishable on both dark (#0f1115) and light (#f7f7f5) backgrounds
+MAX_TIER   = 7
+tierForSpan(span) -> integer 0..7:
+    span ≥ 100000 -> 0
+    span ≥  20000 -> 1
+    span ≥   5000 -> 2
+    span ≥   1000 -> 3
+    span ≥    200 -> 4
+    span ≥     50 -> 5
+    span ≥     10 -> 6
+    else          -> 7
+isVisible(event, span) -> event.tier <= tierForSpan(span)
+```
+
+Tier meaning for data authors (an event's tier is the COARSEST view at which it should appear):
+- 0: one of the ~15 most consequential events in all of human history (shown at the root view)
+- 1: matters at the scale of all of civilization (20k-year views), ~30 total
+- 2: matters at a 5,000-year scale
+- 3: matters at a 1,000-year scale
+- 4: matters at a 200-year scale
+- 5: matters at a 50-year scale
+- 6: matters at a decade scale
+- 7: only shown when viewing less than a decade
+
+## 4. Ticks — `HT.ticks`
+
+```
+computeTicks(start, end, widthPx, opts?) -> {
+  regime:  'ago' | 'year' | 'month' | 'day',
+  unit:    'years' | 'months' | 'days',
+  step:    number,                         // major interval size in `unit`
+  major:   [{ t, label, labeled }],        // sorted by t; `labeled:false` = tick drawn but label suppressed (overlap thinning)
+  minor:   [t]                             // sorted by t, excludes positions that are majors
+}
+opts.targetPx   (default 110)   choose the SMALLEST ladder interval whose pixel spacing ≥ targetPx
+opts.labelWidth (default label => label.length * 7 + 0)   px estimate; used for overlap thinning
+opts.labelGap   (default 12)    minimum px between adjacent labels
+```
+
+Ladder:
+- years: `1, 2, 5 × 10^n` for n ≥ 0 (1, 2, 5, 10, 20, 50, 100, … 100000)
+- months: 1, 2, 3, 6
+- days: 1, 2, 7, 14  (14 = fortnight)
+
+Tick positions are "nice" in the space the user reads:
+- regime 'ago' (span > 20000): positions at whole multiples of `step` *years ago*, i.e. `t = PRESENT - k*step`.
+  Labels via formatAgo. Example: step 50000 → 300,000 / 250,000 / … / 50,000 years ago.
+- regime 'year' with step ≥ 2: positions at historical years that are multiples of `step`, converted with
+  fromHistYear, PLUS the epoch tick at t = 1 (1 CE) standing in for historical year 0.
+  Example step 1000 over -3000…2026: labels `3000 BCE, 2000 BCE, 1000 BCE, 1 CE, 1000, 2000`.
+- regime 'year' with step 1: every integer t; labels formatYear(t) (…, `2 BCE`, `1 BCE`, `1 CE`, `2 CE`, …).
+- months: the 1st of months whose (month-1) is a multiple of step; days: day-of-month 1, 1+step, 1+2*step … (reset each month).
+- regime for labels = `HT.time.regimeForSpan(end - start)`; label text = `HT.time.formatDate(t, span)`.
+
+Minor ticks: evenly spaced in t between consecutive majors (and extended to the view edges): 5 subdivisions when
+the step's leading digit is 1 or 5, 4 when it is 2; months/days: 4 subdivisions. Minor ticks are never labeled.
+
+Overlap thinning: walk majors left to right; if a label's left edge (t→px, centered on the tick) would come within
+`labelGap` of the previous kept label's right edge, mark it `labeled:false`. Keep the first. Font never shrinks.
+
+Pixel mapping used throughout: `px = (t - start) / (end - start) * widthPx`.
+
+## 5. Lane layout — `HT.layout`
+
+```
+packLanes(items, opts?) -> { lanes: number, placed: [{ index, lane }], dropped: [index] }
+items: [{ x0, x1, priority }]      // px; x1 > x0 already includes label width; priority: lower = more important (use tier)
+opts.gap      (default 8)   px between neighbors in a lane
+opts.maxLanes (default 6)
+```
+Algorithm: stable sort by (priority asc, x0 asc); for each item pick the lowest lane where
+`x0 - gap ≥ laneRight[lane]` (i.e. no overlap with anything already in that lane, tolerant of out-of-order x0);
+if none in 0..maxLanes-1 → dropped. Pure function, no DOM.
+
+## 6. Event schema and data files — `HT.events`
+
+```js
+(function (root) {
+  'use strict';
+  const HT = root.HT || (root.HT = {});
+  const { bce, ce, ymd, ya } = HT.time;
+  HT.events = HT.events || [];
+  HT.events.push(
+    { t: ya(300000), title: 'Earliest Homo sapiens (Jebel Irhoud, Morocco)', detail: '…', tier: 0, category: 'origins' },
+    { t: bce(3100), end: bce(2900), title: '…', detail: '…', tier: 2, category: 'civilization' },
+    { t: ce(1969, 7, 20), title: 'Apollo 11 lands on the Moon', detail: '…', tier: 1, category: 'space' }
+  );
+})(typeof window !== 'undefined' ? window : globalThis);
+```
+
+Rules (enforced by test/data.test.js):
+- `t` in [ROOT_START, now()]; `end` (optional) > t and ≤ now(); tier integer 0..7; category ∈ CATEGORIES
+- title: 1–80 chars, no trailing period; detail: 1–2 sentences, 20–300 chars
+- no duplicate titles across all files; `id` is NOT authored (app derives it from index)
+- day precision (ymd with month/day) is required for events after 1900 wherever the exact date is well known
+- representative windows (start, end, min visible count) — visible = t within window AND tier ≤ tierForSpan(end-start):
+    (ROOT_START, now, 8), (bce(10000), now, 8), (bce(3000), ce(500), 8), (ce(500), ce(1500), 8),
+    (ce(1500), ce(1800), 8), (ce(1800), ce(1945), 8), (ce(1945), now, 8), (ce(1900), ce(1950), 8),
+    (ce(1960), ce(1970), 6), (ce(2010), ce(2020), 6), (ce(1969), ce(1970), 4), (ce(1989), ce(1990), 4), (ce(2020), ce(2021), 4)
+- total ≥ 300 events
+
+## 7. App — `HT.app`
+
+```
+init()                       // called once at end of the bundle; reads location.hash, renders, binds listeners
+setView(start, end, {animate=true, pushHistory=true})   // clamps to [ROOT_START, now()], min span = 1 day (1/365, so a calendar day always fits)
+zoomIn(tCenter, factor=4), zoomOut(factor=4), home(), zoomToEvent(ev)
+getView() -> { start, end }
+```
+Behavior (see PROMPT.md for the full list): click on empty axis → zoomIn(t) animated 250ms (ease-out, interpolate
+log(span) and center); Shift+click → zoomOut; wheel/pinch zoom around cursor; drag to pan; Home/Zoom Out buttons;
+breadcrumbs from the zoom history stack (root … current); a zoom-in near an edge is shifted inside the parent view so the chain stays nested; hash `#s=<start>&e=<end>` (up to 9 significant decimals; the root's end is written as the token `now` so shared/reloaded root links stay the root,
+written with history.pushState on each discrete zoom and replaceState during continuous wheel/drag, restored on load
+and on `hashchange`/`popstate`); tooltip on hover; side panel on event click (stopPropagation); "Zoom to this event"
+fits [t, end] with 15% padding, or for point events a span of `max(1 day, tierSpan(ev.tier) / 10)` centered on t
+where tierSpan(tier) is the lower bound of that tier's span range (tier 7 → 10 years).
+Visibility: `tierForSpan` gives the base tier; when fewer than 8 events would be in view, lower tiers are admitted until 8 are (or tiers run out) — lane packing trims the rest.
+Event markers: point = circle r=5 on the axis + label in a lane above (each `g.event` is focusable: tabindex 0, role button, aria-label "title, date"; Enter/Space opens the panel; invisible `.hit` shapes pad the marker/bar and the label box); ranged = bar 6px tall spanning [t,end] on the
+axis + label. Label width measured with a hidden `<text>` (`getComputedTextLength`) and cached by string.
+Cursor guide: vertical line + date readout in the header (`formatDateFull` when span ≤ 20000, else formatAgo).
+Resize: recompute on `resize`, debounced 100ms. Categories: color from HT.tiers.COLORS; legend toggle in header.
+DOM ids the CSS and tests rely on: `#app, #header, #title, #crumbs, #btn-home, #btn-out, #btn-legend, #cursor-date,
+#timeline (svg), #panel, #panel-close, #panel-zoom, #tooltip, #legend`.
+
+## 8. CSS — `src/styles.css`
+
+Custom properties on `:root` (dark default) and overridden in `@media (prefers-color-scheme: light)`:
+`--bg, --fg, --muted, --axis, --tick, --grid, --accent, --panel-bg, --panel-border, --tooltip-bg, --shadow`.
+Full-viewport grid: header (auto) / timeline (1fr); panel is a right-side aside (320px) that pushes the timeline
+(no overlay) at ≥ 641px and a bottom sheet (max 45vh) at ≤ 640px. System font stack. Minimum touch target 40px.
+
+## 9. Build and test commands
+
+```
+node build.mjs          # writes index.html; fails loudly if any src file is missing
+node --test test/       # all tests
+```
+build.mjs must also verify the bundle contains no `import `, `export `, or `require(` tokens outside comments,
+and that `index.html` has no `src=`/`href=` pointing at external URLs.

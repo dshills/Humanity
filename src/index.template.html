@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#15171d">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="description" content="A zoomable timeline of human history, from the first Homo sapiens 300,000 years ago to today.">
+<title>Humanity — a zoomable timeline</title>
+<style>
+<!--STYLES-->
+</style>
+</head>
+<body>
+<noscript>This timeline needs JavaScript to run.</noscript>
+<div id="app">
+  <header id="header">
+    <h1 id="title">Humanity</h1>
+    <nav id="crumbs" aria-label="Zoom path"></nav>
+    <div id="cursor-date" aria-live="off"></div>
+    <div id="controls">
+      <button id="btn-out" type="button">Zoom out</button>
+      <button id="btn-home" type="button">Home</button>
+      <button id="btn-legend" type="button" aria-expanded="false">Legend</button>
+    </div>
+  </header>
+  <main id="stage">
+    <svg id="timeline" role="group" aria-label="Timeline of humanity. Click to zoom in; events are buttons."></svg>
+    <div id="tooltip" role="tooltip" hidden></div>
+    <div id="legend" hidden></div>
+  </main>
+  <aside id="panel" hidden aria-label="Event details">
+    <button id="panel-close" type="button" aria-label="Close">×</button>
+    <div id="panel-category"></div>
+    <h2 id="panel-title"></h2>
+    <div id="panel-date"></div>
+    <p id="panel-detail"></p>
+    <button id="panel-zoom" type="button">Zoom to this event</button>
+  </aside>
+</div>
+<script>
+<!--SCRIPTS-->
+</script>
+</body>
+</html>

@@ -1,0 +1,623 @@
+/* ==========================================================================
+   Humanity — styles.css
+   --------------------------------------------------------------------------
+   Direction: "ink and instrument". The chrome is achromatic and quiet (warm
+   off-white ink on near-black; inverted in light mode) so the fifteen category
+   hues are the only color on the page. Serif display face for the title and
+   panel heading, system sans for UI, tabular figures on every date readout.
+
+   Tokens required by CONTRACT.md §8 live on :root (dark default) and are
+   overridden under prefers-color-scheme: light. Surfaces #0f1115 / #f7f7f5
+   are the two the category palette in tiers.js was validated against.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* contract tokens */
+  --bg: #0f1115;
+  --fg: #ebe8df;
+  --muted: #9c9a92;
+  --axis: #7a786f;
+  --tick: #55544e;
+  --grid: #26282e;
+  --accent: #f1e7cf;
+  --panel-bg: #15171d;
+  --panel-border: #2a2d35;
+  --tooltip-bg: rgba(24, 26, 33, 0.94);
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+
+  /* extras */
+  --bg-deep: #090a0d;
+  --accent-fg: #121317;
+  --hover: rgba(235, 232, 223, 0.07);
+  --active: rgba(235, 232, 223, 0.13);
+  --font-ui: "Avenir Next", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system,
+             "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia,
+                  "Times New Roman", serif;
+  --hit: 40px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #f7f7f5;
+    --fg: #1a1b1f;
+    --muted: #676661;
+    --axis: #85847e;
+    --tick: #b5b4ad;
+    --grid: #e3e2dc;
+    --accent: #1a1b1f;
+    --panel-bg: #ffffff;
+    --panel-border: #dad9d2;
+    --tooltip-bg: rgba(255, 255, 255, 0.96);
+    --shadow: 0 12px 32px rgba(25, 25, 35, 0.14), 0 1px 2px rgba(25, 25, 35, 0.08);
+    --bg-deep: #ecebe6;
+    --accent-fg: #f7f7f5;
+    --hover: rgba(26, 27, 31, 0.06);
+    --active: rgba(26, 27, 31, 0.11);
+  }
+}
+
+/* Category hues — mirror HT.tiers.COLORS. Used as a fallback fill for markers
+   that app.js did not paint explicitly, and for the panel's category dot. */
+.cat-origins      { --cat: #a98304; }
+.cat-migration    { --cat: #019d9a; }
+.cat-technology   { --cat: #a86003; }
+.cat-agriculture  { --cat: #4a9f47; }
+.cat-civilization { --cat: #6e7e01; }
+.cat-empire       { --cat: #b53874; }
+.cat-religion     { --cat: #8c54c3; }
+.cat-science      { --cat: #0993d2; }
+.cat-art          { --cat: #c360bc; }
+.cat-war          { --cat: #d6464d; }
+.cat-exploration  { --cat: #dd6f23; }
+.cat-politics     { --cat: #7d80df; }
+.cat-medicine     { --cat: #078968; }
+.cat-computing    { --cat: #058298; }
+.cat-space        { --cat: #3072d0; }
+
+/* --------------------------------------------------------------------------
+   Base
+   -------------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.4 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[hidden] { display: none !important; }
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection { background: var(--accent); color: var(--accent-fg); }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:focus:not(:focus-visible) { outline: none; }
+
+/* --------------------------------------------------------------------------
+   App grid: header (auto) / stage (1fr); the panel is a 320px right column
+   that pushes the stage at ≥ 641px and a bottom sheet at ≤ 640px.
+   -------------------------------------------------------------------------- */
+#app {
+  display: grid;
+  height: 100vh;
+  height: 100dvh;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "header"
+    "stage";
+}
+
+body.panel-open #app {
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas:
+    "header header"
+    "stage  panel";
+}
+
+/* --------------------------------------------------------------------------
+   Header — one compact bar: title | crumbs (scrolls) | cursor date | controls
+   -------------------------------------------------------------------------- */
+#header {
+  grid-area: header;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "title crumbs date controls";
+  align-items: center;
+  column-gap: 14px;
+  min-height: 56px;
+  padding: 0 14px 0 18px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--panel-border);
+  position: relative;
+  z-index: 10;
+}
+
+#title {
+  grid-area: title;
+  margin: 0;
+  padding-right: 16px;
+  border-right: 1px solid var(--panel-border);
+  font: 500 21px/1 var(--font-display);
+  letter-spacing: 0.02em;
+  color: var(--fg);
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Breadcrumbs: chevron-separated buttons, current one emphasized. */
+#crumbs {
+  grid-area: crumbs;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding-right: 28px;               /* room for the fade so the current crumb is never dimmed */
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent);
+          mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent);
+}
+#crumbs::-webkit-scrollbar { display: none; }
+
+.crumb {
+  flex: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+  padding: 0 8px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  transition: color 120ms var(--ease), background-color 120ms var(--ease);
+}
+.crumb + .crumb { margin-left: 18px; }
+.crumb + .crumb::before {
+  content: "\203A";                  /* › */
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--tick);
+  font-size: 16px;
+  line-height: 1;
+  pointer-events: none;
+}
+.crumb:hover { color: var(--fg); background: var(--hover); }
+.crumb:active { background: var(--active); }
+.crumb.current { color: var(--fg); font-weight: 600; cursor: default; }
+.crumb:focus-visible { outline-offset: -2px; }         /* inset: the scroll box + mask would clip an outer ring */
+.crumb.current:hover { background: none; }
+
+/* Cursor date readout: tabular so the header never jitters as the pointer moves. */
+#cursor-date {
+  grid-area: date;
+  min-width: 13ch;
+  text-align: right;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+#cursor-date:empty::before { content: "\2014"; color: var(--tick); }
+
+#controls {
+  grid-area: controls;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#controls button {
+  min-height: var(--hit);
+  min-width: var(--hit);
+  padding: 0 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--fg);
+  white-space: nowrap;
+  transition: background-color 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease);
+}
+#controls button:hover { background: var(--hover); border-color: var(--muted); }
+#controls button:active { background: var(--active); }
+#btn-legend[aria-expanded="true"] {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
+}
+
+/* --------------------------------------------------------------------------
+   Stage
+   -------------------------------------------------------------------------- */
+#stage {
+  grid-area: stage;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 70% at 50% 100%, var(--bg) 0%, transparent 70%),
+    linear-gradient(180deg, var(--bg-deep) 0%, var(--bg) 100%);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#timeline {
+  display: block;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-ui);
+  font-size: 13px;                   /* any unclassed measuring <text> gets label metrics */
+  cursor: crosshair;
+  touch-action: none;                /* app.js owns pinch and drag */
+  -webkit-tap-highlight-color: transparent;
+}
+#timeline.dragging { cursor: grabbing; }
+
+/* Tick furniture: recessive hairlines, solid, crisp. */
+.g-minor, .g-major, .g-labels, .g-axis, .g-cursor { pointer-events: none; }
+
+.tick        { stroke-width: 1; shape-rendering: crispEdges; }
+.tick.minor  { stroke: var(--grid); }
+.tick.major  { stroke: var(--tick); }
+.axis        { stroke: var(--axis); stroke-width: 1.5; shape-rendering: crispEdges; }
+
+.tick-label {
+  fill: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.cursor-line {
+  stroke: var(--accent);
+  stroke-opacity: 0.45;
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+/* Events */
+.event {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.event .hit { fill: transparent; stroke: none; pointer-events: all; }
+.event .marker,
+.event .bar { transition: transform 150ms var(--ease), stroke-width 150ms var(--ease), fill-opacity 150ms var(--ease); }
+
+/* Fallback fill only where app.js did not set a fill attribute. */
+.event .marker:not([fill]),
+.event .bar:not([fill]) { fill: var(--cat, var(--muted)); }
+
+.event .marker {
+  stroke: var(--bg);                 /* 2px surface ring keeps overlapping points legible */
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.event .bar {
+  rx: 3;
+  ry: 3;
+  fill-opacity: 0.9;
+}
+
+/* Labels wear the text token, never the series hue; a surface-color halo lifts
+   them off ticks and bars. All labels share one size/weight so measured widths
+   match rendered widths. */
+.event .label {
+  fill: var(--fg);
+  font-size: 13px;
+  paint-order: stroke fill;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.event:hover .marker,
+.event:focus-visible .marker { transform: scale(1.3); stroke-width: 2.5; }
+.event:hover .bar,
+.event:focus-visible .bar { fill-opacity: 1; transform: scaleY(1.35); transform-box: fill-box; transform-origin: center; }
+.event:hover .label,
+.event:focus-visible .label { fill: var(--accent); }   /* no weight change: label width must stay as measured */
+.event:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* --------------------------------------------------------------------------
+   Tooltip
+   -------------------------------------------------------------------------- */
+#tooltip {
+  position: absolute;
+  z-index: 5;
+  max-width: 300px;
+  padding: 9px 12px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--tooltip-bg);
+  -webkit-backdrop-filter: blur(10px);
+          backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+  color: var(--fg);
+  font-size: 13px;
+  line-height: 1.45;
+  pointer-events: none;
+  animation: tt-in 120ms var(--ease);
+}
+#tooltip > :first-child { font-weight: 600; }
+#tooltip > * + * { margin-top: 3px; }
+#tooltip time,
+#tooltip .date,
+#tooltip small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes tt-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* --------------------------------------------------------------------------
+   Legend — floating card in the stage's top-right
+   -------------------------------------------------------------------------- */
+#legend {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 7px 18px;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--panel-bg);
+  box-shadow: var(--shadow);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  animation: tt-in 140ms var(--ease);
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--fg);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+.legend-item i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--panel-bg);   /* the same surface ring as the marker */
+  background: var(--cat, var(--muted));
+}
+
+/* --------------------------------------------------------------------------
+   Detail panel — right column at ≥ 641px, bottom sheet at ≤ 640px
+   -------------------------------------------------------------------------- */
+#panel {
+  grid-area: panel;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  padding: 22px 22px 24px;
+  border-left: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: panel-in 220ms var(--ease);
+}
+
+#panel-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: var(--hit);
+  height: var(--hit);
+  border-radius: 50%;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--muted);
+  transition: background-color 120ms var(--ease), color 120ms var(--ease);
+}
+#panel-close:hover { background: var(--hover); color: var(--fg); }
+#panel-close:active { background: var(--active); }
+
+#panel-category {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-right: 44px;
+  min-height: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+#panel-category:not(:empty)::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cat, var(--muted));
+}
+
+#panel-title {
+  margin: 10px 44px 0 0;
+  font: 500 23px/1.2 var(--font-display);
+  letter-spacing: 0.005em;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+#panel-date {
+  margin-top: 6px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+#panel-detail {
+  margin: 14px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--panel-border);
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+#panel-zoom {
+  margin-top: 20px;
+  min-height: var(--hit);
+  padding: 0 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: opacity 120ms var(--ease), transform 120ms var(--ease);
+}
+#panel-zoom:hover { opacity: 0.9; }
+#panel-zoom:active { transform: translateY(1px); }
+
+@keyframes panel-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes sheet-in {
+  from { transform: translateY(100%); }
+  to   { transform: none; }
+}
+
+/* --------------------------------------------------------------------------
+   Narrow screens (≤ 640px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  #app,
+  body.panel-open #app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "header"
+      "stage"
+      "panel";
+  }
+
+  /* Two wrapped rows: title + controls, then crumbs + date. A flex row (not the grid) so the
+     date readout is sized by its own text instead of sharing a column with the buttons. */
+  #header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 0;
+    column-gap: 10px;
+    padding: 4px 10px 4px 14px;
+  }
+  #title { order: 1; flex: 1 1 auto; font-size: 18px; padding-right: 0; border-right: 0; }
+  #controls { order: 2; flex: none; }
+  #controls button { padding: 0 10px; }
+  #crumbs { order: 3; flex: 1 1 55%; min-width: 0; }
+  #cursor-date {
+    order: 4;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 42%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+  }
+
+  #legend {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+    max-width: none;
+  }
+
+  #panel {
+    max-height: 45vh;
+    padding: 18px 18px 20px;
+    border-left: 0;
+    border-top: 1px solid var(--panel-border);
+    border-radius: 14px 14px 0 0;
+    box-shadow: var(--shadow);
+    animation: sheet-in 240ms var(--ease);
+  }
+  #panel::before {                    /* sheet grabber */
+    content: "";
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--tick);
+    transform: translateX(-50%);
+  }
+  #panel-close { top: 8px; right: 8px; }
+  #panel-title { font-size: 20px; }
+  #panel-detail { font-size: 14px; }
+}
+
+/* --------------------------------------------------------------------------
+   Preferences
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .event .marker,
+  .event .bar,
+  .legend-item i,
+  #panel-category::before { forced-color-adjust: none; }
+}
