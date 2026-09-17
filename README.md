@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The full 300,000-year view in NVG mode: events above the axis, three glacial cycles of CO₂, temperature and sea level in the Earth layer beneath it, HUD readouts and the mode dock](docs/screenshot.png)
+![The Roman era (31 BCE to 300 CE) in NVG mode: reigns of emperors and popes as bars, battles and curated events in lanes above the axis, the Earth layer beneath it, HUD readouts and the mode dock](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
