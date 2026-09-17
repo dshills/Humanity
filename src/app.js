@@ -26,6 +26,8 @@
   const MIN_VISIBLE = 8;                  // admit lower tiers until this many events are in view
   const THEMES = ['ops', 'crt', 'nvg', 'ironbow', 'noir', 'paper'];
   const THEME_KEY = 'ht-theme';
+  const EARTH_KEY = 'ht-earth';
+  const EARTH_ORDER = ['co2', 'temp', 'sea'];
   const DRAG_THRESHOLD = 4;               // px of movement before a press becomes a drag
   const RESIZE_DEBOUNCE_MS = 100;
   const URL_DEBOUNCE_MS = 200;            // trailing replaceState during wheel/drag (Safari rate-limits history writes)
@@ -68,6 +70,7 @@
   let chipHalf = 40;                      // cached half-width of the cursor chip
   let hudStats = { visible: 0, inWindow: 0, tier: 0 };
   let clockTimer = 0;
+  let earthOn = true;                     // climate sparklines visible
   let suppressClickUntil = 0;
 
   // ------------------------------------------------------------------
@@ -517,6 +520,10 @@
   function measureSize() {
     size.width = Math.max(1, dom.stage.clientWidth || 1);
     size.height = Math.max(1, dom.stage.clientHeight || 1);
+    // Read the HUD's position here, before any DOM writes in this frame, so renderEarth never forces a layout.
+    size.hudTop = dom.hud && !dom.hud.hidden
+      ? dom.hud.getBoundingClientRect().top - dom.stage.getBoundingClientRect().top
+      : Infinity;
   }
 
   function render() {
@@ -531,12 +538,123 @@
     lastAxisY = axisY;
     renderTicks(shown, axisY);
     renderEvents(shown, axisY);
+    renderEarth(shown, axisY);
     renderNowMarker(shown, axisY);
     dom.cursorLine.setAttribute('y1', 0);
     dom.cursorLine.setAttribute('y2', h);
     if (lastMouseX !== null) updateCursor(lastMouseX);  // the date under a resting pointer changes with the view
     updateHud(shown);
     settleNext = false;
+  }
+
+  // --- Earth layer: climate sparklines beneath the axis ---
+  function earthSeries() {
+    return HT.earth && HT.earth.series ? HT.earth.series : null;
+  }
+
+  // How long a series' last value is held past its final sample (ice cores stop before the present).
+  const EARTH_HOLD = { co2: 3, temp: 150, sea: 120 };
+
+  // Linear interpolation of a [t, v] series at t (null outside its range). Binary search.
+  function seriesAt(arr, t, hold) {
+    if (!arr || arr.length === 0 || t < arr[0][0]) return null;
+    const last = arr[arr.length - 1];
+    if (t > last[0]) return t - last[0] <= (hold || 0) ? last[1] : null;
+    let lo = 0;
+    let hi = arr.length - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (arr[mid][0] <= t) lo = mid; else hi = mid;
+    }
+    const a = arr[lo];
+    const b = arr[hi];
+    if (b[0] === a[0]) return a[1];
+    return a[1] + (b[1] - a[1]) * (t - a[0]) / (b[0] - a[0]);
+  }
+
+  // Index of the first sample with t >= x (binary search; arr.length if none).
+  function firstIndexAtOrAfter(arr, x) {
+    let lo = 0;
+    let hi = arr.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (arr[mid][0] < x) lo = mid + 1; else hi = mid;
+    }
+    return lo;
+  }
+
+  function earthFormat(key, v) {
+    if (v === null) return '—';
+    if (key === 'co2') return Math.round(v) + ' ppm';
+    if (key === 'temp') return (v > 0 ? '+' : '') + v.toFixed(1) + '°';
+    return (v > 0 ? '+' : '') + Math.round(v) + ' m';
+  }
+
+  function earthReadout(t) {
+    const series = earthSeries();
+    if (!series) return '—';
+    return EARTH_ORDER.map(function (k) { return earthFormat(k, seriesAt(series[k], t, EARTH_HOLD[k])); }).join(' · ');
+  }
+
+  function renderEarth(v, axisY) {
+    const series = earthSeries();
+    const g = dom.gEarth;
+    if (!series || !earthOn) { g.replaceChildren(); return; }
+    const w = size.width;
+    const h = size.height;
+    const top = axisY + 46;                              // below the tick labels
+    let floor = h - 108;                                 // above the HUD and dock
+    if (size.hudTop > top) floor = Math.min(floor, size.hudTop - 10);
+    const bottom = Math.min(floor, top + 150);
+    if (bottom - top < 48) { g.replaceChildren(); return; }
+    const frag = document.createDocumentFragment();
+    const meta = (HT.earth && HT.earth.meta) || {};
+    const step = Math.max(1, Math.floor(w / 700));       // px per sample when the view is dense
+    for (let s = 0; s < EARTH_ORDER.length; s++) {
+      const key = EARTH_ORDER[s];
+      const arr = series[key];
+      if (!arr || arr.length < 2) continue;
+      const range = (meta[key] && meta[key].range) || [0, 1];
+      const y = function (val) { return bottom - (val - range[0]) / (range[1] - range[0]) * (bottom - top); };
+      // Points: interpolated value at each view edge plus every sample inside the view. When samples are
+      // sparser than pixels we draw them all; when denser, we thin to one per `step` px.
+      const pts = [];
+      const v0 = seriesAt(arr, v.start, EARTH_HOLD[key]);
+      if (v0 !== null) pts.push([0, y(v0)]);
+      let lastPx = -Infinity;
+      for (let i = firstIndexAtOrAfter(arr, v.start); i < arr.length; i++) {
+        const t = arr[i][0];
+        if (t > v.end) break;
+        const px = tToPx(t, v);
+        if (px - lastPx < step) continue;
+        lastPx = px;
+        pts.push([px, y(arr[i][1])]);
+      }
+      const v1 = seriesAt(arr, v.end, EARTH_HOLD[key]);
+      if (v1 !== null) pts.push([w, y(v1)]);
+      if (pts.length < 2) continue;
+      const d = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+      if (key === 'co2') {
+        frag.appendChild(svgEl('path', { class: 'earth-fill co2', d: d + ' L' + w + ' ' + bottom + ' L0 ' + bottom + ' Z' }));
+      }
+      frag.appendChild(svgEl('path', { class: 'earth-line ' + key, d: d }));
+      // Stacked legend at the band's top-left: series name and the value at the view's end.
+      const label = svgEl('text', { class: 'earth-label ' + key, x: 10, y: top + 12 + s * 13, 'text-anchor': 'start' });
+      const k = svgEl('tspan', { class: 'k' }, (meta[key] && meta[key].label ? meta[key].label : key) + ' ');
+      const val = svgEl('tspan', { class: 'v' }, earthFormat(key, v1 !== null ? v1 : (pts.length ? null : null)));
+      label.appendChild(k);
+      label.appendChild(val);
+      frag.appendChild(label);
+    }
+    frag.appendChild(svgEl('line', { class: 'earth-base', x1: 0, x2: w, y1: crisp(bottom), y2: crisp(bottom) }));
+    g.replaceChildren(frag);
+  }
+
+  function setEarth(on) {
+    earthOn = !!on;
+    try { root.localStorage.setItem(EARTH_KEY, earthOn ? '1' : '0'); } catch (err) { /* ignore */ }
+    if (dom && dom.btnEarth) dom.btnEarth.setAttribute('aria-pressed', String(earthOn));
+    if (dom && shown) render();
   }
 
   // Today's position on the axis, drawn when it is in view (the HUD beacon lights up with it).
@@ -568,6 +686,7 @@
     dom.hudScale.textContent = '1 px = ' + fmtSpan(span / Math.max(1, size.width));
     const now = nowT();
     dom.hudNow.hidden = !(now >= v.start && now <= v.end);
+    if (dom.hudEarth) dom.hudEarth.textContent = earthReadout(lastMouseX !== null ? pxToT(lastMouseX - svgLeft(), v) : v.end);
   }
 
   function tickClock() {
@@ -785,6 +904,7 @@
     dom.cursorLine.setAttribute('visibility', 'visible');
     const label = cursorLabel(pxToT(px, shown), shown.end - shown.start);
     dom.cursorDate.textContent = label;
+    if (dom.hudEarth) dom.hudEarth.textContent = earthReadout(pxToT(px, shown));
     if (dom.cursorChip) {
       if (dom.cursorChip.textContent !== label) {     // measure only when the text changes (no layout per mousemove)
         dom.cursorChip.textContent = label;
@@ -1165,6 +1285,11 @@
         setTheme(THEMES[Number(e.key) - 1]);
         e.preventDefault();
         break;
+      case 'e':
+      case 'E':
+        setEarth(!earthOn);
+        e.preventDefault();
+        break;
       case 't':
       case 'T': {
         const cur = THEMES.indexOf(resolveTheme(theme));
@@ -1250,6 +1375,7 @@
     dom.gLabels = svgEl('g', { class: 'g-labels' });
     dom.gAxis = svgEl('g', { class: 'g-axis' });
     dom.gEvents = svgEl('g', { class: 'g-events' });
+    dom.gEarth = svgEl('g', { class: 'g-earth', 'pointer-events': 'none' });
     dom.gNow = svgEl('g', { class: 'g-now', 'pointer-events': 'none' });
     dom.gCursor = svgEl('g', { class: 'g-cursor', 'pointer-events': 'none' });
     dom.cursorLine = svgEl('line', { class: 'cursor-line', x1: 0, x2: 0, y1: 0, y2: 0, visibility: 'hidden' });
@@ -1261,7 +1387,7 @@
     measureEvent.appendChild(measureLabelEl);
     gMeasure.appendChild(measureTickEl);
     gMeasure.appendChild(measureEvent);
-    svg.replaceChildren(dom.gMinor, dom.gMajor, dom.gLabels, dom.gAxis, dom.gNow, dom.gEvents, dom.gCursor, gMeasure);
+    svg.replaceChildren(dom.gMinor, dom.gMajor, dom.gEarth, dom.gLabels, dom.gAxis, dom.gNow, dom.gEvents, dom.gCursor, gMeasure);
 
     // The tooltip is positioned in stage coordinates; make sure the stage is its containing block.
     dom.tooltip.style.position = 'absolute';
@@ -1287,7 +1413,8 @@
       panelLink: $('panel-link'),
       dock: $('dock'), cursorChip: $('cursor-chip'),
       hudSpan: $('hud-span'), hudEvents: $('hud-events'), hudTier: $('hud-tier'), hudScale: $('hud-scale'),
-      hudMode: $('hud-mode'), hudClock: $('hud-clock'), hudNow: $('hud-now')
+      hudMode: $('hud-mode'), hudClock: $('hud-clock'), hudNow: $('hud-now'),
+      hudEarth: $('hud-earth'), btnEarth: $('btn-earth'), hud: $('hud')
     };
     NOW = HT.time.now();
     // Theme: URL param (read in parseHash below) > stored choice > auto.
@@ -1307,6 +1434,11 @@
     }
     tickClock();
     clockTimer = setInterval(tickClock, 1000);
+    try { earthOn = root.localStorage.getItem(EARTH_KEY) !== '0'; } catch (err) { /* ignore */ }
+    if (dom.btnEarth) {
+      dom.btnEarth.setAttribute('aria-pressed', String(earthOn));
+      dom.btnEarth.addEventListener('click', function () { setEarth(!earthOn); });
+    }
     buildSvgScaffold();
     renderLegend();
 
@@ -1336,6 +1468,7 @@
     getView: getView,
     setTheme: setTheme,
     getTheme: getTheme,
+    setEarth: setEarth,
     THEMES: THEMES.slice()
   };
 })(typeof window !== 'undefined' ? window : globalThis);

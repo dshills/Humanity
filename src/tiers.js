@@ -4,9 +4,9 @@
   const HT = root.HT || (root.HT = {});
 
   const CATEGORIES = ['origins', 'migration', 'technology', 'agriculture', 'civilization', 'empire', 'religion',
-    'science', 'art', 'war', 'exploration', 'politics', 'medicine', 'computing', 'space'];
+    'science', 'art', 'war', 'exploration', 'politics', 'medicine', 'computing', 'space', 'earth'];
 
-  // 15 hues spaced ~24° apart in OKLCH with alternating lightness. Every color has a WCAG
+  // 15 hues (plus 'earth', added later) spaced ~24° apart in OKLCH with alternating lightness. Every color has a WCAG
   // contrast ratio ≥ 3:1 against both #0f1115 (dark) and #f7f7f5 (light); the closest pair
   // is OKLab ΔE 0.082 (computing/migration).
   const COLORS = {
@@ -24,7 +24,8 @@
     politics:     '#7d80df', // periwinkle
     medicine:     '#078968', // emerald
     computing:    '#058298', // deep cyan
-    space:        '#3072d0'  // blue
+    space:        '#3072d0', // blue
+    earth:        '#b0563a'  // terracotta (natural hazards and climate)
   };
 
   const MAX_TIER = 7;

@@ -3,7 +3,7 @@
  * build.mjs — Humanity Timeline bundler (CONTRACT.md §0 and §9)
  *
  * Node ≥ 18, zero dependencies. Reads the sources in the contract order
- *   time.js, tiers.js, ticks.js, layout.js, data/*.js (sorted by filename), app.js
+ *   time.js, tiers.js, ticks.js, layout.js, earth.js, data/*.js (sorted by filename), app.js
  * concatenates them (one comment banner per file) followed by `HT.app.init();`,
  * inlines that bundle and src/styles.css into src/index.template.html, and writes
  * ./index.html — ONE self-contained file that works from file://.
@@ -28,7 +28,7 @@ const OUT_FILE = path.join(ROOT, 'index.html');
 
 const TEMPLATE = 'index.template.html';
 const STYLES = 'styles.css';
-const JS_HEAD = ['time.js', 'tiers.js', 'ticks.js', 'layout.js'];
+const JS_HEAD = ['time.js', 'tiers.js', 'ticks.js', 'layout.js', 'earth.js'];
 const JS_TAIL = ['app.js'];
 const DATA_DIR = 'data';
 const STYLES_PLACEHOLDER = '<!--STYLES-->';

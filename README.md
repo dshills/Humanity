@@ -10,7 +10,7 @@
   <img src="docs/mode-paper.png" width="32%" alt="Paper mode: warm ink on paper">
 </p>
 
-A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 834 events in 15 color-coded categories, each with a link for further reading, are bundled into the page. There are no frameworks, no network requests and nothing to install to view it.
+A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 1,097 events in 16 color-coded categories, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, no network requests and nothing to install to view it.
 
 ## Open it
 
@@ -57,6 +57,20 @@ The console has six sensor-style modes, switched from the dock at the bottom of 
 | 6 | Paper | Warm paper and ink with a serif display face (default in light colour schemes) |
 
 The choice is remembered in `localStorage` and written into the URL as `m=<mode>`, so a shared link carries its look. With no choice made, the mode follows `prefers-color-scheme`. The HUD in the stage's corners shows the span in view, visible events out of those in the window, the tier ceiling, the scale in years per pixel, the mode, a local clock, and a beacon when the present moment is on screen.
+
+## Earth layer
+
+Three climate sparklines run beneath the axis and resolve as you zoom: atmospheric CO₂ (ice-core composite to 1957, Mauna Loa annual means since), Antarctic temperature anomaly (EPICA Dome C) and global sea level (Spratt & Lisiecki stack), covering the last 800,000 years. The HUD's **Earth** row shows the three values under the pointer. Toggle the layer with the **Earth** button or the `E` key; the choice is remembered.
+
+The same import adds 263 natural-hazard events in a sixteenth category, `earth`: earthquakes with at least 10,000 recorded deaths or magnitude 8.5+, tsunamis with at least 5,000 deaths not already carried by their quake, and eruptions of VEI 6+ or at least 1,000 deaths, each linking to its NCEI record. Records within a year of a hand-curated quake, tsunami or eruption are skipped.
+
+Regenerate both from the sources with:
+
+```
+node scripts/import-noaa.mjs   # writes src/earth.js and src/data/09-hazards.js, then rebuild
+```
+
+Data credits (US Government works, unrestricted): Bereiter et al. 2015 CO₂ composite and Jouzel et al. 2007 EPICA Dome C temperature (NOAA NCEI Paleoclimatology); Spratt & Lisiecki 2016 sea-level stack (NOAA NCEI); NOAA GML Mauna Loa CO₂ record; NCEI/WDS Global Significant Earthquake, Tsunami and Volcanic Eruption Databases, doi:10.7289/V5TD9V7K.
 
 ## Adding an event
 
@@ -229,7 +243,7 @@ Choices the spec left open, as implemented:
 - Transitions animate over 250 ms with a cubic ease-out, interpolating `log(span)` and the center so that zooming looks uniform at every scale. A 350 ms safety timer lands the view if animation frames are starved. Animation is skipped under `prefers-reduced-motion`.
 - Mouse wheel zooms by `exp(deltaY × 0.002)` per event, clamped to [0.5, 2]; a trackpad pinch (a wheel event with `ctrlKey`) uses `0.01` because it reports much smaller deltas. Shift+wheel and horizontal wheel deltas pan. Line- and page-mode deltas are scaled to pixels.
 - Touch uses Pointer Events with `touch-action: none`; a press becomes a drag after 4 px of movement; a two-finger pinch keeps the date under each finger fixed by solving the linear pixel mapping; three or more fingers are ignored; when one finger of a pinch lifts, the other continues as a pan. Safari's `gesturestart`/`gesturechange` are suppressed. Touch pointers never show the tooltip or the cursor guide.
-- Keyboard: `Escape`, `-`/`_` (zoom out), `0` (home), `+`/`=` (zoom in at center), `1`–`6` (visual mode), `T` (cycle modes). Ignored while Ctrl, Alt or Meta is held or while focus is in a form field. There is no Home-key binding; Home is the button.
+- Keyboard: `Escape`, `-`/`_` (zoom out), `0` (home), `+`/`=` (zoom in at center), `1`–`6` (visual mode), `T` (cycle modes), `E` (Earth layer). Ignored while Ctrl, Alt or Meta is held or while focus is in a form field. There is no Home-key binding; Home is the button.
 - The stage is resized on `window.resize` and on a `ResizeObserver` for the stage (so opening the panel reflows without a window event), debounced 100 ms.
 
 **Appearance**

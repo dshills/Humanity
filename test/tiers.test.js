@@ -12,7 +12,7 @@ const TIERS = globalThis.HT && globalThis.HT.tiers;
 
 const CATEGORIES = [
   'origins', 'migration', 'technology', 'agriculture', 'civilization', 'empire', 'religion',
-  'science', 'art', 'war', 'exploration', 'politics', 'medicine', 'computing', 'space',
+  'science', 'art', 'war', 'exploration', 'politics', 'medicine', 'computing', 'space', 'earth',
 ];
 
 // [span, expected tier] at and just below every boundary in the contract table.
@@ -44,19 +44,19 @@ describe('module shape (section 1)', () => {
 });
 
 describe('CATEGORIES', () => {
-  test('exactly the 15 contract categories in contract order', () => {
+  test('exactly the 16 contract categories in contract order', () => {
     assert.deepEqual(TIERS.CATEGORIES, CATEGORIES);
   });
 
   test('no duplicates', () => {
-    assert.equal(new Set(TIERS.CATEGORIES).size, 15);
+    assert.equal(new Set(TIERS.CATEGORIES).size, 16);
   });
 });
 
 describe('COLORS', () => {
-  test('has exactly the 15 category keys and no others', () => {
+  test('has exactly the 16 category keys and no others', () => {
     const keys = Object.keys(TIERS.COLORS);
-    assert.equal(keys.length, 15);
+    assert.equal(keys.length, 16);
     assert.deepEqual([...keys].sort(), [...CATEGORIES].sort());
     for (const c of CATEGORIES) {
       assert.ok(Object.prototype.hasOwnProperty.call(TIERS.COLORS, c), `COLORS.${c} present`);
@@ -71,9 +71,9 @@ describe('COLORS', () => {
     }
   });
 
-  test('15 distinct hues', () => {
+  test('16 distinct hues', () => {
     const values = CATEGORIES.map((c) => String(TIERS.COLORS[c]).toLowerCase());
-    assert.equal(new Set(values).size, 15, 'no two categories share a color');
+    assert.equal(new Set(values).size, 16, 'no two categories share a color');
   });
 });
 
