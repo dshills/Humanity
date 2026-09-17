@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The timeline zoomed to 1945–today in NVG mode: events stacked in lanes above a year axis, HUD readouts and the mode dock](docs/screenshot.png)
+![The full 300,000-year view in NVG mode: events above the axis, three glacial cycles of CO₂, temperature and sea level in the Earth layer beneath it, HUD readouts and the mode dock](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
