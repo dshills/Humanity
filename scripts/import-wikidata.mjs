@@ -1,0 +1,233 @@
+#!/usr/bin/env node
+// Imports battles and office-holders (rulers, heads of state and government) from Wikidata (CC0) into
+//   src/data/10-wikidata.js
+// Selection: battles with >= 20 sitelinks and a dated point in time; holders of a curated list of offices
+// with a dated start and >= 25 sitelinks. Titles/descriptions are Wikidata's own (CC0); links go to the
+// English Wikipedia article when one exists, else to the Wikidata item.
+// Run: node scripts/import-wikidata.mjs   (network access needed at import time only)
+import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const UA = 'HumanityTimeline/1.0 (https://github.com/dshills/Humanity; import script)';
+const ENDPOINT = 'https://query.wikidata.org/sparql';
+const BATTLE_MIN_SITELINKS = 20;
+const RULER_MIN_SITELINKS = 35;
+
+// Office item, short title used after the holder's name, event category.
+const OFFICES = [
+  ['Q37110', 'pharaoh', 'empire'],
+  ['Q28124026', 'king of Assyria', 'empire'],
+  ['Q28132899', 'king of Babylon', 'empire'],
+  ['Q842606', 'Roman emperor', 'empire'],
+  ['Q18577504', 'Byzantine emperor', 'empire'],
+  ['Q268218', 'emperor of China', 'empire'],
+  ['Q208233', 'emperor of Japan', 'empire'],
+  ['Q19546', 'pope', 'religion'],
+  ['Q28541943', 'Abbasid caliph', 'religion'],
+  ['Q181765', 'Holy Roman Emperor', 'empire'],
+  ['Q18384454', 'king of France', 'empire'],
+  ['Q18810062', 'monarch of England', 'empire'],
+  ['Q187878', 'khagan', 'empire'],
+  ['Q4115925', 'sultan of Egypt', 'empire'],
+  ['Q15315411', 'Ottoman sultan', 'empire'],
+  ['Q10962705', 'emperor of Ethiopia', 'empire'],
+  ['Q15390704', 'Mughal emperor', 'empire'],
+  ['Q165948', 'Sapa Inca', 'empire'],
+  ['Q16104362', 'tlatoani', 'empire'],
+  ['Q887176', 'Oba of Benin', 'empire'],
+  ['Q3847454', 'monarch of Spain', 'empire'],
+  ['Q58800860', 'monarch of Portugal', 'empire'],
+  ['Q3240735', 'king of Prussia', 'empire'],
+  ['Q2618625', 'emperor of Russia', 'empire'],
+  ['Q11696', 'president of the United States', 'politics'],
+  ['Q14211', 'prime minister of the United Kingdom', 'politics'],
+  ['Q191954', 'president of France', 'politics'],
+  ['Q56022', 'chancellor of Germany', 'politics'],
+  ['Q1048744', 'general secretary of the CPSU', 'politics'],
+  ['Q2708520', 'chairman of the Chinese Communist Party', 'politics'],
+  ['Q192711', 'prime minister of India', 'politics'],
+];
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function sparql(query, attempt = 1) {
+  const r = await fetch(ENDPOINT + '?format=json&query=' + encodeURIComponent(query), {
+    headers: { 'User-Agent': UA, Accept: 'application/sparql-results+json' },
+  });
+  if (!r.ok) {
+    if (attempt < 4 && (r.status === 429 || r.status >= 500)) { await sleep(3000 * attempt); return sparql(query, attempt + 1); }
+    throw new Error(`${r.status} ${(await r.text()).slice(0, 200)}`);
+  }
+  return (await r.json()).results.bindings;
+}
+const val = (b, k) => (b[k] ? b[k].value : undefined);
+
+// SPARQL returns xsd:dateTime, whose years are astronomical (year 0 = 1 BCE, -0050 = 51 BCE) + precision.
+function parseTime(str, precision) {
+  const m = /^([+-]?)(\d+)-(\d\d)-(\d\d)T/.exec(str || '');    // JSON results omit the leading + on CE dates
+  if (!m) return null;
+  const y = Number(m[2]) * (m[1] === '-' ? -1 : 1);
+  const mo = Number(m[3]) || 1;
+  const d = Number(m[4]) || 1;
+  const p = Number(precision || 9);
+  if (p < 9) return null;                                                // decade/century precision
+  return { y, m: p >= 10 ? mo : 0, d: p >= 11 ? d : 0 };
+}
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function dateExpr(t) {
+  if (t.y <= 0) return t.m && t.d ? `bce(${1 - t.y}, ${t.m}, ${t.d})` : `bce(${1 - t.y})`;
+  return t.m && t.d ? `ymd(${t.y}, ${t.m}, ${t.d})` : t.m ? `ymd(${t.y}, ${t.m}, 1)` : `ce(${t.y})`;
+}
+function dateText(t) {
+  const yr = t.y <= 0 ? `${1 - t.y} BCE` : String(t.y);
+  return t.m && t.d ? `${t.d} ${MONTHS[t.m - 1]} ${yr}` : t.m ? `${MONTHS[t.m - 1]} ${yr}` : yr;
+}
+const astro = (t) => t.y + ((t.m || 1) - 1) / 12;
+const esc = (s) => String(s)
+  .replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '\\r')
+  .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
+  .replace(/</g, '\\x3c');                                            // never emit "</script>" into the inline bundle
+const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+const clip = (s, n) => (s.length <= n ? s : s.slice(0, n - 1).replace(/\s+\S*$/, '') + '…');
+const NOW_ASTRO = new Date().getUTCFullYear() + new Date().getUTCMonth() / 12;   // events after today are excluded
+
+function curated() {
+  const events = [];
+  for (const f of readdirSync(join(ROOT, 'src/data')).sort()) {
+    if (f.startsWith('10-')) continue;
+    const src = readFileSync(join(ROOT, 'src/data', f), 'utf8');
+    const re = /\{\s*t:\s*(bce|ce|ymd|ya)\(([^)]*)\)[^}]*?title:\s*(['"])(.*?)\3/g;
+    let m;
+    while ((m = re.exec(src))) {
+      const a = m[2].split(',').map((x) => parseFloat(x));
+      const y = m[1] === 'bce' ? 1 - a[0] : m[1] === 'ya' ? 1950 - a[0] : a[0];
+      events.push({ y, title: m[4] });
+    }
+  }
+  return events;
+}
+
+async function battles(existing) {
+  const q = `SELECT ?b ?bLabel ?bDescription ?d ?prec ?s ?article ?warLabel ?locLabel ?countryLabel WHERE {
+  ?b wdt:P31/wdt:P279* wd:Q178561 ; wikibase:sitelinks ?s . FILTER(?s >= ${BATTLE_MIN_SITELINKS})
+  ?b p:P585 ?ds . ?ds ps:P585 ?d ; psv:P585 [ wikibase:timePrecision ?prec ] .
+  OPTIONAL { ?b wdt:P361 ?war . }
+  OPTIONAL { ?b wdt:P276 ?loc . }
+  OPTIONAL { ?b wdt:P17 ?country . }
+  OPTIONAL { ?article schema:about ?b ; schema:isPartOf <https://en.wikipedia.org/> . }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+}`;
+  const rows = await sparql(q);
+  const byItem = new Map();
+  for (const r of rows) {                                            // several P585 values: keep the earliest
+    const t = parseTime(val(r, 'd'), val(r, 'prec'));
+    if (!t) continue;
+    const id = val(r, 'b');
+    const prev = byItem.get(id);
+    if (!prev || astro(t) < astro(prev.t)) byItem.set(id, { r, t });
+  }
+  const out = [];
+  for (const { r, t } of byItem.values()) {
+    const label = val(r, 'bLabel') || '';
+    if (!label || /^Q\d+$/.test(label)) continue;
+    const y = astro(t);
+    if (y > NOW_ASTRO) continue;
+    // Skip when a curated event of the same year already names the place.
+    const place = label.replace(/^(First |Second |Third |Fourth )?(Battle|Siege|Sack|Capture|Fall|Bombardment|Raid) (of|at|on) (the )?/i, '').split(/[(,]/)[0].trim();
+    if (place.length >= 4 && existing.some((e) => Math.abs(e.y - y) <= 1 && e.title.toLowerCase().includes(place.toLowerCase()))) continue;
+    const s = Number(val(r, 's'));
+    const tier = s >= 90 ? 3 : s >= 55 ? 4 : s >= 35 ? 5 : 6;
+    const desc = cap(val(r, 'bDescription') || 'battle');
+    const war = val(r, 'warLabel'); const loc = val(r, 'locLabel'); const country = val(r, 'countryLabel');
+    let detail = `${desc}, fought ${dateText(t)}`;
+    if (loc && !/^Q\d+$/.test(loc)) detail += ` at ${loc}`;
+    if (country && !/^Q\d+$/.test(country) && country !== loc) detail += `${loc ? ',' : ' in'} ${country}`;
+    if (war && !/^Q\d+$/.test(war) && !desc.toLowerCase().includes(war.toLowerCase())) detail += `; part of the ${war}`;
+    detail += '.';
+    out.push({ t: dateExpr(t), y, title: clip(label, 80), detail: clip(detail, 300), tier, category: 'war',
+      link: val(r, 'article') || `https://www.wikidata.org/wiki/${val(r, 'b').split('/').pop()}` });
+  }
+  return out;
+}
+
+async function rulers(existing) {
+  const out = [];
+  for (const [qid, office, category] of OFFICES) {
+    const q = `SELECT ?p ?pLabel ?pDescription ?start ?sprec ?end ?s ?article WHERE {
+  ?p p:P39 ?st . ?st ps:P39 wd:${qid} ; pq:P580 ?start ; pqv:P580 [ wikibase:timePrecision ?sprec ] .
+  OPTIONAL { ?st pq:P582 ?end . }
+  ?p wdt:P31 wd:Q5 ; wikibase:sitelinks ?s . FILTER(?s >= ${RULER_MIN_SITELINKS})
+  OPTIONAL { ?article schema:about ?p ; schema:isPartOf <https://en.wikipedia.org/> . }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+}`;
+    let rows;
+    try { rows = await sparql(q); } catch (e) { console.error(`office ${office}: ${e.message}`); continue; }
+    let n = 0;
+    for (const r of rows) {
+      const t = parseTime(val(r, 'start'), val(r, 'sprec'));
+      if (!t) continue;
+      const label = val(r, 'pLabel') || '';
+      if (!label || /^Q\d+$/.test(label)) continue;
+      const y = astro(t);
+      if (y > NOW_ASTRO) continue;
+      const endT = val(r, 'end') ? parseTime(val(r, 'end'), 11) : null;
+      const s = Number(val(r, 's'));
+      const tier = s >= 250 ? 3 : s >= 140 ? 4 : s >= 70 ? 5 : s >= 40 ? 6 : 7;
+      const desc = val(r, 'pDescription');
+      const span = `${dateText(t)}${endT && astro(endT) > y ? ` to ${dateText(endT)}` : ''}`;
+      // Wikidata descriptions often already say the office ("President of the United States from 1861 to 1865");
+      // then only the precise dates are added, otherwise the office sentence is.
+      const officeWord = office.replace(/^(king|monarch|emperor|president|prime minister|chancellor|sultan|general secretary|chairman) of (the )?/i, '').split(' ')[0];
+      let detail = desc ? `${cap(desc).replace(/\.$/, '')}. ` : '';
+      detail += desc && new RegExp(officeWord, 'i').test(desc) ? `In office ${span}.` : `${cap(office)} ${span}.`;
+      const title = clip(`${label}, ${office}`, 80);
+      if (existing.some((e) => e.title.toLowerCase() === title.toLowerCase())) continue;
+      out.push({ t: dateExpr(t), y, end: endT && astro(endT) > y ? dateExpr(endT) : null, title, detail: clip(detail, 300),
+        tier, category, link: val(r, 'article') || `https://www.wikidata.org/wiki/${val(r, 'p').split('/').pop()}`, key: val(r, 'p') + '|' + qid + '|' + Math.floor(y) });
+      n++;
+    }
+    console.log(`${office}: ${n}`);
+    await sleep(600);
+  }
+  // One entry per person/office/start (duplicate statements happen); then distinct titles.
+  const seenKey = new Set();
+  const dedup = out.filter((e) => (seenKey.has(e.key) ? false : (seenKey.add(e.key), true)));
+  return dedup;
+}
+
+const existing = curated();
+const B = await battles(existing);
+console.log(`battles: ${B.length}`);
+const R = await rulers(existing);
+console.log(`rulers: ${R.length}`);
+const all = [...B, ...R].sort((a, b) => a.y - b.y);
+const seen = new Map();
+for (const e of all) seen.set(e.title.toLowerCase(), (seen.get(e.title.toLowerCase()) || 0) + 1);
+const used = new Set();
+for (const e of all) {
+  const k = e.title.toLowerCase();
+  if (seen.get(k) > 1 || used.has(k)) {
+    const yr = e.y < 1 ? `${1 - Math.floor(e.y)} BCE` : String(Math.floor(e.y));
+    const suffix = ` (${yr})`;
+    e.title = clip(e.title.replace(/…$/, ''), 80 - suffix.length) + suffix;
+  }
+  used.add(e.title.toLowerCase());
+}
+const lines = all.map((e) => `    { t: ${e.t},${e.end ? ` end: ${e.end},` : ''} title: '${esc(e.title)}', tier: ${e.tier}, category: '${e.category}', detail: '${esc(e.detail)}', link: '${e.link}' }`);
+const file = `(function (root) {
+  'use strict';
+  const HT = root.HT || (root.HT = {});
+  const { bce, ce, ymd, ya } = HT.time;
+  HT.events = HT.events || [];
+  // Generated by scripts/import-wikidata.mjs from Wikidata (CC0): battles with >= ${BATTLE_MIN_SITELINKS} sitelinks and a
+  // dated point in time, and holders of ${OFFICES.length} offices (reigns and terms as ranged events) with >= ${RULER_MIN_SITELINKS}
+  // sitelinks. Battles that a curated event of the same year already names are skipped. Significance tiers come
+  // from sitelink counts. Dates are as recorded in Wikidata (Julian before 1582).
+  HT.events.push(
+${lines.join(',\n')}
+  );
+})(typeof window !== 'undefined' ? window : globalThis);
+`;
+writeFileSync(join(ROOT, 'src/data/10-wikidata.js'), file);
+console.log(`10-wikidata.js: ${all.length} events, ${Math.round(file.length / 1024)} KB`);

@@ -10,7 +10,7 @@
   <img src="docs/mode-paper.png" width="32%" alt="Paper mode: warm ink on paper">
 </p>
 
-A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 1,097 events in 16 color-coded categories, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, no network requests and nothing to install to view it.
+A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 2,795 events in 16 color-coded categories, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, no network requests and nothing to install to view it.
 
 ## Open it
 
@@ -71,6 +71,19 @@ node scripts/import-noaa.mjs   # writes src/earth.js and src/data/09-hazards.js,
 ```
 
 Data credits (US Government works, unrestricted): Bereiter et al. 2015 CO₂ composite and Jouzel et al. 2007 EPICA Dome C temperature (NOAA NCEI Paleoclimatology); Spratt & Lisiecki 2016 sea-level stack (NOAA NCEI); NOAA GML Mauna Loa CO₂ record; NCEI/WDS Global Significant Earthquake, Tsunami and Volcanic Eruption Databases, doi:10.7289/V5TD9V7K.
+
+## Wikidata layer
+
+`scripts/import-wikidata.mjs` pulls two kinds of events from Wikidata (CC0, no attribution required) into `src/data/10-wikidata.js`:
+
+- **Battles**: every item classed as a battle with a dated point in time and at least 20 sitelinks (roughly 600), tiered by sitelink count. A battle that a hand-curated event of the same year already names is skipped so the curated entry keeps its place.
+- **Rulers and heads of government**: holders of 31 offices, from pharaohs, Assyrian and Babylonian kings, Roman and Byzantine emperors, emperors of China, Japan and Ethiopia, popes, caliphs, khagans, sultans, Incas and tlatoque to US presidents, British and Indian prime ministers, French presidents and German chancellors. Each reign or term is a ranged event with at least 25 sitelinks.
+
+Titles and one-line descriptions are Wikidata's own; each event links to its English Wikipedia article when one exists, otherwise to the Wikidata item. Dates are as recorded in Wikidata, which keeps pre-1582 dates in the Julian calendar. Regenerate with:
+
+```
+node scripts/import-wikidata.mjs   # writes src/data/10-wikidata.js, then rebuild
+```
 
 ## Adding an event
 

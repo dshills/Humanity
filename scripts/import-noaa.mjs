@@ -148,7 +148,10 @@ function tierFor(deaths, vei) {
   if (vei >= 6 || deaths >= 5000) return 5;
   return 6;
 }
-const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+const esc = (s) => String(s)
+  .replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '\\r')
+  .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
+  .replace(/</g, '\\x3c');                                            // never emit "</script>" into the inline bundle
 
 const curatedTitles = new Set();
 function existingHazardYears() {
