@@ -2,10 +2,10 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The timeline zoomed to 1945–today in Ops mode: events stacked in lanes above a year axis, HUD readouts and the mode dock](docs/screenshot.png)
+![The timeline zoomed to 1945–today in NVG mode: events stacked in lanes above a year axis, HUD readouts and the mode dock](docs/screenshot.png)
 
 <p>
-  <img src="docs/mode-nvg.png" width="32%" alt="NVG mode: green night-vision rendering">
+  <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
   <img src="docs/mode-ironbow.png" width="32%" alt="Ironbow mode: thermal palette rendering">
   <img src="docs/mode-paper.png" width="32%" alt="Paper mode: warm ink on paper">
 </p>
