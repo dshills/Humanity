@@ -24,6 +24,8 @@
   const ANIM_MS = 250;
   const MIN_SPAN = 1 / 365;               // one day in years (>= one calendar day in common and leap years)
   const MIN_VISIBLE = 8;                  // admit lower tiers until this many events are in view
+  const THEMES = ['ops', 'crt', 'nvg', 'ironbow', 'noir', 'paper'];
+  const THEME_KEY = 'ht-theme';
   const DRAG_THRESHOLD = 4;               // px of movement before a press becomes a drag
   const RESIZE_DEBOUNCE_MS = 100;
   const URL_DEBOUNCE_MS = 200;            // trailing replaceState during wheel/drag (Safari rate-limits history writes)
@@ -60,6 +62,12 @@
   const pointers = new Map();             // active pointers: id -> {x, y}
   let gesture = null;                     // {type:'press'|'pinch', ...}
   let lastMouseX = null;                  // last mouse clientX over the stage (null when no mouse is over it)
+  let theme = 'auto';                     // 'auto' resolves to ops/paper from prefers-color-scheme
+  let settleNext = false;                 // next render follows a discrete view change: animate arrivals
+  let lastAxisY = 0;
+  let chipHalf = 40;                      // cached half-width of the cursor chip
+  let hudStats = { visible: 0, inWindow: 0, tier: 0 };
+  let clockTimer = 0;
   let suppressClickUntil = 0;
 
   // ------------------------------------------------------------------
@@ -204,12 +212,14 @@
   // root when the page is opened later (a numeric "now" would be seconds to days stale).
   function encodeHash(v) {
     const end = Math.abs(v.end - nowT()) < 5e-10 ? 'now' : fmtNum(v.end);
-    return '#s=' + fmtNum(v.start) + '&e=' + end;
+    return '#s=' + fmtNum(v.start) + '&e=' + end + (theme !== 'auto' ? '&m=' + theme : '');
   }
 
   function parseHash(hash) {
     if (!hash || hash.length < 2) return null;
     const params = new URLSearchParams(hash.replace(/^#/, ''));
+    const m = params.get('m');
+    if (m && THEMES.indexOf(m) >= 0 && m !== theme) setTheme(m, { silent: true });
     const s = parseFloat(params.get('s'));
     const e = params.get('e') === 'now' ? nowT() : parseFloat(params.get('e'));
     if (!Number.isFinite(s) || !Number.isFinite(e) || !(e > s)) return null;
@@ -327,6 +337,7 @@
       anim = null;
       clearTimeout(a.timer);
       shown = to;
+      settleNext = true;
       render();
     }
     // Safety net: if animation frames are starved (background tab, busy main thread), still land.
@@ -368,7 +379,7 @@
       cancelAnimation();
       const changed = !sameView(shown, v);
       shown = v;
-      if (changed) render();
+      if (changed) { settleNext = !!opts.discrete; render(); }
     }
     renderCrumbs();
   }
@@ -517,12 +528,86 @@
     dom.svg.setAttribute('height', h);
     dom.svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
     const axisY = Math.round(h * AXIS_FRACTION);
+    lastAxisY = axisY;
     renderTicks(shown, axisY);
     renderEvents(shown, axisY);
+    renderNowMarker(shown, axisY);
     dom.cursorLine.setAttribute('y1', 0);
     dom.cursorLine.setAttribute('y2', h);
     if (lastMouseX !== null) updateCursor(lastMouseX);  // the date under a resting pointer changes with the view
+    updateHud(shown);
+    settleNext = false;
   }
+
+  // Today's position on the axis, drawn when it is in view (the HUD beacon lights up with it).
+  function renderNowMarker(v, axisY) {
+    const now = nowT();
+    const inView = now >= v.start && now <= v.end;
+    if (!inView) { dom.gNow.replaceChildren(); return; }
+    const x = crisp(tToPx(now, v));
+    dom.gNow.replaceChildren(
+      svgEl('line', { class: 'now-marker', x1: x, x2: x, y1: axisY - 14, y2: axisY + 14 }),
+      svgEl('circle', { class: 'now-dot', cx: x, cy: axisY, r: 3, fill: 'var(--accent)' })
+    );
+  }
+
+  // --- HUD telemetry ---
+  function fmtSpan(years) {
+    if (years >= 1) return Math.round(years).toLocaleString('en-US') + ' Y';
+    const days = years * 365.25;
+    if (days >= 1) return (days >= 10 ? Math.round(days) : days.toFixed(1)) + ' D';
+    return Math.max(1, Math.round(days * 24)) + ' H';
+  }
+
+  function updateHud(v) {
+    if (!dom || !dom.hudSpan) return;
+    const span = v.end - v.start;
+    dom.hudSpan.textContent = fmtSpan(span);
+    dom.hudEvents.textContent = hudStats.visible + ' / ' + hudStats.inWindow;
+    dom.hudTier.textContent = '\u2264 ' + hudStats.tier;
+    dom.hudScale.textContent = '1 px = ' + fmtSpan(span / Math.max(1, size.width));
+    const now = nowT();
+    dom.hudNow.hidden = !(now >= v.start && now <= v.end);
+  }
+
+  function tickClock() {
+    if (!dom || !dom.hudClock) return;
+    const d = new Date();
+    const p = function (n) { return (n < 10 ? '0' : '') + n; };
+    dom.hudClock.textContent = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+      ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+
+  // --- Themes (sensor modes) ---
+  function resolveTheme(name) {
+    if (name !== 'auto') return name;
+    const light = typeof root.matchMedia === 'function' && root.matchMedia('(prefers-color-scheme: light)').matches;
+    return light ? 'paper' : 'ops';
+  }
+
+  function applyTheme() {
+    if (typeof document === 'undefined') return;
+    const t = resolveTheme(theme);
+    document.documentElement.setAttribute('data-theme', t);
+    if (dom && dom.dock) {
+      const bs = dom.dock.querySelectorAll('button[data-theme]');
+      for (let i = 0; i < bs.length; i++) bs[i].setAttribute('aria-pressed', String(bs[i].dataset.theme === t));
+    }
+    if (dom && dom.hudMode) dom.hudMode.textContent = t.toUpperCase();
+  }
+
+  function setTheme(name, opts) {
+    if (name !== 'auto' && THEMES.indexOf(name) < 0) return;
+    theme = name;
+    try {
+      if (name === 'auto') root.localStorage.removeItem(THEME_KEY);
+      else root.localStorage.setItem(THEME_KEY, name);
+    } catch (err) { /* storage may be unavailable */ }
+    applyTheme();
+    if (dom && view && !(opts && opts.silent)) writeUrl('replace');
+  }
+
+  function getTheme() { return theme; }
 
   // --- Axis and ticks ---
   function renderTicks(v, axisY) {
@@ -591,6 +676,7 @@
     const items = [];
     const meta = [];
     const tierLimit = effectiveTier(list, v, span);
+    let inWindow = 0;
 
     for (let i = 0; i < list.length; i++) {
       const ev = list[i];
@@ -598,6 +684,7 @@
       const ranged = hasEnd(ev);
       const tEnd = ranged ? ev.end : ev.t;
       if (tEnd < v.start || ev.t > v.end) continue;
+      inWindow++;
 
       const x = tToPx(ev.t, v);
       const xEnd = ranged ? tToPx(tEnd, v) : x;
@@ -645,7 +732,8 @@
       const baseline = axisY - LANE_BASE_OFFSET - lane * LANE_PITCH;
       const color = colors[ev.category] || 'currentColor';
       const g = svgEl('g', {
-        class: 'event cat-' + ev.category + ' tier-' + ev.tier + (m.ranged ? ' ranged' : ' point') + (m.index === selected ? ' selected' : ''),
+        class: 'event cat-' + ev.category + ' tier-' + ev.tier + (m.ranged ? ' ranged' : ' point') +
+               (m.index === selected ? ' selected' : '') + (settleNext ? ' arrive' : ''),
         id: 'ev-' + m.index,
         'data-index': m.index,
         tabindex: 0,
@@ -671,17 +759,20 @@
           stroke: color, 'stroke-opacity': 0.4
         }));
       }
+      if (settleNext) g.style.setProperty('--i', String(k));
       if (m.ranged) {
         g.appendChild(svgEl('rect', {
           class: 'bar', x: m.bx0, y: axisY - BAR_H / 2, width: Math.max(1, m.bx1 - m.bx0), height: BAR_H, rx: 1.5, fill: color
         }));
       } else {
+        if (ev.tier <= 1) g.appendChild(svgEl('circle', { class: 'pulse', cx: m.x, cy: axisY, r: MARKER_R, stroke: color }));
         g.appendChild(svgEl('circle', { class: 'marker', cx: m.x, cy: axisY, r: MARKER_R, fill: color }));
       }
       g.appendChild(svgEl('text', { class: 'label', x: m.ax, y: baseline, 'text-anchor': m.anchor }, m.text));
       frag.appendChild(g);
     }
     dom.gEvents.replaceChildren(frag);
+    hudStats = { visible: placed.length, inWindow: inWindow, tier: tierLimit };
   }
 
   // --- Cursor guide line + header readout ---
@@ -692,11 +783,25 @@
     dom.cursorLine.setAttribute('x1', crisp(px));
     dom.cursorLine.setAttribute('x2', crisp(px));
     dom.cursorLine.setAttribute('visibility', 'visible');
-    dom.cursorDate.textContent = cursorLabel(pxToT(px, shown), shown.end - shown.start);
+    const label = cursorLabel(pxToT(px, shown), shown.end - shown.start);
+    dom.cursorDate.textContent = label;
+    if (dom.cursorChip) {
+      if (dom.cursorChip.textContent !== label) {     // measure only when the text changes (no layout per mousemove)
+        dom.cursorChip.textContent = label;
+        dom.cursorChip.hidden = false;
+        chipHalf = dom.cursorChip.offsetWidth / 2 + 6;
+      }
+      dom.cursorChip.hidden = false;
+      const half = chipHalf;
+      dom.cursorChip.style.left = Math.round(clamp(px, half, size.width - half)) + 'px';
+      dom.cursorChip.style.top = (lastAxisY + 40) + 'px';
+    }
   }
 
   function hideCursor() {
-    if (dom) dom.cursorLine.setAttribute('visibility', 'hidden');
+    if (!dom) return;
+    dom.cursorLine.setAttribute('visibility', 'hidden');
+    if (dom.cursorChip) dom.cursorChip.hidden = true;
   }
 
   // --- Breadcrumbs ---
@@ -1056,6 +1161,17 @@
         zoomIn((shown.start + shown.end) / 2);
         e.preventDefault();
         break;
+      case '1': case '2': case '3': case '4': case '5': case '6':
+        setTheme(THEMES[Number(e.key) - 1]);
+        e.preventDefault();
+        break;
+      case 't':
+      case 'T': {
+        const cur = THEMES.indexOf(resolveTheme(theme));
+        setTheme(THEMES[(cur + 1) % THEMES.length]);
+        e.preventDefault();
+        break;
+      }
       default:
         break;
     }
@@ -1134,6 +1250,7 @@
     dom.gLabels = svgEl('g', { class: 'g-labels' });
     dom.gAxis = svgEl('g', { class: 'g-axis' });
     dom.gEvents = svgEl('g', { class: 'g-events' });
+    dom.gNow = svgEl('g', { class: 'g-now', 'pointer-events': 'none' });
     dom.gCursor = svgEl('g', { class: 'g-cursor', 'pointer-events': 'none' });
     dom.cursorLine = svgEl('line', { class: 'cursor-line', x1: 0, x2: 0, y1: 0, y2: 0, visibility: 'hidden' });
     dom.gCursor.appendChild(dom.cursorLine);
@@ -1144,7 +1261,7 @@
     measureEvent.appendChild(measureLabelEl);
     gMeasure.appendChild(measureTickEl);
     gMeasure.appendChild(measureEvent);
-    svg.replaceChildren(dom.gMinor, dom.gMajor, dom.gLabels, dom.gAxis, dom.gEvents, dom.gCursor, gMeasure);
+    svg.replaceChildren(dom.gMinor, dom.gMajor, dom.gLabels, dom.gAxis, dom.gNow, dom.gEvents, dom.gCursor, gMeasure);
 
     // The tooltip is positioned in stage coordinates; make sure the stage is its containing block.
     dom.tooltip.style.position = 'absolute';
@@ -1167,9 +1284,29 @@
       panel: $('panel'), panelClose: $('panel-close'), panelCategory: $('panel-category'),
       panelTitle: $('panel-title'), panelDate: $('panel-date'), panelDetail: $('panel-detail'),
       panelZoom: $('panel-zoom'),
-      panelLink: $('panel-link')
+      panelLink: $('panel-link'),
+      dock: $('dock'), cursorChip: $('cursor-chip'),
+      hudSpan: $('hud-span'), hudEvents: $('hud-events'), hudTier: $('hud-tier'), hudScale: $('hud-scale'),
+      hudMode: $('hud-mode'), hudClock: $('hud-clock'), hudNow: $('hud-now')
     };
     NOW = HT.time.now();
+    // Theme: URL param (read in parseHash below) > stored choice > auto.
+    try { const stored = root.localStorage.getItem(THEME_KEY); if (stored && THEMES.indexOf(stored) >= 0) theme = stored; } catch (err) { /* ignore */ }
+    applyTheme();
+    if (typeof root.matchMedia === 'function') {
+      const mq = root.matchMedia('(prefers-color-scheme: light)');
+      const onScheme = function () { if (theme === 'auto') applyTheme(); };
+      if (typeof mq.addEventListener === 'function') mq.addEventListener('change', onScheme);
+      else if (typeof mq.addListener === 'function') mq.addListener(onScheme);
+    }
+    if (dom.dock) {
+      dom.dock.addEventListener('click', function (e) {
+        const b = e.target && typeof e.target.closest === 'function' ? e.target.closest('button[data-theme]') : null;
+        if (b) setTheme(b.dataset.theme);
+      });
+    }
+    tickClock();
+    clockTimer = setInterval(tickClock, 1000);
     buildSvgScaffold();
     renderLegend();
 
@@ -1181,8 +1318,10 @@
     stack = saved || deriveStack(view);
     shown = view;
     stampState();
+    applyTheme();                                        // parseHash may have picked a theme from the URL
 
     bindEvents();
+    settleNext = true;
     render();
     renderCrumbs();
   }
@@ -1194,6 +1333,9 @@
     zoomOut: zoomOut,
     home: home,
     zoomToEvent: zoomToEvent,
-    getView: getView
+    getView: getView,
+    setTheme: setTheme,
+    getTheme: getTheme,
+    THEMES: THEMES.slice()
   };
 })(typeof window !== 'undefined' ? window : globalThis);

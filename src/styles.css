@@ -1,68 +1,182 @@
 /* ==========================================================================
    Humanity — styles.css
    --------------------------------------------------------------------------
-   Direction: "ink and instrument". The chrome is achromatic and quiet (warm
-   off-white ink on near-black; inverted in light mode) so the fifteen category
-   hues are the only color on the page. Serif display face for the title and
-   panel heading, system sans for UI, tabular figures on every date readout.
+   Direction: "deep-time observatory". The chrome is an instrument console —
+   monospace, uppercase, wide-tracked micro-type; hairline grid; corner
+   brackets; glass panels; live telemetry — and the fifteen category hues are
+   the only saturated colour on the page. Six sensor-style modes reinterpret
+   the same scene (OPS, CRT, NVG, IRONBOW, NOIR, PAPER); the monochrome ones
+   push the whole stage through SVG gradient-map filters defined in the page.
 
-   Tokens required by CONTRACT.md §8 live on :root (dark default) and are
-   overridden under prefers-color-scheme: light. Surfaces #0f1115 / #f7f7f5
-   are the two the category palette in tiers.js was validated against.
+   Tokens required by CONTRACT.md §8 live on :root (OPS, dark) and are
+   re-defined per mode under html[data-theme=…]. `auto` resolves to OPS or
+   PAPER from prefers-color-scheme in app.js.
    ========================================================================== */
 
 :root {
   color-scheme: dark;
 
-  /* contract tokens */
-  --bg: #0f1115;
-  --fg: #ebe8df;
-  --muted: #9c9a92;
-  --axis: #7a786f;
-  --tick: #55544e;
-  --grid: #26282e;
-  --accent: #f1e7cf;
-  --panel-bg: #15171d;
-  --panel-border: #2a2d35;
-  --tooltip-bg: rgba(24, 26, 33, 0.94);
-  --shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+  /* contract tokens (OPS) */
+  --bg: #070a0e;
+  --fg: #d6e1e8;
+  --muted: #7f93a1;
+  --axis: #4c6273;
+  --tick: #35485a;
+  --grid: #16232d;
+  --accent: #5fd3ff;
+  --panel-bg: rgba(9, 14, 19, 0.82);
+  --panel-border: rgba(95, 211, 255, 0.18);
+  --tooltip-bg: rgba(9, 14, 19, 0.9);
+  --shadow: 0 18px 48px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(95, 211, 255, 0.08) inset;
 
   /* extras */
-  --bg-deep: #090a0d;
-  --accent-fg: #121317;
-  --hover: rgba(235, 232, 223, 0.07);
-  --active: rgba(235, 232, 223, 0.13);
+  --bg-deep: #03050a;
+  --accent-fg: #04141c;
+  --accent-rgb: 95, 211, 255;
+  --hover: rgba(95, 211, 255, 0.08);
+  --active: rgba(95, 211, 255, 0.16);
+  --grid-line: rgba(95, 211, 255, 0.05);
+  --glow: 0 0 22px rgba(95, 211, 255, 0.22);
+  --grain: 0.07;
+  --scan: 0;
+  --vignette: 0;
   --font-ui: "Avenir Next", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system,
              "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia,
-                  "Times New Roman", serif;
+  --font-mono: "SF Mono", "JetBrains Mono", "Cascadia Mono", Menlo, Consolas, "DejaVu Sans Mono",
+               "Liberation Mono", monospace;
+  --font-display: var(--font-mono);
+  --font-read: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia,
+               "Times New Roman", serif;
   --hit: 40px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color-scheme: light;
-    --bg: #f7f7f5;
-    --fg: #1a1b1f;
-    --muted: #676661;
-    --axis: #85847e;
-    --tick: #b5b4ad;
-    --grid: #e3e2dc;
-    --accent: #1a1b1f;
-    --panel-bg: #ffffff;
-    --panel-border: #dad9d2;
-    --tooltip-bg: rgba(255, 255, 255, 0.96);
-    --shadow: 0 12px 32px rgba(25, 25, 35, 0.14), 0 1px 2px rgba(25, 25, 35, 0.08);
-    --bg-deep: #ecebe6;
-    --accent-fg: #f7f7f5;
-    --hover: rgba(26, 27, 31, 0.06);
-    --active: rgba(26, 27, 31, 0.11);
-  }
+/* --- CRT: amber phosphor, rolling scanlines ------------------------------ */
+html[data-theme="crt"] {
+  --bg: #0a0703;
+  --bg-deep: #050301;
+  --fg: #ffd9a8;
+  --muted: #a8865c;
+  --axis: #7a5b34;
+  --tick: #4d3a22;
+  --grid: #1e150a;
+  --accent: #ffb454;
+  --accent-fg: #1a0f02;
+  --accent-rgb: 255, 180, 84;
+  --panel-bg: rgba(14, 9, 3, 0.85);
+  --panel-border: rgba(255, 180, 84, 0.2);
+  --tooltip-bg: rgba(14, 9, 3, 0.92);
+  --hover: rgba(255, 180, 84, 0.08);
+  --active: rgba(255, 180, 84, 0.16);
+  --grid-line: rgba(255, 180, 84, 0.045);
+  --glow: 0 0 22px rgba(255, 180, 84, 0.25);
+  --grain: 0.09;
+  --scan: 0.22;
+  --vignette: 0.55;
 }
 
-/* Category hues — mirror HT.tiers.COLORS. Used as a fallback fill for markers
-   that app.js did not paint explicitly, and for the panel's category dot. */
+/* --- NVG: green phosphor, gradient-mapped stage --------------------------- */
+html[data-theme="nvg"] {
+  --bg: #020803;
+  --bg-deep: #010401;
+  --fg: #b9ffc0;
+  --muted: #5fa868;
+  --axis: #3d7a45;
+  --tick: #2a5430;
+  --grid: #0f2415;
+  --accent: #7dff8a;
+  --accent-fg: #041a08;
+  --accent-rgb: 125, 255, 138;
+  --panel-bg: rgba(3, 12, 5, 0.86);
+  --panel-border: rgba(125, 255, 138, 0.22);
+  --tooltip-bg: rgba(3, 12, 5, 0.94);
+  --hover: rgba(125, 255, 138, 0.08);
+  --active: rgba(125, 255, 138, 0.16);
+  --grid-line: rgba(125, 255, 138, 0.05);
+  --glow: 0 0 26px rgba(125, 255, 138, 0.3);
+  --grain: 0.14;
+  --scan: 0.14;
+  --vignette: 0.7;
+}
+
+/* --- IRONBOW: thermal palette, gradient-mapped stage ---------------------- */
+html[data-theme="ironbow"] {
+  --bg: #05020a;
+  --bg-deep: #030106;
+  --fg: #ffe2b0;
+  --muted: #b08a6a;
+  --axis: #7c4b3a;
+  --tick: #4a2a33;
+  --grid: #1d0f22;
+  --accent: #ffb000;
+  --accent-fg: #1a0c00;
+  --accent-rgb: 255, 176, 0;
+  --panel-bg: rgba(10, 4, 14, 0.86);
+  --panel-border: rgba(255, 176, 0, 0.22);
+  --tooltip-bg: rgba(10, 4, 14, 0.94);
+  --hover: rgba(255, 176, 0, 0.08);
+  --active: rgba(255, 176, 0, 0.16);
+  --grid-line: rgba(255, 176, 0, 0.045);
+  --glow: 0 0 26px rgba(255, 96, 0, 0.3);
+  --grain: 0.06;
+  --scan: 0;
+  --vignette: 0.6;
+}
+
+/* --- NOIR: high-contrast grayscale ---------------------------------------- */
+html[data-theme="noir"] {
+  --bg: #0a0a0a;
+  --bg-deep: #050505;
+  --fg: #f2f2f2;
+  --muted: #8c8c8c;
+  --axis: #5a5a5a;
+  --tick: #3a3a3a;
+  --grid: #1a1a1a;
+  --accent: #ffffff;
+  --accent-fg: #000000;
+  --accent-rgb: 255, 255, 255;
+  --panel-bg: rgba(12, 12, 12, 0.86);
+  --panel-border: rgba(255, 255, 255, 0.16);
+  --tooltip-bg: rgba(12, 12, 12, 0.94);
+  --hover: rgba(255, 255, 255, 0.08);
+  --active: rgba(255, 255, 255, 0.16);
+  --grid-line: rgba(255, 255, 255, 0.04);
+  --glow: 0 0 22px rgba(255, 255, 255, 0.18);
+  --grain: 0.12;
+  --scan: 0;
+  --vignette: 0.5;
+}
+
+/* --- PAPER: warm ink on paper, serif display ------------------------------ */
+html[data-theme="paper"] {
+  color-scheme: light;
+  --bg: #f3eee3;
+  --bg-deep: #e9e2d3;
+  --fg: #1d1b17;
+  --muted: #6b6558;
+  --axis: #8a8272;
+  --tick: #b9b1a0;
+  --grid: #e0d9c9;
+  --accent: #8a2f1a;
+  --accent-fg: #fbf7ef;
+  --accent-rgb: 138, 47, 26;
+  --panel-bg: rgba(251, 248, 241, 0.9);
+  --panel-border: #d8cfbd;
+  --tooltip-bg: rgba(251, 248, 241, 0.96);
+  --shadow: 0 16px 40px rgba(40, 30, 10, 0.14), 0 1px 2px rgba(40, 30, 10, 0.08);
+  --hover: rgba(29, 27, 23, 0.06);
+  --active: rgba(29, 27, 23, 0.11);
+  --grid-line: rgba(29, 27, 23, 0.045);
+  --glow: none;
+  --grain: 0.05;
+  --scan: 0;
+  --vignette: 0;
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+}
+
+/* Category hues — mirror HT.tiers.COLORS. Fallback fill for markers app.js did
+   not paint explicitly, and the panel's category dot. */
 .cat-origins      { --cat: #a98304; }
 .cat-migration    { --cat: #019d9a; }
 .cat-technology   { --cat: #a86003; }
@@ -95,6 +209,7 @@ body {
   font: 14px/1.4 var(--font-ui);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 360ms var(--ease), color 360ms var(--ease);
 }
 
 [hidden] { display: none !important; }
@@ -110,13 +225,18 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-::selection { background: var(--accent); color: var(--accent-fg); }
-
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 :focus:not(:focus-visible) { outline: none; }
 
+/* Instrument type: the one voice the chrome speaks in. */
+.mono,
+#hud, #dock, #crumbs, #cursor-date, #controls, #legend, #panel-category, #panel-date, .tick-label {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 /* --------------------------------------------------------------------------
-   App grid: header (auto) / stage (1fr); the panel is a 320px right column
+   App grid: header (auto) / stage (1fr); the panel is a 340px right column
    that pushes the stage at ≥ 641px and a bottom sheet at ≤ 640px.
    -------------------------------------------------------------------------- */
 #app {
@@ -131,14 +251,14 @@ button {
 }
 
 body.panel-open #app {
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   grid-template-areas:
     "header header"
     "stage  panel";
 }
 
 /* --------------------------------------------------------------------------
-   Header — one compact bar: title | crumbs (scrolls) | cursor date | controls
+   Header — title + tagline | crumbs (scrolls) | cursor date | controls
    -------------------------------------------------------------------------- */
 #header {
   grid-area: header;
@@ -146,36 +266,63 @@ body.panel-open #app {
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   grid-template-areas: "title crumbs date controls";
   align-items: center;
-  column-gap: 14px;
-  min-height: 56px;
-  padding: 0 14px 0 18px;
+  column-gap: 16px;
+  min-height: 58px;
+  padding: 0 14px 0 20px;
   background: var(--panel-bg);
+  -webkit-backdrop-filter: blur(14px);
+          backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--panel-border);
   position: relative;
   z-index: 10;
+  transition: background-color 360ms var(--ease), border-color 360ms var(--ease);
+}
+#header::after {                       /* accent hairline that reads as a status bar */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.6), transparent 40%, transparent 60%, rgba(var(--accent-rgb), 0.35));
+  pointer-events: none;
 }
 
-#title {
+#brand {
   grid-area: title;
-  margin: 0;
-  padding-right: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding-right: 18px;
   border-right: 1px solid var(--panel-border);
-  font: 500 21px/1 var(--font-display);
-  letter-spacing: 0.02em;
-  color: var(--fg);
-  white-space: nowrap;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+#title {
+  margin: 0;
+  font: 500 17px/1 var(--font-display);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+html[data-theme="paper"] #title { letter-spacing: 0.06em; font-size: 21px; text-transform: none; }
+#tagline {
+  font: 500 9.5px/1 var(--font-mono);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.85;
+}
+#tagline::before { content: "// "; opacity: 0.6; }
 
-/* Breadcrumbs: chevron-separated buttons, current one emphasized. */
+/* Breadcrumbs: chevron-separated, current one emphasized. */
 #crumbs {
   grid-area: crumbs;
   display: flex;
   align-items: center;
   min-width: 0;
-  padding-right: 28px;               /* room for the fade so the current crumb is never dimmed */
+  padding-right: 28px;
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;
@@ -192,39 +339,39 @@ body.panel-open #app {
   align-items: center;
   min-height: var(--hit);
   padding: 0 8px;
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--muted);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   transition: color 120ms var(--ease), background-color 120ms var(--ease);
 }
-.crumb + .crumb { margin-left: 18px; }
+.crumb + .crumb { margin-left: 20px; }
 .crumb + .crumb::before {
-  content: "\203A";                  /* › */
+  content: "\203A";
   position: absolute;
-  left: -14px;
+  left: -15px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--tick);
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1;
   pointer-events: none;
 }
 .crumb:hover { color: var(--fg); background: var(--hover); }
 .crumb:active { background: var(--active); }
-.crumb.current { color: var(--fg); font-weight: 600; cursor: default; }
-.crumb:focus-visible { outline-offset: -2px; }         /* inset: the scroll box + mask would clip an outer ring */
+.crumb.current { color: var(--accent); cursor: default; text-shadow: var(--glow); }
+.crumb:focus-visible { outline-offset: -2px; }
 .crumb.current:hover { background: none; }
 
-/* Cursor date readout: tabular so the header never jitters as the pointer moves. */
+/* Cursor date readout: tabular so the header never jitters. */
 #cursor-date {
   grid-area: date;
   min-width: 13ch;
   text-align: right;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -241,20 +388,23 @@ body.panel-open #app {
   min-width: var(--hit);
   padding: 0 12px;
   border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--fg);
   white-space: nowrap;
-  transition: background-color 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease);
+  transition: background-color 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease), box-shadow 120ms var(--ease);
 }
-#controls button:hover { background: var(--hover); border-color: var(--muted); }
+#controls button:hover { background: var(--hover); border-color: rgba(var(--accent-rgb), 0.5); }
 #controls button:active { background: var(--active); }
+#controls button:disabled { opacity: 0.4; cursor: default; }
 #btn-legend[aria-expanded="true"] {
-  background: var(--fg);
-  border-color: var(--fg);
-  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+  box-shadow: var(--glow);
 }
 
 /* --------------------------------------------------------------------------
@@ -267,25 +417,102 @@ body.panel-open #app {
   min-height: 0;
   overflow: hidden;
   background:
-    radial-gradient(120% 70% at 50% 100%, var(--bg) 0%, transparent 70%),
-    linear-gradient(180deg, var(--bg-deep) 0%, var(--bg) 100%);
+    radial-gradient(90% 60% at 50% 62%, rgba(var(--accent-rgb), 0.06) 0%, transparent 70%),
+    linear-gradient(180deg, var(--bg-deep) 0%, var(--bg) 55%, var(--bg-deep) 100%);
   user-select: none;
   -webkit-user-select: none;
+  transition: background 360ms var(--ease);
+}
+
+/* Hairline grid + corner brackets: the observatory's reticle. */
+#stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(80% 80% at 50% 55%, #000 30%, transparent 100%);
+          mask-image: radial-gradient(80% 80% at 50% 55%, #000 30%, transparent 100%);
+}
+#stage::after {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  z-index: 3;
+  pointer-events: none;
+  --c: rgba(var(--accent-rgb), 0.55);
+  background:
+    linear-gradient(var(--c), var(--c)) top left / 18px 1px no-repeat,
+    linear-gradient(var(--c), var(--c)) top left / 1px 18px no-repeat,
+    linear-gradient(var(--c), var(--c)) top right / 18px 1px no-repeat,
+    linear-gradient(var(--c), var(--c)) top right / 1px 18px no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom left / 18px 1px no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom left / 1px 18px no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom right / 18px 1px no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom right / 1px 18px no-repeat;
 }
 
 #timeline {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
   font-family: var(--font-ui);
-  font-size: 13px;                   /* any unclassed measuring <text> gets label metrics */
+  font-size: 13px;
   cursor: crosshair;
-  touch-action: none;                /* app.js owns pinch and drag */
+  touch-action: none;
   -webkit-tap-highlight-color: transparent;
 }
 #timeline.dragging { cursor: grabbing; }
 
-/* Tick furniture: recessive hairlines, solid, crisp. */
+/* Sensor modes: the whole stage image passes through a gradient map. */
+html[data-theme="nvg"] #timeline     { filter: url(#sensor-nvg); }
+html[data-theme="ironbow"] #timeline { filter: url(#sensor-ironbow); }
+html[data-theme="noir"] #timeline    { filter: url(#sensor-noir); }
+
+/* Atmosphere layers (all pointer-events: none): grain, scanlines, vignette. */
+.fx {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.fx-grain {
+  opacity: var(--grain);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size: 160px 160px;
+  mix-blend-mode: overlay;
+}
+.fx-scan {
+  opacity: var(--scan);
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.55) 0 1px, transparent 1px 3px);
+  background-size: 100% 3px;
+}
+html[data-theme="crt"] .fx-scan { animation: scan-roll 6s linear infinite; }
+.fx-scan::after {                      /* CRT refresh band */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 90px;
+  top: -90px;
+  background: linear-gradient(180deg, transparent, rgba(var(--accent-rgb), 0.06), transparent);
+  opacity: 0;
+}
+html[data-theme="crt"] .fx-scan::after { opacity: 1; animation: band-roll 7s linear infinite; }
+.fx-vignette {
+  opacity: var(--vignette);
+  background: radial-gradient(70% 70% at 50% 50%, transparent 40%, rgba(0, 0, 0, 0.85) 100%);
+}
+@keyframes scan-roll { from { background-position: 0 0; } to { background-position: 0 3px; } }
+@keyframes band-roll { from { transform: translateY(0); } to { transform: translateY(calc(100vh + 90px)); } }
+
+/* Tick furniture: recessive hairlines, crisp. */
 .g-minor, .g-major, .g-labels, .g-axis, .g-cursor { pointer-events: none; }
 
 .tick        { stroke-width: 1; shape-rendering: crispEdges; }
@@ -295,16 +522,35 @@ body.panel-open #app {
 
 .tick-label {
   fill: var(--muted);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .cursor-line {
   stroke: var(--accent);
-  stroke-opacity: 0.45;
+  stroke-opacity: 0.55;
   stroke-width: 1;
+  stroke-dasharray: 4 3;
   shape-rendering: crispEdges;
+}
+
+/* Cursor chip: the date under the pointer, riding the guide line at the axis. */
+#cursor-chip {
+  position: absolute;
+  z-index: 4;
+  padding: 3px 7px;
+  border: 1px solid rgba(var(--accent-rgb), 0.45);
+  border-radius: 3px;
+  background: var(--tooltip-bg);
+  color: var(--accent);
+  font: 600 10.5px/1.2 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, 0);
+  box-shadow: var(--glow);
 }
 
 /* Events */
@@ -316,12 +562,11 @@ body.panel-open #app {
 .event .marker,
 .event .bar { transition: transform 150ms var(--ease), stroke-width 150ms var(--ease), fill-opacity 150ms var(--ease); }
 
-/* Fallback fill only where app.js did not set a fill attribute. */
 .event .marker:not([fill]),
 .event .bar:not([fill]) { fill: var(--cat, var(--muted)); }
 
 .event .marker {
-  stroke: var(--bg);                 /* 2px surface ring keeps overlapping points legible */
+  stroke: var(--bg);
   stroke-width: 2;
   transform-box: fill-box;
   transform-origin: center;
@@ -329,12 +574,28 @@ body.panel-open #app {
 .event .bar {
   rx: 3;
   ry: 3;
-  fill-opacity: 0.9;
+  fill-opacity: 0.85;
 }
 
-/* Labels wear the text token, never the series hue; a surface-color halo lifts
-   them off ticks and bars. All labels share one size/weight so measured widths
-   match rendered widths. */
+/* Pulse ring on the top tiers: a slow sonar ping. */
+.event .pulse {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ping 2.8s var(--ease-out) infinite;
+  pointer-events: none;
+}
+.event.tier-1 .pulse { animation-delay: -1.4s; animation-duration: 3.6s; }
+@keyframes ping {
+  0%   { transform: scale(1);   stroke-opacity: 0.7; }
+  70%  { transform: scale(3.2); stroke-opacity: 0; }
+  100% { transform: scale(3.2); stroke-opacity: 0; }
+}
+
+/* Labels wear the text token, never the series hue; a surface halo lifts
+   them off ticks and bars. One size/weight so measured widths match. */
 .event .label {
   fill: var(--fg);
   font-size: 13px;
@@ -344,14 +605,121 @@ body.panel-open #app {
   stroke-linejoin: round;
   pointer-events: none;
 }
+.event .stem { transition: stroke-opacity 150ms var(--ease); }
+
+/* Arrival: when a zoom settles, events rise into their lanes in sequence. */
+.event.arrive { animation: arrive 420ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 22ms); }
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
 
 .event:hover .marker,
-.event:focus-visible .marker { transform: scale(1.3); stroke-width: 2.5; }
+.event:focus-visible .marker { transform: scale(1.35); stroke-width: 2.5; }
 .event:hover .bar,
 .event:focus-visible .bar { fill-opacity: 1; transform: scaleY(1.35); transform-box: fill-box; transform-origin: center; }
 .event:hover .label,
-.event:focus-visible .label { fill: var(--accent); }   /* no weight change: label width must stay as measured */
+.event:focus-visible .label { fill: var(--accent); }
+.event:hover .stem { stroke-opacity: 0.9 !important; }
+.event.selected .label { fill: var(--accent); }
 .event:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* --------------------------------------------------------------------------
+   HUD — telemetry in the stage's bottom corners
+   -------------------------------------------------------------------------- */
+#hud {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 18px;
+  z-index: 3;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  pointer-events: none;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hud-block { display: grid; grid-template-columns: auto auto; gap: 5px 14px; align-items: baseline; }
+#hud-right .hud-block { grid-template-columns: auto auto; text-align: right; }
+.hud-k { color: var(--muted); opacity: 0.75; }
+.hud-v { color: var(--fg); font-weight: 600; letter-spacing: 0.1em; }
+#hud-mode { color: var(--accent); text-shadow: var(--glow); }
+.beacon {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent);
+}
+.beacon::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.9);
+  animation: blink 1.6s steps(2, jump-none) infinite;
+}
+@keyframes blink { to { opacity: 0.25; } }
+
+/* Now marker on the axis: today's position when it is in view. */
+.now-marker { stroke: var(--accent); stroke-width: 1.5; stroke-opacity: 0.8; }
+
+/* --------------------------------------------------------------------------
+   Dock — sensor modes, bottom centre
+   -------------------------------------------------------------------------- */
+#dock {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 4;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: var(--panel-bg);
+  -webkit-backdrop-filter: blur(14px);
+          backdrop-filter: blur(14px);
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
+  transition: background-color 360ms var(--ease), border-color 360ms var(--ease);
+}
+#dock button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 58px;
+  min-height: var(--hit);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  transition: background-color 120ms var(--ease), color 120ms var(--ease), box-shadow 160ms var(--ease);
+}
+#dock button kbd {
+  font: 500 9px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  color: var(--tick);
+  border: 1px solid var(--tick);
+  border-radius: 2px;
+  padding: 1px 4px;
+}
+#dock button:hover { color: var(--fg); background: var(--hover); }
+#dock button[aria-pressed="true"] {
+  color: var(--accent-fg);
+  background: var(--accent);
+  box-shadow: var(--glow);
+}
+#dock button[aria-pressed="true"] kbd { color: var(--accent-fg); border-color: rgba(0, 0, 0, 0.25); }
 
 /* --------------------------------------------------------------------------
    Tooltip
@@ -360,32 +728,32 @@ body.panel-open #app {
   position: absolute;
   z-index: 5;
   max-width: 300px;
-  padding: 9px 12px 10px;
+  padding: 10px 13px 11px;
   border: 1px solid var(--panel-border);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--tooltip-bg);
-  -webkit-backdrop-filter: blur(10px);
-          backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(12px);
+          backdrop-filter: blur(12px);
   box-shadow: var(--shadow);
   color: var(--fg);
   font-size: 13px;
   line-height: 1.45;
   pointer-events: none;
-  animation: tt-in 120ms var(--ease);
+  animation: tt-in 140ms var(--ease-out);
 }
-#tooltip > :first-child { font-weight: 600; }
-#tooltip > * + * { margin-top: 3px; }
-#tooltip time,
-#tooltip .date,
-#tooltip small {
+#tooltip > .tt-title { font-weight: 600; }
+#tooltip > * + * { margin-top: 4px; }
+#tooltip .tt-date {
   display: block;
-  color: var(--muted);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font: 600 10.5px/1.3 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
+#tooltip .tt-detail { color: var(--muted); font-size: 12.5px; }
 
 @keyframes tt-in {
-  from { opacity: 0; transform: translateY(3px); }
+  from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: none; }
 }
 
@@ -394,38 +762,40 @@ body.panel-open #app {
    -------------------------------------------------------------------------- */
 #legend {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 14px;
+  right: 14px;
   z-index: 4;
   display: grid;
   grid-template-columns: repeat(3, auto);
-  gap: 7px 18px;
-  max-width: calc(100% - 24px);
-  max-height: calc(100% - 24px);
+  gap: 8px 18px;
+  max-width: calc(100% - 28px);
+  max-height: calc(100% - 28px);
   overflow: auto;
   padding: 12px 14px;
   border: 1px solid var(--panel-border);
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--panel-bg);
+  -webkit-backdrop-filter: blur(14px);
+          backdrop-filter: blur(14px);
   box-shadow: var(--shadow);
-  font-size: 12px;
-  letter-spacing: 0.01em;
-  animation: tt-in 140ms var(--ease);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  animation: tt-in 160ms var(--ease-out);
 }
 .legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   color: var(--fg);
-  text-transform: capitalize;
   white-space: nowrap;
 }
 .legend-item i {
   flex: none;
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--panel-bg);   /* the same surface ring as the marker */
+  box-shadow: 0 0 0 2px var(--bg);
   background: var(--cat, var(--muted));
 }
 
@@ -439,12 +809,25 @@ body.panel-open #app {
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  padding: 22px 22px 24px;
+  padding: 24px 24px 26px;
   border-left: 1px solid var(--panel-border);
   background: var(--panel-bg);
+  -webkit-backdrop-filter: blur(16px);
+          backdrop-filter: blur(16px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  animation: panel-in 220ms var(--ease);
+  animation: panel-in 260ms var(--ease-out);
+}
+#panel::after {                        /* corner bracket */
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 14px;
+  height: 14px;
+  border-top: 1px solid rgba(var(--accent-rgb), 0.6);
+  border-left: 1px solid rgba(var(--accent-rgb), 0.6);
+  pointer-events: none;
 }
 
 #panel-close {
@@ -453,7 +836,7 @@ body.panel-open #app {
   right: 10px;
   width: var(--hit);
   height: var(--hit);
-  border-radius: 50%;
+  border-radius: 4px;
   font-size: 22px;
   line-height: 1;
   color: var(--muted);
@@ -465,12 +848,12 @@ body.panel-open #app {
 #panel-category {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-right: 44px;
+  gap: 8px;
+  margin: 6px 44px 0 0;
   min-height: 16px;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -481,29 +864,31 @@ body.panel-open #app {
   height: 8px;
   border-radius: 50%;
   background: var(--cat, var(--muted));
+  box-shadow: 0 0 8px var(--cat, transparent);
 }
 
 #panel-title {
-  margin: 10px 44px 0 0;
-  font: 500 23px/1.2 var(--font-display);
+  margin: 12px 44px 0 0;
+  font: 500 22px/1.25 var(--font-read);
   letter-spacing: 0.005em;
   color: var(--fg);
   overflow-wrap: anywhere;
 }
+html[data-theme="paper"] #panel-title { font-size: 24px; }
 
 #panel-date {
-  margin-top: 6px;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
+  margin-top: 8px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
 #panel-detail {
-  margin: 14px 0 0;
+  margin: 16px 0 0;
   padding-top: 14px;
   border-top: 1px solid var(--panel-border);
-  font-size: 14.5px;
-  line-height: 1.55;
+  font: 15px/1.6 var(--font-read);
   color: var(--fg);
   overflow-wrap: anywhere;
 }
@@ -512,28 +897,31 @@ body.panel-open #app {
   display: inline-flex;
   align-items: center;
   min-height: var(--hit);
-  margin: -6px 0 10px;
-  font-size: 13px;
+  margin: -4px 0 8px;
+  font: 600 11px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--accent);
   text-decoration: underline;
-  text-underline-offset: 3px;
+  text-underline-offset: 4px;
   text-decoration-thickness: 1px;
 }
 #panel-link:hover { text-decoration-thickness: 2px; }
 
 #panel-zoom {
-  margin-top: 20px;
+  margin-top: 18px;
   min-height: var(--hit);
   padding: 0 16px;
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--accent);
   color: var(--accent-fg);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font: 600 11px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: var(--glow);
   transition: opacity 120ms var(--ease), transform 120ms var(--ease);
 }
-#panel-zoom:hover { opacity: 0.9; }
+#panel-zoom:hover { opacity: 0.92; }
 #panel-zoom:active { transform: translateY(1px); }
 
 @keyframes panel-in {
@@ -559,8 +947,6 @@ body.panel-open #app {
       "panel";
   }
 
-  /* Two wrapped rows: title + controls, then crumbs + date. A flex row (not the grid) so the
-     date readout is sized by its own text instead of sharing a column with the buttons. */
   #header {
     display: flex;
     flex-wrap: wrap;
@@ -569,9 +955,10 @@ body.panel-open #app {
     column-gap: 10px;
     padding: 4px 10px 4px 14px;
   }
-  #title { order: 1; flex: 1 1 auto; font-size: 18px; padding-right: 0; border-right: 0; }
+  #brand { order: 1; flex: 1 1 auto; padding-right: 0; border-right: 0; }
+  #tagline { display: none; }
   #controls { order: 2; flex: none; }
-  #controls button { padding: 0 10px; }
+  #controls button { padding: 0 8px; font-size: 10px; }
   #crumbs { order: 3; flex: 1 1 55%; min-width: 0; }
   #cursor-date {
     order: 4;
@@ -580,8 +967,19 @@ body.panel-open #app {
     max-width: 42%;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 12px;
+    font-size: 10.5px;
   }
+
+  #stage::before { background-size: 32px 32px; }
+  #stage::after { inset: 8px; }
+
+  #hud { left: 12px; right: 12px; bottom: 74px; font-size: 9.5px; }
+  #hud-right { display: none; }
+
+  #dock { bottom: 10px; max-width: calc(100% - 20px); overflow-x: auto; scrollbar-width: none; }
+  #dock button { min-width: 46px; padding: 4px 6px; font-size: 9px; }
+  #dock button kbd { display: none; }
+  body.panel-open #dock, body.panel-open #hud { display: none; }
 
   #legend {
     top: 10px;
@@ -597,11 +995,12 @@ body.panel-open #app {
     padding: 18px 18px 20px;
     border-left: 0;
     border-top: 1px solid var(--panel-border);
-    border-radius: 14px 14px 0 0;
+    border-radius: 12px 12px 0 0;
     box-shadow: var(--shadow);
-    animation: sheet-in 240ms var(--ease);
+    animation: sheet-in 260ms var(--ease-out);
   }
-  #panel::before {                    /* sheet grabber */
+  #panel::after { display: none; }
+  #panel::before {
     content: "";
     position: absolute;
     top: 7px;
@@ -626,6 +1025,8 @@ body.panel-open #app {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  .event .pulse, .beacon::before { animation: none !important; }
+  .fx-scan::after { display: none; }
 }
 
 @media (forced-colors: active) {
@@ -633,4 +1034,5 @@ body.panel-open #app {
   .event .bar,
   .legend-item i,
   #panel-category::before { forced-color-adjust: none; }
+  .fx { display: none; }
 }

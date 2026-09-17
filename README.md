@@ -2,7 +2,13 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The timeline zoomed to 1945–today, with events stacked in lanes above a year axis](docs/screenshot.png)
+![The timeline zoomed to 1945–today in Ops mode: events stacked in lanes above a year axis, HUD readouts and the mode dock](docs/screenshot.png)
+
+<p>
+  <img src="docs/mode-nvg.png" width="32%" alt="NVG mode: green night-vision rendering">
+  <img src="docs/mode-ironbow.png" width="32%" alt="Ironbow mode: thermal palette rendering">
+  <img src="docs/mode-paper.png" width="32%" alt="Paper mode: warm ink on paper">
+</p>
 
 A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 834 events in 15 color-coded categories, each with a link for further reading, are bundled into the page. There are no frameworks, no network requests and nothing to install to view it.
 
@@ -36,6 +42,21 @@ Node 18 or newer, zero dependencies. The build concatenates `time.js, tiers.js, 
 | Click an event | Opens the side panel (bottom sheet on narrow screens) with a **Zoom to this event** button; clicking an event never triggers the axis zoom |
 | **Legend** button | Toggles the category color legend |
 | `Escape` | Closes the panel, else the legend, else the tooltip |
+
+## Visual modes
+
+The console has six sensor-style modes, switched from the dock at the bottom of the stage, with the number keys `1`–`6`, or by cycling with `T`:
+
+| Key | Mode | Look |
+|---|---|---|
+| 1 | Ops | Near-black console, cyan accent, hairline grid (default in dark colour schemes) |
+| 2 | CRT | Amber phosphor with rolling scanlines |
+| 3 | NVG | Green night-vision: the whole stage passes through a gradient-map filter |
+| 4 | Ironbow | Thermal palette, black → purple → red → yellow → white |
+| 5 | Noir | High-contrast grayscale |
+| 6 | Paper | Warm paper and ink with a serif display face (default in light colour schemes) |
+
+The choice is remembered in `localStorage` and written into the URL as `m=<mode>`, so a shared link carries its look. With no choice made, the mode follows `prefers-color-scheme`. The HUD in the stage's corners shows the span in view, visible events out of those in the window, the tier ceiling, the scale in years per pixel, the mode, a local clock, and a beacon when the present moment is on screen.
 
 ## Adding an event
 
@@ -208,7 +229,7 @@ Choices the spec left open, as implemented:
 - Transitions animate over 250 ms with a cubic ease-out, interpolating `log(span)` and the center so that zooming looks uniform at every scale. A 350 ms safety timer lands the view if animation frames are starved. Animation is skipped under `prefers-reduced-motion`.
 - Mouse wheel zooms by `exp(deltaY × 0.002)` per event, clamped to [0.5, 2]; a trackpad pinch (a wheel event with `ctrlKey`) uses `0.01` because it reports much smaller deltas. Shift+wheel and horizontal wheel deltas pan. Line- and page-mode deltas are scaled to pixels.
 - Touch uses Pointer Events with `touch-action: none`; a press becomes a drag after 4 px of movement; a two-finger pinch keeps the date under each finger fixed by solving the linear pixel mapping; three or more fingers are ignored; when one finger of a pinch lifts, the other continues as a pan. Safari's `gesturestart`/`gesturechange` are suppressed. Touch pointers never show the tooltip or the cursor guide.
-- Keyboard: `Escape`, `-`/`_` (zoom out), `0` (home), `+`/`=` (zoom in at center). Ignored while Ctrl, Alt or Meta is held or while focus is in a form field. There is no Home-key binding; Home is the button.
+- Keyboard: `Escape`, `-`/`_` (zoom out), `0` (home), `+`/`=` (zoom in at center), `1`–`6` (visual mode), `T` (cycle modes). Ignored while Ctrl, Alt or Meta is held or while focus is in a form field. There is no Home-key binding; Home is the button.
 - The stage is resized on `window.resize` and on a `ResizeObserver` for the stage (so opening the panel reflows without a window event), debounced 100 ms.
 
 **Appearance**
@@ -246,3 +267,11 @@ Choices the spec left open, as implemented:
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+### Observatory UI (visual modes)
+
+- The chrome speaks one voice: monospace, uppercase, wide-tracked micro-type for every instrument label (breadcrumbs, readouts, buttons, tick labels), while event labels stay in a sans face for lane density and the panel body reads in a serif.
+- Six modes are CSS token sets on `html[data-theme]`; NVG, Ironbow and Noir additionally run the SVG stage through `feComponentTransfer` gradient-map filters defined inline, so the category colours are re-mapped by luminance the way a sensor would render them.
+- Atmosphere layers (grain, scanlines, vignette) are always in the DOM and per-mode tokens set their opacity; CRT animates a slow refresh band. All are `pointer-events: none` and switched off under `forced-colors`.
+- When a zoom settles (animation end, or any discrete view change), events animate into their lanes with a 22 ms stagger; continuous wheel, drag and pinch renders never animate. Tier 0 and 1 point markers carry a slow pulse ring.
+- The mode is stored under `ht-theme` in `localStorage` and serialised as `m=` in the hash only when explicitly chosen; `auto` is never written so the system preference keeps working for people who never picked one.

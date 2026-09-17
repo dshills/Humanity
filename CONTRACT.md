@@ -208,7 +208,9 @@ axis + label. Label width measured with a hidden `<text>` (`getComputedTextLengt
 Cursor guide: vertical line + date readout in the header (`formatDateFull` when span ≤ 20000, else formatAgo).
 Resize: recompute on `resize`, debounced 100ms. Categories: color from HT.tiers.COLORS; legend toggle in header.
 DOM ids the CSS and tests rely on: `#app, #header, #title, #crumbs, #btn-home, #btn-out, #btn-legend, #cursor-date,
-#timeline (svg), #panel, #panel-close, #panel-zoom, #tooltip, #legend`.
+#timeline (svg), #panel, #panel-close, #panel-zoom, #tooltip, #legend`, plus `#dock` (mode buttons with `data-theme`),
+`#hud-*` readouts and `#cursor-chip`. Modes: `HT.app.setTheme(name)` with `THEMES = ops|crt|nvg|ironbow|noir|paper` (or `auto`),
+applied as `html[data-theme]`, persisted in localStorage `ht-theme`, serialised in the hash as `m=`; keys 1–6 and T.
 
 ## 8. CSS — `src/styles.css`
 

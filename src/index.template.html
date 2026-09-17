@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
-<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#15171d">
-<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#070a0e">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f3eee3">
 <meta name="description" content="A zoomable timeline of human history, from the first Homo sapiens 300,000 years ago to today.">
 <title>Humanity — a zoomable timeline</title>
 <style>
@@ -14,9 +14,41 @@
 </head>
 <body>
 <noscript>This timeline needs JavaScript to run.</noscript>
+<svg width="0" height="0" aria-hidden="true" style="position:absolute" focusable="false">
+  <defs>
+    <!-- Sensor modes: luminance → gradient map. Table stops run from black to white. -->
+    <filter id="sensor-nvg" color-interpolation-filters="sRGB">
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncR type="table" tableValues="0 0.02 0.08 0.25 0.55 0.85"/>
+        <feFuncG type="table" tableValues="0 0.16 0.42 0.78 0.98 1"/>
+        <feFuncB type="table" tableValues="0 0.04 0.12 0.3 0.55 0.8"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="sensor-ironbow" color-interpolation-filters="sRGB">
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncR type="table" tableValues="0 0.18 0.62 0.95 1 1 1"/>
+        <feFuncG type="table" tableValues="0 0 0.05 0.25 0.55 0.85 1"/>
+        <feFuncB type="table" tableValues="0.02 0.45 0.62 0.2 0 0.15 1"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="sensor-noir" color-interpolation-filters="sRGB">
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncR type="table" tableValues="0 0.06 0.3 0.72 1"/>
+        <feFuncG type="table" tableValues="0 0.06 0.3 0.72 1"/>
+        <feFuncB type="table" tableValues="0 0.06 0.3 0.72 1"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+</svg>
 <div id="app">
   <header id="header">
-    <h1 id="title">Humanity</h1>
+    <div id="brand">
+      <h1 id="title">Humanity</h1>
+      <span id="tagline">Deep time observatory</span>
+    </div>
     <nav id="crumbs" aria-label="Zoom path"></nav>
     <div id="cursor-date" aria-live="off"></div>
     <div id="controls">
@@ -27,6 +59,31 @@
   </header>
   <main id="stage">
     <svg id="timeline" role="group" aria-label="Timeline of humanity. Click to zoom in; events are buttons."></svg>
+    <div class="fx fx-grain" aria-hidden="true"></div>
+    <div class="fx fx-scan" aria-hidden="true"></div>
+    <div class="fx fx-vignette" aria-hidden="true"></div>
+    <div id="cursor-chip" hidden aria-hidden="true"></div>
+    <div id="hud" aria-hidden="true">
+      <div id="hud-left" class="hud-block">
+        <span class="hud-k">Span</span><span class="hud-v" id="hud-span">—</span>
+        <span class="hud-k">Events</span><span class="hud-v" id="hud-events">—</span>
+        <span class="hud-k">Tier</span><span class="hud-v" id="hud-tier">—</span>
+        <span class="hud-k">Scale</span><span class="hud-v" id="hud-scale">—</span>
+      </div>
+      <div id="hud-right" class="hud-block">
+        <span class="hud-k">Mode</span><span class="hud-v" id="hud-mode">—</span>
+        <span class="hud-k">Local</span><span class="hud-v" id="hud-clock">—</span>
+        <span class="hud-k"></span><span class="hud-v beacon" id="hud-now" hidden>Now in view</span>
+      </div>
+    </div>
+    <nav id="dock" aria-label="Visual mode">
+      <button type="button" data-theme="ops" aria-pressed="false"><span>Ops</span><kbd>1</kbd></button>
+      <button type="button" data-theme="crt" aria-pressed="false"><span>CRT</span><kbd>2</kbd></button>
+      <button type="button" data-theme="nvg" aria-pressed="false"><span>NVG</span><kbd>3</kbd></button>
+      <button type="button" data-theme="ironbow" aria-pressed="false"><span>Ironbow</span><kbd>4</kbd></button>
+      <button type="button" data-theme="noir" aria-pressed="false"><span>Noir</span><kbd>5</kbd></button>
+      <button type="button" data-theme="paper" aria-pressed="false"><span>Paper</span><kbd>6</kbd></button>
+    </nav>
     <div id="tooltip" role="tooltip" hidden></div>
     <div id="legend" hidden></div>
   </main>
