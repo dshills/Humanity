@@ -85,6 +85,13 @@ Titles and one-line descriptions are Wikidata's own; each event links to its Eng
 node scripts/import-wikidata.mjs   # writes src/data/10-wikidata.js, then rebuild
 ```
 
+## Nobel Prizes and launches
+
+- `scripts/import-nobel.mjs` writes `src/data/11-nobel.js`: one event per Nobel Prize since 1901 from the Nobel Foundation's API (CC0), dated by the announcement and linking to the prize's summary page. Physics, chemistry and economics are filed under science, medicine under medicine, literature under art and peace under politics.
+- `scripts/import-gcat.mjs` writes `src/data/12-launches.js` from Jonathan McDowell's General Catalog of Artificial Space Objects (GCAT, CC BY 4.0, planet4589.org): every human orbital spaceflight launch, the first orbital launch from each launch site, and the first flight of each launch vehicle family with at least ten orbital launches. Launches within two days of a curated space event are skipped.
+
+Both are build-time imports; the page still makes no network requests. Nobel Prize® is a registered trademark of the Nobel Foundation. Launch data: J. McDowell, planet4589.org.
+
 ## Adding an event
 
 Events live in `src/data/NN-<era>.js`, one file per era, each pushing plain objects onto `HT.events`:
