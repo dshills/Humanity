@@ -14,7 +14,9 @@ Research notes, verified 2026-09-17, on open data that could add richness to the
 2. **Wikimedia Pageviews API, at build time.** One request per event for 12 months of views; blend `log10(views)` with sitelink counts into the `tier`, cache the result in the repo. Turns the hand-assigned tiers into something reproducible.
 3. **Wikipedia REST `page/summary` + Commons `extmetadata`, opt-in online.** Behind a "Load images from Wikimedia" toggle: one CORS-safe GET per opened panel yields a 330 px thumbnail, an extract and a credit line. Cache in localStorage and send `Api-User-Agent`.
 4. **UCDP Armed Conflict (CC BY 4.0), at build time.** ~2,600 conflict episodes 1946–2025 with start/end dates and intensity; import the wars as ranged `war` events with a fatality-based tier and a one-line citation.
-5. **Curated museum objects (Rijksmuseum, The Met, Cleveland; all CC0, keyless).** ~50 hand-picked object IDs for art and culture events, hotlinked in the same opt-in online mode. Rijksmuseum's 120 px IIIF thumbnails are ~4 KB, small enough to bake for a handful.
+5. **NOAA NCEI hazards + NOAA paleoclimate series (US Government works, unrestricted), at build time.** Three sparklines under the axis (CO2, Antarctic temperature, sea level, 800,000 years to today, ~10 KB downsampled) give the timeline the physical backdrop it lacks, and ~250 catastrophe events with death tolls come from the significant earthquake, tsunami and eruption databases (~30–60 KB after filtering).
+6. **GCAT launches (CC BY 4.0) + Nobel Prize API (CC0), at build time.** ~7,000 orbital launches and ~680 prizes densify 1901–2026 at high zoom from two flat, explicitly open sources.
+7. **Curated museum objects (Rijksmuseum, The Met, Cleveland; all CC0, keyless).** ~50 hand-picked object IDs for art and culture events, hotlinked in the same opt-in online mode. Rijksmuseum's 120 px IIIF thumbnails are ~4 KB, small enough to bake for a handful.
 
 ---
 
@@ -186,3 +188,95 @@ Research notes, verified 2026-09-17, on open data that could add richness to the
 
 ### 15. Speech and translation
 - Wikimedia's MinT translation is only available to Wikimedia products. The browser's on-device Web Speech API (`speechSynthesis`) gives a zero-network "Read aloud" button in ~10 lines. Wikidata `sitelinks` link each event to its article in 100+ languages.
+
+---
+
+## Part 3: Domain registries and time series
+
+**Schema note.** Several of the best sources here are natural hazards and climate curves, which fit none of the 15 current categories well. Add one category (e.g. `earth`) before importing them.
+
+### 1. NOAA NCEI Global Historical Hazards (significant earthquake, tsunami and volcanic eruption databases)
+- **URL**: https://www.ngdc.noaa.gov/hazel/view/hazards/earthquake/search ; REST API `https://www.ngdc.noaa.gov/hazel/hazard-service/api/v1/{earthquakes|tsunamis/events|volcanoes}` (JSON, paginated; `minYear`/`maxYear`/`itemsPerPage` verified live).
+- **Licence**: US Government work; the metadata record (DOI 10.7289/V5TD9V7K) says "Access to this dataset is unrestricted"; citation requested. No copyright, no non-commercial clause.
+- **Verified totals**: 6,697 earthquakes (2150 BCE–present), 3,131 tsunami events (2000 BCE–present), 900 volcanic-eruption events. Fields: year/month/day, location, lat/lon, magnitude, intensity, deaths, `deathsAmountOrder` (0–4), `damageAmountOrder`, cross-links between quake, tsunami and eruption ids.
+- **Layer**: filter deaths ≥ 10,000 or M ≥ 8.0 → ~250 tier 3–4 events ("1556 Shaanxi earthquake, ~830,000 dead"); a hazard tick strip under the axis from all 6.7k quakes at high zoom.
+- **Integration**: build-time (filtered subset ~30–60 KB; the full catalogue is ~1.5 MB).
+- **Caveats**: the `/api/v1/docs` path 404s, so discover fields from sample responses; ancient records are year-only with inconsistent place names; cite the DOI.
+
+### 2. NOAA paleoclimate series (EPICA CO2 composite, EPICA temperature, Spratt & Lisiecki sea level, Mauna Loa CO2)
+- **URLs** (all opened, row counts verified):
+  - CO2, Bereiter et al. 2015 composite: https://www.ncei.noaa.gov/pub/data/paleo/icecore/antarctica/antarctica2015co2composite.txt (1,902 rows, 50 KB, −51 to 805,669 yr BP).
+  - Temperature anomaly, EPICA Dome C EDC3 (Jouzel et al. 2007): `.../epica_domec/edc3deuttemp2007.txt` (5,870 rows, 357 KB, 0–801,662 yr BP; column 5 is ΔT vs the last-millennium mean).
+  - Sea level stack, Spratt & Lisiecki 2016: https://www.ncei.noaa.gov/pub/data/paleo/contributions_by_author/spratt2016/spratt2016.txt (800 rows, 1 kyr steps, metres relative to present with 95% bounds).
+  - Modern CO2, Mauna Loa annual mean: https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_annmean_mlo.txt (67 rows, 1959–2025).
+- **Licence**: NOAA/NCEI World Data Service, US Government works; headers ask only for citation. No restrictions.
+- **Layer**: three sparklines beneath the axis that resolve as you zoom: the last three glacial cycles at the 300 kyr scale, the Holocene plateau at 10 kyr, the Mauna Loa hockey stick at 200 years. Generated events: "Last Glacial Maximum, sea level −120 m" (tier 2), "CO2 passes 400 ppm, 2015" (tier 4).
+- **Integration**: build-time; downsample to ~400 points per series (min/max per bin) → ~10 KB total. Convert BP to astronomical year as `1950 − age`.
+- **Caveats**: temperature is Antarctic, not global; label it. Bin the deuterium file (55 cm bag resolution).
+
+### 3. Wikidata for rulers, dynasties and offices
+- **Verified live**: 26,125 head-of-state position statements with start dates (P39/P580 under Q48352). CC0.
+- **Layer**: "reign bars" for a curated set of offices (Roman and Chinese emperors, popes, caliphs, US presidents) using `t`/`end` → ~2,000 tier 5–6 events in politics/empire, with `link` from the enwiki sitelink.
+- **Caveats**: data quality (a test query returned "Elrond" among heads of state): filter on `wdt:P31 wd:Q5` (human) plus a whitelist of positions and drop blank-node start dates. Pre-1582 dates are Julian with a calendar-model flag.
+
+### 4. GCAT: General Catalog of Artificial Space Objects (Jonathan McDowell)
+- **URL**: https://planet4589.org/space/gcat/ ; launch list TSV https://planet4589.org/space/gcat/tsv/launch/launch.tsv
+- **Licence** (verified): "CC-BY-4.0 Creative Commons/Attribution"; cite "Data from J. McDowell, planet4589.org". Version 1.8.8, updated 16 Sep 2026.
+- **Format**: 13.8 MB TSV, 75,974 rows (all launches); 7,173 orbital `LaunchCode` O-rows from 1957-10-04 to 2026-09-16, dated to the second, with vehicle, payload, agency, site, orbit and success/fail code.
+- **Layer**: an orbital-launch tick strip below year zoom (~150 KB trimmed to date, name, agency, fail flag); tier-5 events for firsts (first launch per country or agency, crewed flights) by simple grouping.
+- **Integration**: build-time; preferable to Launch Library 2 (flat file, explicit licence). Dates use a custom "1957 Oct 4 1928:34" format.
+
+### 5. Nobel Prize API
+- **URL**: https://api.nobelprize.org/2.1/nobelPrizes ; terms https://www.nobelprize.org/about/terms-of-use-for-api-nobelprize-org-and-data-nobelprize-org/
+- **Licence** (verified): "The Services are free to use according to the Creative Commons Zero (CC0) license." Do not use the Nobel name or logo in the app's title; citing as a data source is encouraged.
+- **Format**: REST JSON, no key, paginated; verified `count: 682` prizes (1901–2025), ~1,000 laureates with `dateAwarded`, category, motivation, and laureate dates.
+- **Layer**: one tier-6 event per prize ("1921 Physics: Einstein, photoelectric effect"), ~680 events, ~60 KB with motivations or ~25 KB with names only.
+- **Integration**: build-time (the terms ask for local caching).
+
+### 6. Historical urban population 3700 BCE–2000 CE (Reba, Reitsma & Seto 2016; Chandler component)
+- **Data**: figshare https://doi.org/10.6084/m9.figshare.2059494 ("Chandler Population Data", 1.35 MB CSV, 1,587 cities, 2250 BCE–1975 CE, licence badge CC BY 4.0 verified in the browser). The NASA SEDAC mirror is decommissioned.
+- **Layer**: a "largest city in the world" ribbon along the axis (Uruk → Ur → Babylon → Alexandria → Rome → Chang'an → Baghdad → … → Tokyo) computed from per-year maxima; ~30 tier-3 events when the crown changes hands.
+- **Integration**: build-time, ~5 KB derived. Present as "estimates (Chandler 1987)"; the numbers are contested.
+
+### 7. Maddison Project Database 2023 (GDP per capita and population, 1–2022 CE)
+- **URL**: https://www.rug.nl/ggdc/historicaldevelopment/maddison/releases/maddison-project-database-2023 ; data DOI 10.34894/INZBF2.
+- **Licence** (verified): CC BY 4.0; cite Bolt & van Zanden (2024), doi:10.1111/joes.12618. If fewer than 12 countries are plotted, the original per-country papers must be cited.
+- **Format**: Excel/Stata; 169 countries; benchmark years 1, 1000, 1500, 1600, 1700, 1820, then annual.
+- **Layer**: a world GDP-per-capita sparkline for 1–2022 (~3 KB), regional divergence at high zoom (~40 KB for ten regions).
+
+### 8. Our World in Data long-run population (HYDE 3.3 + Gapminder + UN WPP 2024)
+- **URL**: https://ourworldindata.org/grapher/population-long-run-with-projections ; CSV `…/population-long-run-with-projections.csv?csvType=full` and `.metadata.json` (verified; 10,000 BCE–2023 plus projections).
+- **Licence**: OWID's derived dataset CC BY 4.0, but the pre-1800 portion is HYDE 3.3, which is itself **CC BY-NC-SA 4.0** (verified on Yoda, DOI 10.24416/UU01-AEZZIT). Fine for an open-source hobby page; for anything commercial use only the 1800+ portion.
+- **Layer**: the world population curve on a log scale under the axis, the single most explanatory context line for the whole timeline; generated tier-3 milestones ("1 billion, c. 1804", "8 billion, 2022"). The World series alone is ~1 KB.
+
+### 9. UCDP armed conflicts (see also Part 1, source 6)
+- CC BY 4.0; conflict bars for wars with ≥ 1,000 battle deaths per year, tier 4–5; a "conflicts active per year" strip 1946–2025; ~20–40 KB. Correlates of War (1816–) would extend it but its terms (verified) forbid commercial use, so treat COW as NC.
+
+### 10. Smithsonian Global Volcanism Program, Volcanoes of the World v5.4.0
+- **Data**: Excel https://volcano.si.edu/database/GVP_Eruption_List_Holocene_20260424.xlsx (downloaded: 1.08 MB, 9,918 confirmed Holocene eruptions; VEI 5: 181, VEI 6: 52, VEI 7: 7). The WFS web service returned 503 throughout the session and the interactive search is discontinued pending a new site in 2026.
+- **Licence** (verified): **not open**. Smithsonian Terms of Use allow personal, educational and other non-commercial uses with citation; commercial use needs permission. Cite as "Global Volcanism Program, 2026 … https://doi.org/10.5479/si.GVP.VOTW5-2026.5.4".
+- **Layer**: VEI 7 as tier 2–3 events (Tambora 1815, Samalas 1257, Thera c. 1600 BCE), VEI 6 as tier 4, VEI 5 as tier-6 ticks; ~240 events, ~15 KB.
+- **Caveats**: if the NC clause is a problem, use NOAA's 900-event volcanic database (source 1) instead; it carries VEI and is unrestricted, at the cost of completeness. Bot-blocking: download manually.
+
+### 11. p3k14c: global archaeological radiocarbon dates
+- **URL**: https://github.com/people3k/p3k14c ; data on tDAR https://doi.org/10.48512/XCV8459173.
+- **Licence** (verified in the README): data CC0 1.0 (attribution requested); code MIT.
+- **Layer**: a summed-probability density strip 50,000–0 BP as a proxy for regional human activity; tier-6 events for the earliest dated occupation per continent.
+- **Integration**: build-time with heavy preprocessing (IntCal20 calibration offline); output a few hundred points per region, ~10 KB. Label it as a proxy with sampling bias.
+
+### 12. Pleiades: ancient places gazetteer
+- **URL**: https://pleiades.stoa.org/downloads (daily JSON dump, CSV, KML; quarterly releases). Licence CC BY 3.0 (verified).
+- **Layer**: a known-ancient-places count-per-century strip 1000 BCE–640 CE, or tooltips linking existing events to place pages. Mediterranean-centric; low to moderate value here.
+
+### 13. Seshat Global History Databank (Equinox release)
+- Zenodo https://zenodo.org/records/6642229 (3.6 MB zip) shows CC BY 1.0 while the project site states CC BY-NC-SA; treat as NC until clarified. A polity swimlane (~860 empire events, ~40 KB) would be attractive if the licence were resolved.
+
+### 14. Considered and de-prioritised
+- **EM-DAT** (terms verified): free only for academic, non-profit and media users; commercial use and redistribution restricted; 1900–present. Not feasible for a redistributable file.
+- **Launch Library 2**: free tier 15 requests/hour, no explicit data licence. Superseded by GCAT.
+- **Google Patents Public Data**: CC BY 4.0 but BigQuery-only, 98M+ rows; too heavy and weak as timeline content.
+- **ROCEEH ROAD**: >2,300 localities; full access needs registration; per-locality sheets CC BY-NC 4.0. Use p3k14c instead.
+- **Berkeley Earth**: CC BY-NC 4.0 (verified); NOAA Mauna Loa and NASA GISTEMP cover the modern period without the NC clause.
+- **Glottolog**: CC BY 4.0, but a language catalogue with no dated records.
+- **NASA Five Millennium Catalog of Solar Eclipses** (−1999 to +3000, 11,898 eclipses): reproduction freely permitted with the acknowledgment "Eclipse Predictions by Fred Espenak (NASA's GSFC)"; a fun optional layer (the 585 BCE eclipse of Thales), but HTML-scrape only.
+- **ISC-GEM instrumental catalogue** (1904–2021, M ≥ 5.5): licence page unreachable; NOAA covers the significant events.
