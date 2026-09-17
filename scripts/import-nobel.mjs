@@ -32,7 +32,10 @@ for (const p of prizes) {
   if (!CATEGORY[cat] || !year) continue;
   const laureates = (p.laureates || []).map((l) => (l.knownName && l.knownName.en) || (l.orgName && l.orgName.en) || (l.fullName && l.fullName.en)).filter(Boolean);
   if (!laureates.length) continue;                                   // years with no award
-  const [y, m, d] = (p.dateAwarded || `${year}-12-10`).split('-').map(Number);
+  let [y, m, d] = (p.dateAwarded || `${year}-12-10`).split('-').map(Number);
+  // Reserved prizes are announced the following year (1921 Chemistry: 1922-11-09), but anything further off is a
+  // data error in the feed (the 2022 Economics prize is recorded as 2011-10-10): keep the month and day, use the prize year.
+  if (!(Math.abs(y - year) <= 1)) y = year;
   const field = cat === 'Economic Sciences' ? 'Economics' : cat === 'Physiology or Medicine' ? 'Medicine' : cat;
   const title = clip(`Nobel Prize in ${field}: ${laureates.join(', ')}`.replace('Nobel Prize in Peace', 'Nobel Peace Prize'), 80).replace(/\.$/, '');   // "Jr." would end the title with a period
   const first = p.laureates[0];
