@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The root view in NVG mode, all 300,000 years on one axis: the recorded-history bracket at the top right marks the last 5,300 years as a sliver against the Today line and offers a one-click zoom, the overview strip under the header shows the same span on a logarithmic scale, the first events stack above the axis, and 800,000-year climate curves with world population run beneath it](docs/screenshot.png)
+![The years 1950 to today in NVG mode: a dozen ruler swimlanes, from the emperor of Japan and the pope to the presidents of the United States, France and Russia, each run up to the dashed Today line with the sitting holder's bar; the panel is open on Emmanuel Macron, whose date reads 2017 – present; events, the Earth layer and the largest-city ribbon ending in Tokyo sit below, and the overview strip marks the view](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
