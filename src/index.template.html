@@ -100,7 +100,7 @@
         <dt>Click the axis</dt><dd>Zoom in four times around that moment. Keep clicking: years become months become days. On the widest views a bracket at the right edge jumps straight to recorded history.</dd>
         <dt>Shift+click · <kbd>-</kbd> · Zoom out</dt><dd>Step back out. <kbd>0</kbd> or Home returns to all of humanity.</dd>
         <dt>Wheel · pinch · drag</dt><dd>Zoom around the pointer and pan. The strip under the header shows where you are; click or drag it to jump.</dd>
-        <dt>Click an event</dt><dd>Open its panel: a map, the story, a link, sometimes a museum object. Copy link shares that exact event.</dd>
+        <dt>Click an event</dt><dd>Open its panel: a map, the story, links, what else happened around then, sometimes a museum object. Copy link shares that exact event. Zoomed in to a month or less, you can load Wikipedia's day-by-day events.</dd>
         <dt><kbd>/</kbd> Search</dt><dd>Find any of the events by name and jump to it.</dd>
         <dt>Legend</dt><dd>Show or hide categories (Shift+click shows one alone) and filter by region.</dd>
         <dt><kbd>R</kbd> Reigns · <kbd>E</kbd> Earth</dt><dd>Rulers as swimlanes across the top; climate, population and the largest city beneath the axis.</dd>
@@ -108,6 +108,10 @@
         <dt><kbd>?</kbd></dt><dd>This guide. <kbd>Esc</kbd> closes whatever is open.</dd>
       </dl>
       <button id="help-ok" type="button">Start exploring</button>
+    </div>
+    <div id="otd-chip" hidden>
+      <button id="otd-action" type="button"></button>
+      <button id="otd-dismiss" type="button" aria-label="Hide this prompt" title="Hide this prompt">×</button>
     </div>
     <div id="tooltip" role="tooltip" hidden></div>
     <div id="legend" hidden></div>
@@ -130,17 +134,30 @@
       <figcaption id="panel-img-credit"></figcaption>
     </figure>
     <p id="panel-detail"></p>
+    <blockquote id="panel-extract" hidden>
+      <p id="panel-extract-text"></p>
+      <footer><a id="panel-extract-src" target="_blank" rel="noopener noreferrer">Wikipedia</a> · CC BY-SA 4.0</footer>
+    </blockquote>
     <a id="panel-link" target="_blank" rel="noopener noreferrer" hidden>Read more ↗</a>
+    <nav id="panel-more" aria-label="More links" hidden></nav>
     <figure id="panel-object" hidden>
       <figcaption id="panel-object-head">Object</figcaption>
       <a id="panel-object-imglink" target="_blank" rel="noopener noreferrer" hidden><img id="panel-object-img" alt="" decoding="async" referrerpolicy="no-referrer"></a>
       <a id="panel-object-link" target="_blank" rel="noopener noreferrer"></a>
       <div id="panel-object-credit"></div>
     </figure>
+    <section id="panel-near" hidden>
+      <h3>Around this time</h3>
+      <ul id="panel-near-list"></ul>
+    </section>
+    <section id="panel-related" hidden>
+      <h3 id="panel-related-head">Related</h3>
+      <ul id="panel-related-list"></ul>
+    </section>
     <button id="panel-zoom" type="button">Zoom to this event</button>
     <button id="panel-copy" type="button">Copy link to this event</button>
-    <label id="panel-online" title="Off by default. When on, opening an event requests one thumbnail and its credit from Wikipedia and Wikimedia Commons, and the image of its museum object when it has one. Nothing is requested while this is off.">
-      <input id="opt-images" type="checkbox"> <span>Load images from Wikimedia and museums</span>
+    <label id="panel-online" title="Off by default. When on, opening an event requests its summary, one thumbnail and the credit from Wikipedia and Wikimedia Commons, and the image of its museum object when it has one; and a view of about a month or less requests Wikipedia's 'on this day' lists for the days in view. Nothing is requested while this is off.">
+      <input id="opt-images" type="checkbox"> <span>Load images, summaries and day-by-day events from Wikimedia and museums</span>
     </label>
   </aside>
 </div>

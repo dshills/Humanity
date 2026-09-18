@@ -1062,6 +1062,50 @@ html[data-theme="paper"] #panel-title { font-size: 24px; }
 }
 #panel-link:hover { text-decoration-thickness: 2px; }
 
+/* Opt-in article summary */
+#panel-extract { margin: 0 0 12px; padding: 2px 0 2px 12px; border-left: 2px solid rgba(var(--accent-rgb), 0.45); }
+#panel-extract p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--muted); }
+#panel-extract footer { margin-top: 6px; font: 500 9.5px/1.4 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+#panel-extract footer a { color: var(--accent); }
+
+/* More links out, and jumps to neighbouring events */
+#panel-more { display: flex; flex-direction: column; gap: 2px; margin: 0 0 6px; }
+#panel-more a {
+  display: inline-flex; align-items: center; min-height: 26px; align-self: flex-start;
+  font: 500 10.5px/1.3 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted); text-decoration: underline; text-decoration-color: rgba(var(--accent-rgb), 0.4); text-underline-offset: 3px;
+}
+#panel-more a:hover { color: var(--accent); }
+#panel-near, #panel-related { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--panel-border); }
+#panel-near h3, #panel-related h3 { margin: 0 0 6px; font: 600 10px/1.3 var(--font-mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+#panel-near ul, #panel-related ul { list-style: none; margin: 0; padding: 0; }
+.panel-jump {
+  display: grid; grid-template-columns: 1fr; gap: 1px; width: 100%; padding: 6px 8px; margin: 0 -8px; box-sizing: content-box;
+  text-align: left; border-radius: 4px; color: var(--fg); transition: background-color 120ms var(--ease);
+}
+.panel-jump:hover, .panel-jump:focus-visible { background: var(--hover); }
+.panel-jump .when { font: 500 9.5px/1.3 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.panel-jump .what { font-size: 13.5px; line-height: 1.35; }
+
+/* On-this-day chip and markers */
+#otd-chip {
+  position: absolute; z-index: 4; left: 50%; bottom: 76px; transform: translateX(-50%);
+  display: flex; align-items: stretch; max-width: calc(100% - 24px);
+  border: 1px solid var(--panel-border); border-radius: 999px; background: var(--panel-bg);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: var(--shadow);
+  font: 600 10px/1 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase;
+}
+#otd-chip[hidden] { display: none; }
+#otd-action { min-height: 30px; padding: 0 14px; border-radius: 999px; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#otd-action:disabled { color: var(--muted); cursor: default; }
+#otd-action:not(:disabled):hover { background: var(--hover); }
+#otd-dismiss { width: 30px; border-radius: 999px; color: var(--muted); font-size: 15px; }
+#otd-dismiss:hover { color: var(--fg); background: var(--hover); }
+.event.otd .marker { fill: var(--bg); stroke: var(--accent); stroke-width: 1.5; }
+.event.otd .label { fill: var(--muted); }
+.event.otd:hover .label, .event.otd.selected .label, .event.otd:focus-visible .label { fill: var(--fg); }
+#panel-category.cat-daily:not(:empty)::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--accent); }
+
 #panel-zoom {
   margin-top: 18px;
   min-height: var(--hit);
@@ -1286,6 +1330,7 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
   #btn-home { display: none; }                      /* the root crumb does the same job */
   #btn-reigns { display: none; }
   #help dl { grid-template-columns: 1fr; gap: 2px 0; }
+  #otd-chip { bottom: auto; top: 10px; }                  /* the HUD owns the bottom of a phone stage */
   #help { padding: 16px 18px 14px; max-height: calc(100% - 16px); }
   #help h2 { margin-bottom: 10px; }
   #help dl { line-height: 1.38; }

@@ -39,7 +39,14 @@
   const RECORDED_START = -3299;       // c. 3300 BCE, the first writing: where "recorded history" begins
   const ERA_TOP = 30;                 // y of the recorded-history bracket
   const ERA_RESERVE = 52;             // px kept clear of lanes beneath the top of the stage while it shows
-  const IMAGE_CACHE_KEY = 'ht-image-cache';
+  const IMAGE_CACHE_KEY = 'ht-summary-cache';      // was ht-image-cache before summaries were kept too
+  const OTD_MAX_SPAN = 35 / 365;          // about a month: the widest view that loads Wikipedia's "on this day" lists
+  const OTD_CACHE_KEY = 'ht-otd-cache';
+  const OTD_CACHE_DAYS = 40;              // days kept in localStorage, oldest dropped first
+  const OTD_HINT_KEY = 'ht-otd-hint';
+  const OTD_PARALLEL = 6;
+  const OTD_ENDPOINT = 'https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/';
+  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const IMAGE_CACHE_MAX = 200;
   const API_UA = 'HumanityTimeline/1.0 (https://github.com/dshills/Humanity)';
   const REIGN_ROW_H = 17;                 // px per swimlane row
@@ -107,6 +114,15 @@
   let mmDownX = 0;
   let mmMoved = false;
   let imageSeq = 0;                     // guards against a slow response landing on a different event
+  const otdDays = new Map();              // 'MM/DD' -> 'loading' | 'done' | 'error'
+  let otdQueue = [];
+  let otdActive = 0;
+  let otdTimer = 0;
+  let otdRenderTimer = 0;
+  let otdInView = 0;                      // on-this-day events inside the current view
+  let otdHint = true;                     // offer the layer on deep views while the opt-in is off
+  let otdLinkIndex = null;                // article title -> [t] of bundled events, to skip what is already here
+  let pendingSlug = '';                   // ev= slug that named nothing yet (an on-this-day event not loaded)
   let imageCache = null;                  // { title: { src, page, credit } | 0 }  (0 = nothing usable)
   let reignReserve = 0;                   // px at the top of the stage reserved for swimlanes this frame
   let reignRows = [];                     // [{ group, items: [event index] }] chosen for this frame
@@ -286,6 +302,7 @@
     if (m && THEMES.indexOf(m) >= 0 && m !== theme) setTheme(m, { silent: true });
     const evSlug = params.get('ev');
     pendingEv = evSlug ? indexForSlug(evSlug) : -1;
+    pendingSlug = evSlug && pendingEv < 0 ? String(evSlug) : '';
     const s = parseFloat(params.get('s'));
     const e = params.get('e') === 'now' ? (Number.isFinite(s) ? endAtNow(s) : NaN) : parseFloat(params.get('e'));
     if (!Number.isFinite(s) || !Number.isFinite(e) || !(e > s)) return null;
@@ -616,6 +633,8 @@
     if (lastMouseX !== null) updateCursor(lastMouseX);  // the date under a resting pointer changes with the view
     updateHud(shown);
     renderMinimap();
+    updateOtdChip();
+    if (otdWanted(shown)) scheduleOtd();
     settleNext = false;
   }
 
@@ -1037,7 +1056,7 @@
     for (let k = 0; k <= maxTier; k++) counts.push(0);
     for (let i = 0; i < list.length; i++) {
       const ev = list[i];
-      if (!passesFilters(ev, i) || (ev.group && reignsActive())) continue;
+      if ((ev.otd && !otdShown(v)) || !passesFilters(ev, i) || (ev.group && reignsActive())) continue;
       const tEnd = hasEnd(ev) ? ev.end : ev.t;
       if (tEnd < v.start || ev.t > v.end) continue;
       counts[clamp(ev.tier, 0, maxTier)]++;
@@ -1061,14 +1080,18 @@
     const meta = [];
     const tierLimit = effectiveTier(list, v, span);
     let inWindow = 0;
+    const showOtd = otdShown(v);
+    otdInView = 0;
 
     for (let i = 0; i < list.length; i++) {
       const ev = list[i];
+      if (ev.otd && (!showOtd || ev.t < v.start || ev.t > v.end)) continue;       // cheap checks first: there can be thousands
       if (ev.tier > tierLimit || !passesFilters(ev, i) || (ev.group && reignsActive())) continue;
       const ranged = hasEnd(ev);
       const tEnd = ranged ? ev.end : ev.t;
       if (tEnd < v.start || ev.t > v.end) continue;
       inWindow++;
+      if (ev.otd) otdInView++;
 
       const x = tToPx(ev.t, v);
       const xEnd = ranged ? tToPx(tEnd, v) : x;
@@ -1095,7 +1118,7 @@
       const lx0 = anchor === 'start' ? ax : ax - lw;
       const lx1 = lx0 + lw;
       const stemX = ranged ? bx0 : x;
-      items.push({ x0: Math.min(lx0, stemX - 2), x1: Math.max(lx1, stemX + 2), priority: ev.tier });
+      items.push({ x0: Math.min(lx0, stemX - 2), x1: Math.max(lx1, stemX + 2), priority: ev.otd ? ev.tier + 1 : ev.tier });   // bundled events win a lane first
       meta.push({ index: i, ev: ev, ranged: ranged, x: x, bx0: bx0, bx1: bx1, text: text, ax: ax, anchor: anchor, stemX: stemX });
     }
 
@@ -1114,9 +1137,9 @@
       const ev = m.ev;
       const lane = placed[k].lane;
       const baseline = axisY - LANE_BASE_OFFSET - lane * LANE_PITCH;
-      const color = colors[ev.category] || 'currentColor';
+      const color = ev.otd ? 'var(--accent)' : colors[ev.category] || 'currentColor';
       const g = svgEl('g', {
-        class: 'event cat-' + ev.category + ' tier-' + ev.tier + (m.ranged ? ' ranged' : ' point') +
+        class: 'event cat-' + ev.category + ' tier-' + ev.tier + (ev.otd ? ' otd' : '') + (m.ranged ? ' ranged' : ' point') +
                (m.index === selected ? ' selected' : '') + (settleNext ? ' arrive' : ''),
         id: 'ev-' + m.index,
         'data-index': m.index,
@@ -1414,6 +1437,7 @@
     if (imageCache) return imageCache;
     imageCache = {};
     try { const raw = JSON.parse(root.localStorage.getItem(IMAGE_CACHE_KEY) || '{}'); if (raw && typeof raw === 'object') imageCache = raw; } catch (err) { /* ignore */ }
+    try { root.localStorage.removeItem('ht-image-cache'); } catch (err) { /* the pre-summary cache, no longer read */ }
     return imageCache;
   }
 
@@ -1429,21 +1453,24 @@
     return String(html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
-  async function fetchEventImage(title) {
+  // One summary request per opened event gives both the thumbnail and a paragraph of text. The result is
+  // { x?: extract, src?, page?, credit? } or 0 when the article offers neither.
+  async function fetchEventSummary(title) {
     const res = await root.fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(title), {
       headers: { 'Api-User-Agent': API_UA }, credentials: 'omit', referrerPolicy: 'no-referrer'
     });
     if (!res.ok) return 0;
     const sum = await res.json();
+    const extract = sum && sum.type !== 'disambiguation' && typeof sum.extract === 'string' ? sum.extract.trim().slice(0, 900) : '';
     const thumb = sum && sum.thumbnail && sum.thumbnail.source;
     const orig = sum && sum.originalimage && sum.originalimage.source;
     // Only freely licensed files live on Commons; images under /wikipedia/en/ are fair-use and are not shown.
     // The file name sits after the two hash directories; "originalimage" may itself be a thumb URL with a query.
     const m = /\/wikipedia\/commons\/(?:thumb\/)?[0-9a-f]\/[0-9a-f]{2}\/([^\/?#]+)/.exec(orig || '');
-    if (!thumb || !m) return 0;
+    if (!thumb || !m) return extract ? { x: extract } : 0;
     let file = m[1];
     try { file = decodeURIComponent(file); } catch (err) { /* keep raw */ }
-    const out = { src: thumb, page: 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(file), credit: 'Wikimedia Commons' };
+    const out = { x: extract, src: thumb, page: 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(file), credit: 'Wikimedia Commons' };
     try {
       const meta = await root.fetch('https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=extmetadata&format=json&origin=*&titles=' +
         encodeURIComponent('File:' + file), { credentials: 'omit', referrerPolicy: 'no-referrer' });
@@ -1462,7 +1489,7 @@
   }
 
   function showPanelImage(img, ev) {
-    if (!img) { dom.panelImage.hidden = true; dom.panelImg.removeAttribute('src'); return; }
+    if (!img || !img.src) { dom.panelImage.hidden = true; dom.panelImg.removeAttribute('src'); return; }
     dom.panelImg.src = img.src;
     dom.panelImg.alt = ev.title;
     dom.panelImgLink.href = img.page;
@@ -1470,19 +1497,35 @@
     dom.panelImage.hidden = false;
   }
 
+  // The article's opening paragraph, shown only when it says more than the event's own detail does.
+  function showPanelExtract(rec, ev) {
+    if (!dom.panelExtract) return;
+    let text = rec && typeof rec.x === 'string' ? rec.x : '';
+    if (text.length > 560) {                              // whole sentences, about a short paragraph
+      const cut = text.slice(0, 560);
+      const stop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('.\n'));
+      text = stop > 200 ? cut.slice(0, stop + 1) : cut.replace(/\s+\S*$/, '') + '\u2026';
+    }
+    if (!text || text.length < 80 || typeof ev.link !== 'string') { dom.panelExtract.hidden = true; dom.panelExtractText.textContent = ''; return; }
+    dom.panelExtractText.textContent = text;
+    dom.panelExtractSrc.href = ev.link;
+    dom.panelExtract.hidden = false;
+  }
+
   function updatePanelImage(ev) {
     if (!dom.panelImage) return;
     const seq = ++imageSeq;
     showPanelImage(null, ev);
+    showPanelExtract(null, ev);
     if (!imagesOn || typeof root.fetch !== 'function' || typeof ev.link !== 'string' || ev.link.indexOf(WIKI_PREFIX) !== 0) return;
     let title = ev.link.slice(WIKI_PREFIX.length);
     try { title = decodeURIComponent(title); } catch (err) { /* keep raw */ }
     const cache = loadImageCache();
-    if (Object.prototype.hasOwnProperty.call(cache, title)) { showPanelImage(cache[title] || null, ev); return; }
-    fetchEventImage(title).then(function (img) {
-      cache[title] = img || 0;
+    if (Object.prototype.hasOwnProperty.call(cache, title)) { showPanelImage(cache[title] || null, ev); showPanelExtract(cache[title] || null, ev); return; }
+    fetchEventSummary(title).then(function (rec) {
+      cache[title] = rec || 0;
       saveImageCache();
-      if (seq === imageSeq && imagesOn) showPanelImage(img || null, ev);
+      if (seq === imageSeq && imagesOn) { showPanelImage(rec || null, ev); showPanelExtract(rec || null, ev); }
     }).catch(function () { /* offline or blocked: the panel simply has no image */ });
   }
 
@@ -1513,36 +1556,364 @@
     try { root.localStorage.setItem(IMAGES_KEY, imagesOn ? '1' : '0'); } catch (err) { /* ignore */ }
     if (dom && dom.optImages) dom.optImages.checked = imagesOn;
     if (dom && !dom.panel.hidden && selected >= 0) { updatePanelImage(events()[selected]); updatePanelObject(events()[selected]); }
+    if (dom && shown) render();                          // on-this-day events appear or leave with the switch
+  }
+
+  // --- On this day (opt-in): on a view of about a month or less, Wikipedia's per-day lists fill in what the
+  // bundled data cannot. Entries become ordinary point events flagged `otd`; they live in memory and in a small
+  // localStorage cache, never in the bundle, and are drawn only on those deep views while the opt-in is on. ---
+  function otdShown(v) { return imagesOn && v.end - v.start <= OTD_MAX_SPAN; }
+  function otdWanted(v) { return otdShown(v) && typeof root.fetch === 'function' && capNow(v.end) >= 1; }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  // Calendar days ('MM/DD') touched by the view, nearest the centre first.
+  function otdDaysInView(v) {
+    const T = HT.time;
+    const a = Math.max(1, v.start);
+    const b = capNow(v.end);
+    const mid = (a + b) / 2;
+    const seen = new Map();
+    for (let t = a; t <= b + 1 / 366; t += 1 / 366) {
+      const p = T.toParts(Math.min(t, b));
+      const key = pad2(p.month) + '/' + pad2(p.day);
+      if (!seen.has(key)) seen.set(key, Math.abs(t - mid));
+    }
+    return Array.from(seen.keys()).sort(function (x, y) { return seen.get(x) - seen.get(y); });
+  }
+
+  function loadOtdCache() {
+    try {
+      const raw = JSON.parse(root.localStorage.getItem(OTD_CACHE_KEY) || 'null');
+      if (raw && raw.v === 1 && raw.days && typeof raw.days === 'object') return raw;
+    } catch (err) { /* ignore */ }
+    return { v: 1, days: {} };
+  }
+
+  function saveOtdDay(key, rows) {
+    try {
+      const cache = loadOtdCache();
+      cache.days[key] = { at: Date.now(), ev: rows };
+      const keys = Object.keys(cache.days).sort(function (x, y) { return cache.days[x].at - cache.days[y].at; });
+      while (keys.length > OTD_CACHE_DAYS) delete cache.days[keys.shift()];
+      root.localStorage.setItem(OTD_CACHE_KEY, JSON.stringify(cache));
+    } catch (err) { /* storage full or unavailable: the day is simply fetched again next time */ }
+  }
+
+  // [year, text, [article titles]] rows from the feed's JSON; everything else in the 600 KB response is dropped.
+  function otdRows(json) {
+    const out = [];
+    const list = json && Array.isArray(json.events) ? json.events : [];
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i];
+      const year = Number(e && e.year);
+      const text = e && typeof e.text === 'string' ? e.text.replace(/\s+/g, ' ').trim() : '';
+      if (!Number.isInteger(year) || year < 1 || text.length < 12) continue;
+      const titles = [];
+      const pages = Array.isArray(e.pages) ? e.pages : [];
+      for (let k = 0; k < pages.length && titles.length < 6; k++) {
+        const c = pages[k] && pages[k].titles && pages[k].titles.canonical;
+        if (typeof c === 'string' && c && titles.indexOf(c) < 0) titles.push(c);
+      }
+      out.push([year, text.slice(0, 400), titles]);
+    }
+    return out;
+  }
+
+  function wikiUrl(title) { return WIKI_PREFIX + encodeURIComponent(title).replace(/%2F/gi, '/').replace(/%3A/gi, ':').replace(/%2C/gi, ','); }
+
+  // The sentence's first link is often a person or a country; prefer the article that is about the event.
+  function otdMainTitle(titles, year) {
+    const eventish = /battle|siege|war\b|treaty|act\b|revolt|revolution|rebellion|massacre|coup|crisis|election|earthquake|eruption|flight|disaster|bombing|attack|expedition|conference|congress|accord|agreement|mission|launch|assassination|coronation|trial|riots?|strike|summit|games/i;
+    for (let i = 0; i < titles.length; i++) if (titles[i].indexOf(String(year)) >= 0) return titles[i];
+    for (let i = 0; i < titles.length; i++) if (eventish.test(titles[i].replace(/_/g, ' '))) return titles[i];
+    return titles[0] || '';
+  }
+
+  function otdKnown(titles, t) {
+    if (!otdLinkIndex) {
+      otdLinkIndex = new Map();
+      const list = events();
+      for (let i = 0; i < list.length; i++) {
+        const ev = list[i];
+        if (ev.otd || typeof ev.link !== 'string' || ev.link.indexOf(WIKI_PREFIX) !== 0) continue;
+        let key = ev.link.slice(WIKI_PREFIX.length);
+        try { key = decodeURIComponent(key); } catch (err) { /* keep raw */ }
+        if (!otdLinkIndex.has(key)) otdLinkIndex.set(key, []);
+        otdLinkIndex.get(key).push(ev.t);
+      }
+    }
+    for (let i = 0; i < titles.length; i++) {
+      const ts = otdLinkIndex.get(titles[i]);
+      if (ts) for (let k = 0; k < ts.length; k++) if (Math.abs(ts[k] - t) < 3 / 365) return true;
+    }
+    return false;
+  }
+
+  function clipWords(text, n) {
+    if (text.length <= n) return text.replace(/[.\s]+$/, '');
+    return text.slice(0, n - 1).replace(/\s+\S*$/, '').replace(/[,;:.\s]+$/, '') + '…';
+  }
+
+  function ingestOtdDay(key, rows) {
+    const month = Number(key.slice(0, 2));
+    const day = Number(key.slice(3, 5));
+    const list = events();
+    let added = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const year = rows[i][0];
+      const text = rows[i][1];
+      const titles = rows[i][2] || [];
+      if (month === 2 && day === 29 && !HT.time.isLeap(year)) continue;
+      const t = HT.time.ymd(year, month, day);
+      if (t > nowT() || otdKnown(titles, t)) continue;
+      const main = otdMainTitle(titles, year);
+      list.push({
+        t: t, title: clipWords(text, 72), detail: text, tier: HT.tiers.MAX_TIER, category: 'daily', otd: true,
+        link: main ? wikiUrl(main) : undefined,
+        links: titles.filter(function (x) { return x !== main; }).map(function (x) { return { title: x.replace(/_/g, ' '), url: wikiUrl(x) }; })
+      });
+      added++;
+    }
+    return added;
+  }
+
+  // A shared link can name an on-this-day event, which exists only once its day has been loaded.
+  function openPendingSlug() {
+    if (!pendingSlug) return;
+    const i = indexForSlug(pendingSlug);
+    if (i >= 0) { pendingSlug = ''; pendingEv = i; openPanel(i, { silent: true }); }
+  }
+
+  function otdDayDone(key, state) {
+    otdDays.set(key, state);
+    otdActive = Math.max(0, otdActive - 1);
+    pumpOtd();
+    if (otdRenderTimer) return;
+    otdRenderTimer = setTimeout(function () {             // several days usually land together: draw once
+      otdRenderTimer = 0;
+      openPendingSlug();
+      if (shown) { settleNext = false; render(); }
+    }, 120);
+  }
+
+  function pumpOtd() {
+    while (otdActive < OTD_PARALLEL && otdQueue.length) {
+      const key = otdQueue.shift();
+      if (otdDays.has(key)) continue;
+      otdDays.set(key, 'loading');
+      otdActive++;
+      // A stalled request would hold its slot for good: give each day 25 s, then count it as failed.
+      const ctl = typeof root.AbortController === 'function' ? new root.AbortController() : null;
+      const timer = ctl ? setTimeout(function () { ctl.abort(); }, 25000) : 0;
+      root.fetch(OTD_ENDPOINT + key, { headers: { 'Api-User-Agent': API_UA }, credentials: 'omit', referrerPolicy: 'no-referrer', signal: ctl ? ctl.signal : undefined })
+        .then(function (res) { if (!res.ok) throw new Error(String(res.status)); return res.json(); })
+        .finally(function () { if (timer) clearTimeout(timer); })
+        .then(function (json) {
+          const rows = otdRows(json);
+          saveOtdDay(key, rows);
+          ingestOtdDay(key, rows);
+          otdDayDone(key, 'done');
+        })
+        .catch(function () { otdDayDone(key, 'error'); });
+    }
+  }
+
+  // Debounced: wait for the view to rest, then load the days it touches (cache first, network for the rest).
+  function scheduleOtd() {
+    if (otdTimer) clearTimeout(otdTimer);
+    otdTimer = setTimeout(function () {
+      otdTimer = 0;
+      if (!view || !otdWanted(view) || anim) return;
+      const keys = otdDaysInView(view);
+      const cache = loadOtdCache();
+      let fromCache = 0;
+      otdQueue = [];
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        const state = otdDays.get(key);
+        if (state === 'done' || state === 'loading') continue;
+        if (cache.days[key] && Array.isArray(cache.days[key].ev)) {
+          ingestOtdDay(key, cache.days[key].ev);
+          otdDays.set(key, 'done');
+          fromCache++;
+        } else {
+          if (state === 'error') otdDays.delete(key);     // a new visit retries a day that failed
+          otdQueue.push(key);
+        }
+      }
+      pumpOtd();
+      if (fromCache) openPendingSlug();
+      if (fromCache && shown) render(); else updateOtdChip();
+    }, 350);
+  }
+
+  // The chip under the header of the stage: an offer while the opt-in is off, progress and a count while it is on.
+  function updateOtdChip() {
+    if (!dom || !dom.otdChip || !shown) return;
+    const deep = shown.end - shown.start <= OTD_MAX_SPAN && capNow(shown.end) >= 1;
+    if (!deep || (!imagesOn && !otdHint)) { dom.otdChip.hidden = true; return; }
+    let text;
+    let offer = false;
+    if (!imagesOn) { text = 'Load day-by-day events from Wikipedia'; offer = true; }
+    else {
+      const keys = otdDaysInView(shown);
+      let done = 0; let failed = 0;
+      for (let i = 0; i < keys.length; i++) { const st = otdDays.get(keys[i]); if (st === 'done') done++; else if (st === 'error') failed++; }
+      if (done + failed < keys.length) text = 'Loading days from Wikipedia … ' + done + '/' + keys.length;
+      else if (failed === keys.length) text = 'Wikipedia could not be reached';
+      else text = otdInView + (otdInView === 1 ? ' event' : ' events') + ' from Wikipedia’s “on this day”' + (regionFilter ? ' (none have a region)' : '');
+    }
+    if (dom.otdAction.textContent !== text) dom.otdAction.textContent = text;
+    dom.otdAction.disabled = !offer;
+    dom.otdDismiss.hidden = !offer;
+    dom.otdChip.hidden = false;
+  }
+
+  // --- Panel: what happened around this event, and more of its kind ---
+  function fmtGap(dt) {
+    const a = Math.abs(dt);
+    let text;
+    if (a < 1.5 / 365) return 'the same day';
+    if (a < 60 / 365) text = Math.round(a * 365) + ' days';
+    else if (a < 2) text = Math.round(a * 12) + ' months';
+    else text = Math.round(a).toLocaleString('en-US') + ' years';
+    return text + (dt < 0 ? ' earlier' : ' later');
+  }
+
+  function fillEventList(ul, indices, ref) {
+    const list = events();
+    const items = indices.map(function (i) {
+      const li = htmlEl('li');
+      const b = htmlEl('button', 'panel-jump');
+      b.type = 'button';
+      b.dataset.index = String(i);
+      b.appendChild(htmlEl('span', 'when', fmtGap(list[i].t - ref.t)));
+      b.appendChild(htmlEl('span', 'what', list[i].title));
+      li.appendChild(b);
+      return li;
+    });
+    ul.replaceChildren.apply(ul, items);
+  }
+
+  function updatePanelNearby(index) {
+    if (!dom.panelNear) return;
+    const list = events();
+    const ev = list[index];
+    const near = [];
+    let head = 'Around this time';
+    if (ev.group) {                                     // for a reign, the useful neighbours are the holders either side
+      head = 'Before and after in this office';
+      let prev = -1; let next = -1;
+      for (let i = 0; i < list.length; i++) {
+        const o = list[i];
+        if (i === index || o.group !== ev.group) continue;
+        if (o.t < ev.t && (prev < 0 || o.t > list[prev].t)) prev = i;
+        if (o.t > ev.t && (next < 0 || o.t < list[next].t)) next = i;
+      }
+      if (prev >= 0) near.push(prev);
+      if (next >= 0) near.push(next);
+    } else {
+      const cap = Math.max(ev.tier + 1, 4);             // neighbours of comparable weight, not the nearest tremor
+      const before = []; const after = [];
+      for (let i = 0; i < list.length; i++) {
+        const o = list[i];
+        if (i === index || o.group || o.otd || o.tier > cap || !passesFilters(o, i)) continue;
+        (o.t < ev.t ? before : after).push(i);
+      }
+      before.sort(function (x, y) { return list[y].t - list[x].t; });
+      after.sort(function (x, y) { return list[x].t - list[y].t; });
+      before.slice(0, 2).reverse().forEach(function (i) { near.push(i); });
+      after.slice(0, 2).forEach(function (i) { near.push(i); });
+    }
+    dom.panelNear.hidden = near.length === 0;
+    dom.panelNear.querySelector('h3').textContent = head;
+    fillEventList(dom.panelNearList, near, ev);
+
+    // More of the same category, preferring the same part of the world.
+    const related = [];
+    const labels = { namerica: 'N. America', samerica: 'S. America' };
+    const region = eventRegion(index);
+    if (!ev.group && !ev.otd) {
+      const pool = [];
+      for (let i = 0; i < list.length; i++) {
+        const o = list[i];
+        if (i === index || near.indexOf(i) >= 0 || o.group || o.otd || o.category !== ev.category || o.tier > Math.max(ev.tier + 2, 5)) continue;
+        pool.push({ i: i, d: Math.abs(o.t - ev.t) * (region && eventRegion(i) === region ? 1 : 6) });
+      }
+      pool.sort(function (x, y) { return x.d - y.d; });
+      pool.slice(0, 3).sort(function (x, y) { return list[x.i].t - list[y.i].t; }).forEach(function (x) { related.push(x.i); });
+    }
+    dom.panelRelated.hidden = related.length === 0;
+    const cat = String(ev.category || '');
+    dom.panelRelatedHead.textContent = 'More in ' + cat + (region ? ' · near ' + (labels[region] || region.charAt(0).toUpperCase() + region.slice(1)) : '');
+    fillEventList(dom.panelRelatedList, related, ev);
+  }
+
+  function jumpToEvent(i) {
+    const ev = events()[i];
+    if (!ev) return;
+    revealEvent(i);
+    const inView = shown && ev.t >= shown.start && ev.t <= shown.end && ev.tier <= hudStats.tier && !(ev.otd && !otdShown(shown));
+    if (!inView) zoomToEvent(ev);
+    openPanel(i);
+  }
+
+  // Static links out: nothing is requested until one is followed.
+  function updatePanelMore(ev) {
+    if (!dom.panelMore) return;
+    const links = [];
+    const add = function (label, url) { if (/^https:\/\//.test(url)) links.push([label, url]); };
+    if (Array.isArray(ev.links)) ev.links.slice(0, 6).forEach(function (l) { add(l.title, l.url); });
+    const T = HT.time;
+    const p = T.toParts(ev.t);
+    const hy = T.histYear(ev.t);
+    if (hy >= -800) {                                   // Wikipedia has an article per year back to about here
+      const name = hy >= 101 ? String(hy) : hy >= 1 ? 'AD ' + hy : Math.abs(hy) + ' BC';
+      add('The year ' + T.formatYear(ev.t), WIKI_PREFIX + name.replace(/ /g, '_'));
+    }
+    if (hy >= 1 && !(p.month === 1 && p.day === 1)) add(MONTH_NAMES[p.month - 1] + ' ' + p.day + ' in history', WIKI_PREFIX + MONTH_NAMES[p.month - 1] + '_' + p.day);
+    const c = eventCoords(ev);
+    if (c) add('Open the place on a map', 'https://www.openstreetmap.org/?mlat=' + c[0] + '&mlon=' + c[1] + '#map=6/' + c[0] + '/' + c[1]);
+    if (typeof ev.link === 'string' && ev.link.indexOf(WIKI_PREFIX) === 0) add('Wikidata item', 'https://www.wikidata.org/wiki/Special:ItemByTitle/enwiki/' + ev.link.slice(WIKI_PREFIX.length));
+    const nodes = links.map(function (l) {
+      const a = htmlEl('a', '', l[0] + ' ↗');
+      a.href = l[1]; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      return a;
+    });
+    dom.panelMore.replaceChildren.apply(dom.panelMore, nodes);
+    dom.panelMore.hidden = nodes.length === 0;
   }
 
   // --- Permalinks: ev=<slug of the title>. Titles are unique, so slugs are stable while a title is. ---
   function slugify(title) {
     let t = String(title || '').toLowerCase();
     if (typeof t.normalize === 'function') t = t.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
-    return t.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'event';
+    return t.replace(/[^a-z0-9]+/g, '-').replace(/^-+/, '').slice(0, 64).replace(/-+$/, '') || 'event';
   }
 
+  // Built lazily and extended when on-this-day events arrive; their slugs carry the year, since the same
+  // sentence can recur across years.
   function buildSlugIndex() {
+    if (!slugIndex) slugIndex = { bySlug: new Map(), byIndex: [] };
     const list = events();
-    const bySlug = new Map();
-    const byIndex = new Array(list.length);
-    for (let i = 0; i < list.length; i++) {
-      const base = slugify(list[i].title);
+    for (let i = slugIndex.byIndex.length; i < list.length; i++) {
+      const ev = list[i];
+      const base = slugify(ev.otd ? HT.time.toParts(ev.t).year + ' ' + ev.title : ev.title);
       let slug = base;
-      for (let k = 2; bySlug.has(slug); k++) slug = base + '-' + k;
-      bySlug.set(slug, i);
-      byIndex[i] = slug;
+      for (let k = 2; slugIndex.bySlug.has(slug); k++) slug = base + '-' + k;
+      slugIndex.bySlug.set(slug, i);
+      slugIndex.byIndex[i] = slug;
     }
-    slugIndex = { bySlug: bySlug, byIndex: byIndex };
   }
 
   function slugFor(index) {
-    if (!slugIndex) buildSlugIndex();
+    if (!slugIndex || slugIndex.byIndex.length < events().length) buildSlugIndex();
     return slugIndex.byIndex[index] || '';
   }
 
   function indexForSlug(slug) {
-    if (!slugIndex) buildSlugIndex();
+    if (!slugIndex || slugIndex.byIndex.length < events().length) buildSlugIndex();
     const i = slugIndex.bySlug.get(String(slug));
     return i === undefined ? -1 : i;
   }
@@ -1804,7 +2175,7 @@
     selected = index;
     const cat = String(ev.category || '');
     const colors = (HT.tiers && HT.tiers.COLORS) || {};
-    dom.panelCategory.textContent = cat ? cat.charAt(0).toUpperCase() + cat.slice(1) : '';
+    dom.panelCategory.textContent = ev.otd ? 'On this day \u00b7 Wikipedia' : cat ? cat.charAt(0).toUpperCase() + cat.slice(1) : '';
     dom.panelCategory.className = cat ? 'cat-' + cat : '';
     dom.panelCategory.dataset.category = cat;
     dom.panelTitle.textContent = ev.title;
@@ -1813,6 +2184,8 @@
     updatePanelMap(ev);
     updatePanelImage(ev);
     updatePanelObject(ev);
+    updatePanelMore(ev);
+    updatePanelNearby(index);
     if (typeof ev.link === 'string' && /^https:\/\//.test(ev.link)) {
       dom.panelLink.href = ev.link;
       dom.panelLink.textContent = /^https:\/\/[a-z-]+\.wikipedia\.org\//.test(ev.link) ? 'Read more on Wikipedia ↗' : 'Read more ↗';
@@ -2262,6 +2635,10 @@
       panelMap: $('panel-map'), panelMapSvg: $('panel-map-svg'), panelMapCap: $('panel-map-cap'),
       panelImage: $('panel-image'), panelImg: $('panel-img'), panelImgLink: $('panel-img-link'), panelImgCredit: $('panel-img-credit'),
       optImages: $('opt-images'),
+      panelExtract: $('panel-extract'), panelExtractText: $('panel-extract-text'), panelExtractSrc: $('panel-extract-src'),
+      panelMore: $('panel-more'), panelNear: $('panel-near'), panelNearList: $('panel-near-list'),
+      panelRelated: $('panel-related'), panelRelatedHead: $('panel-related-head'), panelRelatedList: $('panel-related-list'),
+      otdChip: $('otd-chip'), otdAction: $('otd-action'), otdDismiss: $('otd-dismiss'),
       minimap: $('minimap'), help: $('help'), helpClose: $('help-close'), helpOk: $('help-ok'), btnHelp: $('btn-help'), panelCopy: $('panel-copy'),
       panelObject: $('panel-object'), panelObjectImg: $('panel-object-img'), panelObjectImgLink: $('panel-object-imglink'),
       panelObjectLink: $('panel-object-link'), panelObjectCredit: $('panel-object-credit')
@@ -2294,6 +2671,23 @@
     if (dom.optImages) {
       dom.optImages.checked = imagesOn;
       dom.optImages.addEventListener('change', function () { setImages(dom.optImages.checked); });
+    }
+    if (dom.otdChip) {
+      try { otdHint = root.localStorage.getItem(OTD_HINT_KEY) !== 'off'; } catch (err) { /* ignore */ }
+      dom.otdAction.addEventListener('click', function () { if (!imagesOn) setImages(true); });
+      dom.otdDismiss.addEventListener('click', function () {
+        otdHint = false;
+        try { root.localStorage.setItem(OTD_HINT_KEY, 'off'); } catch (err) { /* ignore */ }
+        updateOtdChip();
+      });
+    }
+    if (dom.panelNear) {
+      const onJump = function (e) {
+        const b = e.target && typeof e.target.closest === 'function' ? e.target.closest('.panel-jump') : null;
+        if (b) jumpToEvent(Number(b.dataset.index));
+      };
+      dom.panelNear.addEventListener('click', onJump);
+      dom.panelRelated.addEventListener('click', onJump);
     }
     if (dom.btnReigns) {
       dom.btnReigns.setAttribute('aria-pressed', String(reignsOn));
