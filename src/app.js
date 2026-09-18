@@ -15,6 +15,7 @@
 (function (root) {
   'use strict';
   const HT = root.HT || (root.HT = {});
+  const C = HT.core;                      // pure rules, tested in test/core.test.js
 
   // ------------------------------------------------------------------
   // 1. Constants and state
@@ -22,7 +23,7 @@
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const ZOOM_FACTOR = 4;
   const ANIM_MS = 250;
-  const MIN_SPAN = 1 / 365;               // one day in years (>= one calendar day in common and leap years)
+  const MIN_SPAN = C.MIN_SPAN;            // one day in years (>= one calendar day in common and leap years)
   const MIN_VISIBLE = 8;                  // admit lower tiers until this many events are in view
   const THEMES = ['ops', 'crt', 'nvg', 'ironbow', 'noir', 'paper'];
   const THEME_KEY = 'ht-theme';
@@ -33,14 +34,13 @@
   const REGION_KEY = 'ht-region';
   const HELP_KEY = 'ht-help-seen';
   const MM_BINS = 160;
-  const FUTURE_FRAC = 0.035;          // share of a view that may lie past today
   const REIGN_MAX_SPAN = 20000;       // wider than this, five millennia of reigns are a smear at the edge
   const CITY_MAX_SPAN = 40000;
   const RECORDED_START = -3299;       // c. 3300 BCE, the first writing: where "recorded history" begins
   const ERA_TOP = 30;                 // y of the recorded-history bracket
   const ERA_RESERVE = 52;             // px kept clear of lanes beneath the top of the stage while it shows
   const IMAGE_CACHE_KEY = 'ht-summary-cache';      // was ht-image-cache before summaries were kept too
-  const OTD_MAX_SPAN = 35 / 365;          // about a month: the widest view that loads Wikipedia's "on this day" lists
+  const OTD_MAX_SPAN = C.OTD_MAX_SPAN;    // about a month: the widest view that loads Wikipedia's "on this day" lists
   const OTD_CACHE_KEY = 'ht-otd-cache';
   const OTD_CACHE_DAYS = 40;              // days kept in localStorage, oldest dropped first
   const OTD_HINT_KEY = 'ht-otd-hint';
@@ -53,7 +53,7 @@
   const REIGN_TOP = 22;                   // px from the top of the stage to the first row (clears the corner bracket)
   const REIGN_MAX_ROWS = 12;
   const REIGN_MIN_WIDTH = 640;            // narrower stages keep reigns as ordinary events
-  const WIKI_PREFIX = 'https://en.wikipedia.org/wiki/';
+  const WIKI_PREFIX = C.WIKI_PREFIX;
   const SEARCH_LIMIT = 12;
   const EARTH_ORDER = ['co2', 'temp', 'sea', 'pop'];
   const POP_META = { label: 'Population', range: [6.5, 10], log: true };   // log10 scale: 3 million to 10 billion
@@ -70,7 +70,6 @@
   const BAR_H = 6;                        // range bar height
   const LABEL_GAP = 6;                    // px between a marker and its label
   const EDGE_PAD = 4;                     // px keep-out at the left/right edges
-  const HASH_DECIMALS = 9;
   const ROOT_CRUMB = 'All of humanity';
   const WHEEL_K = 0.002;                  // zoom factor = exp(deltaY * K) for mouse wheels
   const PINCH_K = 0.01;                   // trackpad pinch (ctrlKey wheel) reports much smaller deltas
@@ -135,67 +134,35 @@
   // ------------------------------------------------------------------
   // 2. Helpers
   // ------------------------------------------------------------------
-  function clamp(v, lo, hi) {
-    return v < lo ? lo : v > hi ? hi : v;
-  }
+  const clamp = C.clamp;
+  const sameView = C.sameView;
+  const contains = C.contains;
+  const fitInside = C.fitInside;
+  const hasEnd = C.hasEnd;
 
   function nowT() {
     if (NOW === null) NOW = HT.time.now();
     return NOW;
   }
 
-  // A view may run a little past the present so "today" is a visible line instead of the clipped
-  // right edge: up to FUTURE_FRAC of its own span. A view resting on that limit is "at now".
-  function maxEnd(span) { return nowT() + FUTURE_FRAC * span; }
-  function endAtNow(start) { return (nowT() - FUTURE_FRAC * start) / (1 - FUTURE_FRAC); }
-  // nowT() is fixed once at init (NOW), not a live clock, so an exact comparison at URL precision is stable
-  // for the life of the page; across loads the limit is re-derived from the `now` token.
-  function atNow(v) { return Math.abs(v.end - maxEnd(v.end - v.start)) < 5e-10; }
+  // View limits, the hash, regions, slugs and the other pure rules live in src/core.js (HT.core), where they
+  // are tested from Node; the wrappers here only supply this page's fixed "now".
+  function maxEnd(span) { return C.maxEnd(span, nowT()); }
+  function endAtNow(start) { return C.endAtNow(start, nowT()); }
+  function atNow(v) { return C.atNow(v, nowT()); }
   function capNow(t) { return Math.min(t, nowT()); }
-
-  function rootView() {
-    return { start: HT.time.ROOT_START, end: endAtNow(HT.time.ROOT_START) };
-  }
+  function rootView() { return C.rootView(nowT()); }
 
   function rootEntry() {
     const r = rootView();
     return { start: r.start, end: r.end, discrete: true };
   }
 
-  // Equality at URL precision (9 decimals).
-  function sameView(a, b) {
-    return !!a && !!b && Math.abs(a.start - b.start) < 5e-10 && Math.abs(a.end - b.end) < 5e-10;
-  }
-
-  function contains(outer, inner) {
-    const eps = 5e-10;
-    return outer.start - eps <= inner.start && inner.end <= outer.end + eps;
-  }
-
   function isRoot(v) {
     return sameView(v, rootView());
   }
 
-  // Clamp a candidate view to [ROOT_START, now] with span in [1 day, root span].
-  function clampView(start, end) {
-    const r = rootView();
-    const rootSpan = r.end - r.start;
-    if (!Number.isFinite(start) || !Number.isFinite(end)) return r;
-    // Snap edges that sit on (or within an hour of) the root bounds onto them so a view written by
-    // an earlier page load, when "now" was a little earlier, is still recognised as the root.
-    if (start < r.start + 1e-6) start = r.start;
-    if (end > maxEnd(end - start) - MIN_SPAN / 24) end = endAtNow(start);
-    let span = end - start;
-    if (!(span > 0)) span = MIN_SPAN;
-    if (span >= rootSpan - 1e-9) return r;
-    if (span < MIN_SPAN) span = MIN_SPAN;
-    const c = (start + end) / 2;
-    start = c - span / 2;
-    end = c + span / 2;
-    if (start < r.start) { start = r.start; end = start + span; }
-    if (end > maxEnd(span)) { end = maxEnd(span); start = end - span; }
-    return { start: start, end: end };
-  }
+  function clampView(start, end) { return C.clampView(start, end, nowT()); }
 
   function tToPx(t, v) {
     return (t - v.start) / (v.end - v.start) * size.width;
@@ -252,10 +219,6 @@
     return HT.events || [];
   }
 
-  function hasEnd(ev) {
-    return Number.isFinite(ev.end) && ev.end > ev.t;
-  }
-
   // Date text for tooltips/panel. Ranges use formatRange (year-precision ranges read
   // "3100 BCE – 2900 BCE" instead of two "Jan 1" dates); points use formatDateFull, except
   // that pre-1900 events dated exactly Jan 1 (year precision by the data rules) show just the year.
@@ -282,31 +245,19 @@
   // 3. View model: history stack, URL hash, animation, commit()
   // ------------------------------------------------------------------
 
-  // --- URL hash: #s=<start>&e=<end>, up to 9 decimals, trailing zeros trimmed ---
-  function fmtNum(x) {
-    return String(Number(x.toFixed(HASH_DECIMALS)));
-  }
-
-  // The root's end is written as the token "now" so a shared or reloaded root link is still the
-  // root when the page is opened later (a numeric "now" would be seconds to days stale).
+  // --- URL hash: #s=<start>&e=<end|now>&m=<theme>&ev=<slug> (format and parsing in HT.core) ---
   function encodeHash(v) {
-    const end = atNow(v) ? 'now' : fmtNum(v.end);
-    return '#s=' + fmtNum(v.start) + '&e=' + end + (theme !== 'auto' ? '&m=' + theme : '') +
-      (selected >= 0 && dom && !dom.panel.hidden ? '&ev=' + slugFor(selected) : '');
+    return C.encodeHash(v, nowT(), theme, selected >= 0 && dom && !dom.panel.hidden ? slugFor(selected) : '');
   }
 
+  // Applies the hash's theme and event as side effects and returns its view (null when it names none).
   function parseHash(hash) {
     if (!hash || hash.length < 2) return null;
-    const params = new URLSearchParams(hash.replace(/^#/, ''));
-    const m = params.get('m');
-    if (m && THEMES.indexOf(m) >= 0 && m !== theme) setTheme(m, { silent: true });
-    const evSlug = params.get('ev');
-    pendingEv = evSlug ? indexForSlug(evSlug) : -1;
-    pendingSlug = evSlug && pendingEv < 0 ? String(evSlug) : '';
-    const s = parseFloat(params.get('s'));
-    const e = params.get('e') === 'now' ? (Number.isFinite(s) ? endAtNow(s) : NaN) : parseFloat(params.get('e'));
-    if (!Number.isFinite(s) || !Number.isFinite(e) || !(e > s)) return null;
-    return clampView(s, e);
+    const h = C.parseHash(hash, nowT());
+    if (h.theme && THEMES.indexOf(h.theme) >= 0 && h.theme !== theme) setTheme(h.theme, { silent: true });
+    pendingEv = h.ev ? indexForSlug(h.ev) : -1;
+    pendingSlug = h.ev && pendingEv < 0 ? h.ev : '';
+    return h.view;
   }
 
   // --- Breadcrumb stack. Invariant: stack[0] is the root view and every entry contains the next. ---
@@ -521,36 +472,14 @@
     commit(rootView(), { animate: true, url: 'push', stack: 'push', discrete: true });
   }
 
-  // Ranged: fit [t, end] with 15% padding each side. Point: span = max(1 day, tierSpan(tier) / 10) centered on t.
+  // The target window is C.eventWindow; when the event is already on screen the window is kept inside the
+  // current view so the breadcrumb chain stays nested.
   function zoomToEvent(ev) {
     if (!ev || !Number.isFinite(ev.t)) return;
-    let start, end;
-    if (hasEnd(ev)) {
-      const pad = (ev.end - ev.t) * 0.15;
-      start = ev.t - pad;
-      end = ev.end + pad;
-    } else {
-      // A tenth of the tier's span keeps the event visible with context; recent events are capped at 8% of
-      // their age (at least a decade) so a search for Apollo 11 lands in the 1960s, not in a 10,000-year view.
-      const span = Math.max(MIN_SPAN, Math.min(tierSpan(ev.tier) / 10, Math.max(10, (nowT() - ev.t) * 0.08)));
-      start = ev.t - span / 2;
-      end = ev.t + span / 2;
-    }
+    const win = C.eventWindow(ev, nowT(), tierSpan(ev.tier));
     const base = view || rootView();
-    const target = ev.t >= base.start && ev.t <= base.end ? fitInside({ start: start, end: end }, base) : { start: start, end: end };
+    const target = ev.t >= base.start && ev.t <= base.end ? fitInside(win, base) : win;
     commit(target, { animate: true, url: 'push', stack: 'push', discrete: true });
-  }
-
-  // Shift a window so it lies inside `outer` when it is narrower than it; a zoom-in near an edge
-  // then slides inward instead of overhanging the parent view (which would break the breadcrumb chain).
-  function fitInside(win, outer) {
-    const span = win.end - win.start;
-    if (span >= outer.end - outer.start) return win;
-    let start = win.start;
-    let end = win.end;
-    if (start < outer.start) { start = outer.start; end = start + span; }
-    if (end > outer.end) { end = outer.end; start = end - span; }
-    return { start: start, end: end };
   }
 
   // ------------------------------------------------------------------
@@ -1050,22 +979,9 @@
   // narrow slice of an eventful era) lower tiers are admitted until MIN_VISIBLE events are in view
   // or the tiers run out. Lane packing still trims whatever does not fit.
   function effectiveTier(list, v, span) {
-    const maxTier = HT.tiers.MAX_TIER;
-    const base = HT.tiers.tierForSpan(span);
-    const counts = [];
-    for (let k = 0; k <= maxTier; k++) counts.push(0);
-    for (let i = 0; i < list.length; i++) {
-      const ev = list[i];
-      if ((ev.otd && !otdShown(v)) || !passesFilters(ev, i) || (ev.group && reignsActive())) continue;
-      const tEnd = hasEnd(ev) ? ev.end : ev.t;
-      if (tEnd < v.start || ev.t > v.end) continue;
-      counts[clamp(ev.tier, 0, maxTier)]++;
-    }
-    let n = 0;
-    for (let k = 0; k <= base; k++) n += counts[k];
-    let tier = base;
-    while (n < MIN_VISIBLE && tier < maxTier) { tier++; n += counts[tier]; }
-    return tier;
+    return C.effectiveTier(list, v, HT.tiers.tierForSpan(span), HT.tiers.MAX_TIER, MIN_VISIBLE, function (ev, i) {
+      return !(ev.otd && !otdShown(v)) && passesFilters(ev, i) && !(ev.group && reignsActive());
+    });
   }
 
   // --- Events: markers on the axis, labels packed into lanes stacked upward ---
@@ -1500,12 +1416,7 @@
   // The article's opening paragraph, shown only when it says more than the event's own detail does.
   function showPanelExtract(rec, ev) {
     if (!dom.panelExtract) return;
-    let text = rec && typeof rec.x === 'string' ? rec.x : '';
-    if (text.length > 560) {                              // whole sentences, about a short paragraph
-      const cut = text.slice(0, 560);
-      const stop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('.\n'));
-      text = stop > 200 ? cut.slice(0, stop + 1) : cut.replace(/\s+\S*$/, '') + '\u2026';
-    }
+    const text = C.trimExtract(rec && typeof rec.x === 'string' ? rec.x : '');
     if (!text || text.length < 80 || typeof ev.link !== 'string') { dom.panelExtract.hidden = true; dom.panelExtractText.textContent = ''; return; }
     dom.panelExtractText.textContent = text;
     dom.panelExtractSrc.href = ev.link;
@@ -1565,22 +1476,7 @@
   function otdShown(v) { return imagesOn && v.end - v.start <= OTD_MAX_SPAN; }
   function otdWanted(v) { return otdShown(v) && typeof root.fetch === 'function' && capNow(v.end) >= 1; }
 
-  function pad2(n) { return (n < 10 ? '0' : '') + n; }
-
-  // Calendar days ('MM/DD') touched by the view, nearest the centre first.
-  function otdDaysInView(v) {
-    const T = HT.time;
-    const a = Math.max(1, v.start);
-    const b = capNow(v.end);
-    const mid = (a + b) / 2;
-    const seen = new Map();
-    for (let t = a; t <= b + 1 / 366; t += 1 / 366) {
-      const p = T.toParts(Math.min(t, b));
-      const key = pad2(p.month) + '/' + pad2(p.day);
-      if (!seen.has(key)) seen.set(key, Math.abs(t - mid));
-    }
-    return Array.from(seen.keys()).sort(function (x, y) { return seen.get(x) - seen.get(y); });
-  }
+  function otdDaysInView(v) { return C.otdDays(v.start, v.end, nowT()); }
 
   function loadOtdCache() {
     try {
@@ -1598,36 +1494,6 @@
       while (keys.length > OTD_CACHE_DAYS) delete cache.days[keys.shift()];
       root.localStorage.setItem(OTD_CACHE_KEY, JSON.stringify(cache));
     } catch (err) { /* storage full or unavailable: the day is simply fetched again next time */ }
-  }
-
-  // [year, text, [article titles]] rows from the feed's JSON; everything else in the 600 KB response is dropped.
-  function otdRows(json) {
-    const out = [];
-    const list = json && Array.isArray(json.events) ? json.events : [];
-    for (let i = 0; i < list.length; i++) {
-      const e = list[i];
-      const year = Number(e && e.year);
-      const text = e && typeof e.text === 'string' ? e.text.replace(/\s+/g, ' ').trim() : '';
-      if (!Number.isInteger(year) || year < 1 || text.length < 12) continue;
-      const titles = [];
-      const pages = Array.isArray(e.pages) ? e.pages : [];
-      for (let k = 0; k < pages.length && titles.length < 6; k++) {
-        const c = pages[k] && pages[k].titles && pages[k].titles.canonical;
-        if (typeof c === 'string' && c && titles.indexOf(c) < 0) titles.push(c);
-      }
-      out.push([year, text.slice(0, 400), titles]);
-    }
-    return out;
-  }
-
-  function wikiUrl(title) { return WIKI_PREFIX + encodeURIComponent(title).replace(/%2F/gi, '/').replace(/%3A/gi, ':').replace(/%2C/gi, ','); }
-
-  // The sentence's first link is often a person or a country; prefer the article that is about the event.
-  function otdMainTitle(titles, year) {
-    const eventish = /battle|siege|war\b|treaty|act\b|revolt|revolution|rebellion|massacre|coup|crisis|election|earthquake|eruption|flight|disaster|bombing|attack|expedition|conference|congress|accord|agreement|mission|launch|assassination|coronation|trial|riots?|strike|summit|games/i;
-    for (let i = 0; i < titles.length; i++) if (titles[i].indexOf(String(year)) >= 0) return titles[i];
-    for (let i = 0; i < titles.length; i++) if (eventish.test(titles[i].replace(/_/g, ' '))) return titles[i];
-    return titles[0] || '';
   }
 
   function otdKnown(titles, t) {
@@ -1650,32 +1516,11 @@
     return false;
   }
 
-  function clipWords(text, n) {
-    if (text.length <= n) return text.replace(/[.\s]+$/, '');
-    return text.slice(0, n - 1).replace(/\s+\S*$/, '').replace(/[,;:.\s]+$/, '') + '…';
-  }
-
   function ingestOtdDay(key, rows) {
-    const month = Number(key.slice(0, 2));
-    const day = Number(key.slice(3, 5));
+    const fresh = C.otdEvents(key, rows, nowT(), HT.tiers.MAX_TIER, otdKnown);
     const list = events();
-    let added = 0;
-    for (let i = 0; i < rows.length; i++) {
-      const year = rows[i][0];
-      const text = rows[i][1];
-      const titles = rows[i][2] || [];
-      if (month === 2 && day === 29 && !HT.time.isLeap(year)) continue;
-      const t = HT.time.ymd(year, month, day);
-      if (t > nowT() || otdKnown(titles, t)) continue;
-      const main = otdMainTitle(titles, year);
-      list.push({
-        t: t, title: clipWords(text, 72), detail: text, tier: HT.tiers.MAX_TIER, category: 'daily', otd: true,
-        link: main ? wikiUrl(main) : undefined,
-        links: titles.filter(function (x) { return x !== main; }).map(function (x) { return { title: x.replace(/_/g, ' '), url: wikiUrl(x) }; })
-      });
-      added++;
-    }
-    return added;
+    for (let i = 0; i < fresh.length; i++) list.push(fresh[i]);
+    return fresh.length;
   }
 
   // A shared link can name an on-this-day event, which exists only once its day has been loaded.
@@ -1710,7 +1555,7 @@
         .then(function (res) { if (!res.ok) throw new Error(String(res.status)); return res.json(); })
         .finally(function () { if (timer) clearTimeout(timer); })
         .then(function (json) {
-          const rows = otdRows(json);
+          const rows = C.otdRows(json);
           saveOtdDay(key, rows);
           ingestOtdDay(key, rows);
           otdDayDone(key, 'done');
@@ -1771,15 +1616,7 @@
   }
 
   // --- Panel: what happened around this event, and more of its kind ---
-  function fmtGap(dt) {
-    const a = Math.abs(dt);
-    let text;
-    if (a < 1.5 / 365) return 'the same day';
-    if (a < 60 / 365) text = Math.round(a * 365) + ' days';
-    else if (a < 2) text = Math.round(a * 12) + ' months';
-    else text = Math.round(a).toLocaleString('en-US') + ' years';
-    return text + (dt < 0 ? ' earlier' : ' later');
-  }
+  const fmtGap = C.fmtGap;
 
   function fillEventList(ul, indices, ref) {
     const list = events();
@@ -1800,53 +1637,18 @@
     if (!dom.panelNear) return;
     const list = events();
     const ev = list[index];
-    const near = [];
-    let head = 'Around this time';
-    if (ev.group) {                                     // for a reign, the useful neighbours are the holders either side
-      head = 'Before and after in this office';
-      let prev = -1; let next = -1;
-      for (let i = 0; i < list.length; i++) {
-        const o = list[i];
-        if (i === index || o.group !== ev.group) continue;
-        if (o.t < ev.t && (prev < 0 || o.t > list[prev].t)) prev = i;
-        if (o.t > ev.t && (next < 0 || o.t < list[next].t)) next = i;
-      }
-      if (prev >= 0) near.push(prev);
-      if (next >= 0) near.push(next);
-    } else {
-      const cap = Math.max(ev.tier + 1, 4);             // neighbours of comparable weight, not the nearest tremor
-      const before = []; const after = [];
-      for (let i = 0; i < list.length; i++) {
-        const o = list[i];
-        if (i === index || o.group || o.otd || o.tier > cap || !passesFilters(o, i)) continue;
-        (o.t < ev.t ? before : after).push(i);
-      }
-      before.sort(function (x, y) { return list[y].t - list[x].t; });
-      after.sort(function (x, y) { return list[x].t - list[y].t; });
-      before.slice(0, 2).reverse().forEach(function (i) { near.push(i); });
-      after.slice(0, 2).forEach(function (i) { near.push(i); });
-    }
+    const near = C.pickNearby(list, index, passesFilters);
     dom.panelNear.hidden = near.length === 0;
-    dom.panelNear.querySelector('h3').textContent = head;
+    dom.panelNear.querySelector('h3').textContent = ev.group ? 'Before and after in this office' : 'Around this time';
     fillEventList(dom.panelNearList, near, ev);
 
     // More of the same category, preferring the same part of the world.
-    const related = [];
+    const related = C.pickRelated(list, index, near, eventRegion);
     const labels = { namerica: 'N. America', samerica: 'S. America' };
     const region = eventRegion(index);
-    if (!ev.group && !ev.otd) {
-      const pool = [];
-      for (let i = 0; i < list.length; i++) {
-        const o = list[i];
-        if (i === index || near.indexOf(i) >= 0 || o.group || o.otd || o.category !== ev.category || o.tier > Math.max(ev.tier + 2, 5)) continue;
-        pool.push({ i: i, d: Math.abs(o.t - ev.t) * (region && eventRegion(i) === region ? 1 : 6) });
-      }
-      pool.sort(function (x, y) { return x.d - y.d; });
-      pool.slice(0, 3).sort(function (x, y) { return list[x.i].t - list[y.i].t; }).forEach(function (x) { related.push(x.i); });
-    }
     dom.panelRelated.hidden = related.length === 0;
     const cat = String(ev.category || '');
-    dom.panelRelatedHead.textContent = 'More in ' + cat + (region ? ' · near ' + (labels[region] || region.charAt(0).toUpperCase() + region.slice(1)) : '');
+    dom.panelRelatedHead.textContent = 'More in ' + cat + (region ? ' \u00b7 near ' + (labels[region] || region.charAt(0).toUpperCase() + region.slice(1)) : '');
     fillEventList(dom.panelRelatedList, related, ev);
   }
 
@@ -1868,10 +1670,8 @@
     const T = HT.time;
     const p = T.toParts(ev.t);
     const hy = T.histYear(ev.t);
-    if (hy >= -800) {                                   // Wikipedia has an article per year back to about here
-      const name = hy >= 101 ? String(hy) : hy >= 1 ? 'AD ' + hy : Math.abs(hy) + ' BC';
-      add('The year ' + T.formatYear(ev.t), WIKI_PREFIX + name.replace(/ /g, '_'));
-    }
+    const yearPage = C.yearArticle(hy);
+    if (yearPage) add('The year ' + T.formatYear(ev.t), WIKI_PREFIX + yearPage);
     if (hy >= 1 && !(p.month === 1 && p.day === 1)) add(MONTH_NAMES[p.month - 1] + ' ' + p.day + ' in history', WIKI_PREFIX + MONTH_NAMES[p.month - 1] + '_' + p.day);
     const c = eventCoords(ev);
     if (c) add('Open the place on a map', 'https://www.openstreetmap.org/?mlat=' + c[0] + '&mlon=' + c[1] + '#map=6/' + c[0] + '/' + c[1]);
@@ -1886,11 +1686,7 @@
   }
 
   // --- Permalinks: ev=<slug of the title>. Titles are unique, so slugs are stable while a title is. ---
-  function slugify(title) {
-    let t = String(title || '').toLowerCase();
-    if (typeof t.normalize === 'function') t = t.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
-    return t.replace(/[^a-z0-9]+/g, '-').replace(/^-+/, '').slice(0, 64).replace(/-+$/, '') || 'event';
-  }
+  const slugify = C.slugify;
 
   // Built lazily and extended when on-this-day events arrive; their slugs carry the year, since the same
   // sentence can recur across years.
@@ -1941,46 +1737,16 @@
     }
   }
 
-  // --- Regions: coarse boxes over lat/lon, first match wins. Good enough for a filter, not for geography. ---
-  const REGIONS = [
-    ['africa', 'Africa'], ['europe', 'Europe'], ['asia', 'Asia'], ['namerica', 'N. America'], ['samerica', 'S. America'], ['oceania', 'Oceania']
-  ];
-  const REGION_BOXES = {   // [latMin, latMax, lonMin, lonMax], drawn on the legend map
-    africa: [[-36, 37.5, -19, 52]], europe: [[35, 72, -25, 45]], asia: [[-11, 78, 45, 180], [12, 42, 34, 63]],
-    namerica: [[7, 84, -170, -50]], samerica: [[-56, 13, -82, -34]], oceania: [[-50, 0, 110, 180], [-30, 25, -180, -130]]
-  };
-  const OFFICE_REGION = [
-    [/pharaoh|Egypt|Ethiopia|Benin/, 'africa'],
-    [/Japan|China|Chinese|Mughal|India|khagan|Assyria|Babylon|Abbasid|Ottoman/, 'asia'],
-    [/United States/, 'namerica'],
-    [/Inca|tlatoani/, 'samerica'],
-    [/./, 'europe']
-  ];
-
-  function regionOf(lat, lon) {
-    if (lat >= 12 && lat <= 42 && lon >= 34 && lon <= 63) return 'asia';                 // Middle East before Africa
-    if (lat >= 35 && lat <= 72 && lon >= -25 && lon < 45) return 'europe';
-    if (lat >= -36 && lat < 37.5 && lon >= -19 && lon <= 52) return 'africa';
-    if (lon >= 110 && lat >= -50 && lat < -10) return 'oceania';
-    if (lon >= 140 && lat >= -12 && lat < 0) return 'oceania';                            // New Guinea
-    if (lon <= -130 && lat >= -30 && lat <= 25) return 'oceania';                         // Polynesia, Hawaii
-    if (lon >= 45 && lat >= -11 && lat <= 78) return 'asia';
-    if (lon >= -82 && lon <= -34 && lat >= -56 && lat < 12.5) return 'samerica';
-    if (lon >= -170 && lon <= -50 && lat >= 7 && lat <= 84) return 'namerica';
-    return '';
-  }
+  // --- Regions (boxes and office mapping in HT.core) ---
+  const REGIONS = C.REGIONS;
+  const REGION_BOXES = C.REGION_BOXES;
 
   function eventRegion(i) {
     if (!regionCache) regionCache = [];
     if (regionCache[i] !== undefined) return regionCache[i];
     const ev = events()[i];
-    let r = '';
     const c = eventCoords(ev);
-    if (c) r = regionOf(c[0], c[1]);
-    else if (ev.group) {
-      if (/tlatoani/.test(ev.group)) r = 'namerica';
-      else for (let k = 0; k < OFFICE_REGION.length; k++) if (OFFICE_REGION[k][0].test(ev.group)) { r = OFFICE_REGION[k][1]; break; }
-    }
+    const r = c ? C.regionOf(c[0], c[1]) : C.officeRegion(ev.group);
     regionCache[i] = r;
     return r;
   }
@@ -1999,9 +1765,8 @@
   }
 
   // --- Minimap: years before now on a log scale, so the last few thousand years get real width ---
-  function mmU(t) { return Math.log10(Math.max(1, nowT() - t + 1)); }
-  function mmX(t, w) { return (1 - mmU(t) / mmU(HT.time.ROOT_START)) * w; }
-  function mmT(x, w) { return nowT() + 1 - Math.pow(10, (1 - clamp(x / w, 0, 1)) * mmU(HT.time.ROOT_START)); }
+  function mmU(t) { return C.mmU(t, nowT()); }
+  function mmX(t, w) { return C.mmX(t, w, nowT()); }
 
   function renderMinimap() {
     if (!dom.minimap || !shown) return;

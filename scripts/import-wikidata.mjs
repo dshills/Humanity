@@ -65,7 +65,12 @@ async function sparql(query, attempt = 1) {
     if (attempt < 4 && (r.status === 429 || r.status >= 500)) { await sleep(3000 * attempt); return sparql(query, attempt + 1); }
     throw new Error(`${r.status} ${(await r.text()).slice(0, 200)}`);
   }
-  return (await r.json()).results.bindings;
+  // The endpoint returns rows in no particular order, and an item with two locations or two dates comes back
+  // as several rows. Sort them on their full content so "first row wins" picks the same one on every run;
+  // otherwise each import reshuffles a couple of dozen details and buries the real changes in the diff.
+  const rows = (await r.json()).results.bindings;
+  const keyOf = (b) => Object.keys(b).sort().map((k) => `${k}=${b[k].value}`).join('\u0001');
+  return rows.map((b) => [keyOf(b), b]).sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0)).map((x) => x[1]);
 }
 const val = (b, k) => (b[k] ? b[k].value : undefined);
 
@@ -167,7 +172,7 @@ async function battles(existing) {
     if (!t) continue;
     const id = val(r, 'b');
     const prev = byItem.get(id);
-    if (!prev || astro(t) < astro(prev.t)) byItem.set(id, { r, t });
+    if (!prev || astro(t) + (t.d || 0) / 400 < astro(prev.t) + (prev.t.d || 0) / 400) byItem.set(id, { r, t });   // earliest, to the day
   }
   const out = [];
   for (const { r, t } of byItem.values()) {

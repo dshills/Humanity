@@ -23,7 +23,7 @@ node build.mjs        # inlines src/ into index.html (fails loudly on problems)
 node --test test/     # runs the 270 tests
 ```
 
-Node 18 or newer, zero dependencies. The build concatenates `time.js, tiers.js, ticks.js, layout.js, data/*.js (sorted by filename), app.js` into one `<script>`, inlines `styles.css`, appends `HT.app.init();`, and refuses to write output if any source is missing, the bundle has a syntax error, a source uses `import`/`export`/`require(`, or the page would reference an external URL.
+Node 18 or newer, zero dependencies. The build concatenates `time.js, tiers.js, ticks.js, layout.js, core.js`, the generated modules, `data/*.js` (sorted by filename) and `app.js` into one `<script>`, inlines `styles.css`, appends `HT.app.init();`, and refuses to write output if any source is missing, the bundle has a syntax error, a source uses `import`/`export`/`require(`, or the page would reference an external URL.
 
 ## Using the timeline
 
@@ -244,6 +244,8 @@ src/
   tiers.js              HT.tiers: categories, colors, tierForSpan, tierSpan
   ticks.js              HT.ticks: tick ladder, nice positions, minor ticks, label thinning
   layout.js             HT.layout: greedy lane packing for event labels
+  core.js               HT.core: the pure rules behind the app (view limits, URL hash, regions, slugs,
+                        overview scale, tier selection, on-this-day parsing, panel neighbours)
   app.js                HT.app: rendering, zoom/pan/pinch, history and URL state, panel
   data/
     01-prehistory.js    44 events, 300,000 years ago – 10,000 BCE
@@ -260,9 +262,23 @@ test/
   ticks.test.js         regimes, ladder selection, nice positions, minors, thinning
   layout.test.js        lane packing, priorities, gaps, drops, purity
   data.test.js          every rule listed under "Adding an event"
+  core.test.js          view clamping and the Today margin, hash round trips, slugs, regions, the overview
+                        scale, tier selection, on-this-day parsing, the panel's neighbour lists
+scripts/
+  import-*.mjs          build-time importers (network at import time only)
+  refresh.mjs           runs the importers whose sources move, rolls back any that fail or shrink
+.github/workflows/
+  test.yml              tests, and a check that the committed index.html is what the sources build
+  refresh-data.yml      monthly data refresh, proposed as a pull request
 ```
 
-Tests use `node:test` and `node:assert` and load the browser scripts with `require`, reading `globalThis.HT`. They cover the pure modules; `app.js` is exercised in the browser.
+Tests use `node:test` and `node:assert` and load the browser scripts with `require`, reading `globalThis.HT`. They cover the pure modules. `app.js` keeps the DOM, storage, network and animation; every rule in it that can be stated without those lives in `core.js`, takes "now" as an argument, and is tested there. The same tests run on every push and pull request, along with a check that `index.html` matches a fresh build.
+
+## Keeping the data current
+
+Several sources move: office-holders change, prizes are awarded, rockets launch, another year of CO₂ is measured. `node scripts/refresh.mjs` re-runs the importers for those (Wikidata, Nobel, GCAT, NOAA, UCDP, population and cities; pass names to run a subset) and prints a summary, including any change in the sitting holder of an office. An importer that fails, or whose output has lost more than a tenth of its events, has its files restored from git, so a source that is down or has changed shape cannot shrink the timeline. The curated events, coordinates, museum objects and significance scores are not touched.
+
+`.github/workflows/refresh-data.yml` does this on the 3rd of each month (and on demand from the Actions tab): it runs the refresh, rebuilds, runs the tests, pushes a `data-refresh` branch and opens a pull request with the summary as its body. Nothing reaches `main` without a review, which matters because Wikidata can be edited by anyone. If the repository does not allow Actions to open pull requests (Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests"), the job opens an issue with a one-click link to create the pull request instead.
 
 ## Decisions
 

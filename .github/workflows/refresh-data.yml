@@ -1,0 +1,80 @@
+name: refresh data
+
+# Once a month, re-run the importers whose sources move (office-holders, prizes, launches, climate, conflicts,
+# population) and propose the result. Nothing lands on main by itself: the job pushes a branch and opens a pull
+# request, or, where the repository does not let Actions open pull requests, an issue with a one-click link.
+on:
+  schedule:
+    - cron: '17 6 3 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      BRANCH: data-refresh
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run the importers
+        id: refresh
+        run: node scripts/refresh.mjs --summary "$RUNNER_TEMP/summary.md"
+
+      - name: Rebuild and test
+        run: |
+          node build.mjs
+          node --test test/
+
+      - name: Anything new?
+        id: diff
+        run: |
+          if git diff --quiet; then echo "changed=false" >> "$GITHUB_OUTPUT"; else echo "changed=true" >> "$GITHUB_OUTPUT"; fi
+          cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Push the branch
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add -A
+          git commit -m "data: monthly refresh ($(date -u +%Y-%m))"
+          git push --force origin "$BRANCH"
+
+      - name: Open or update the pull request
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          title="Data refresh $(date -u +%Y-%m)"
+          if gh pr view "$BRANCH" --json state --jq .state 2>/dev/null | grep -q OPEN; then
+            gh pr edit "$BRANCH" --title "$title" --body-file "$RUNNER_TEMP/summary.md"
+          elif ! gh pr create --base main --head "$BRANCH" --title "$title" --body-file "$RUNNER_TEMP/summary.md"; then
+            # Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests" is off.
+            {
+              echo "The monthly refresh pushed the \`$BRANCH\` branch but this repository does not let Actions open pull requests."
+              echo
+              echo "[Open the pull request](https://github.com/${{ github.repository }}/compare/main...$BRANCH?expand=1)"
+              echo
+              cat "$RUNNER_TEMP/summary.md"
+            } > "$RUNNER_TEMP/issue.md"
+            gh issue create --title "$title is ready on the $BRANCH branch" --body-file "$RUNNER_TEMP/issue.md"
+          fi
+
+      - name: Fail the run if any importer was rolled back
+        if: steps.refresh.outputs.failed != '0'
+        run: |
+          echo "::error::${{ steps.refresh.outputs.failed }} importer(s) failed or were rejected and rolled back; see the run summary"
+          exit 1

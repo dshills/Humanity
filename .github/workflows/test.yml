@@ -1,0 +1,27 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Unit and data tests
+        run: node --test test/
+      - name: The committed index.html is what the sources build
+        run: |
+          node build.mjs
+          git diff --exit-code -- index.html || {
+            echo "::error::index.html is stale: run 'node build.mjs' and commit the result"
+            exit 1
+          }
