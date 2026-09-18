@@ -143,12 +143,13 @@ function curated() {
 }
 
 async function battles(existing) {
+  // The location fallback skips places that are countries, states, empires or continents (same list as import-geo.mjs).
   const q = `SELECT ?b ?bLabel ?bDescription ?d ?prec ?s ?article ?warLabel ?locLabel ?countryLabel ?coord ?locCoord WHERE {
   ?b wdt:P31/wdt:P279* wd:Q178561 ; wikibase:sitelinks ?s . FILTER(?s >= ${BATTLE_MIN_SITELINKS})
   ?b p:P585 ?ds . ?ds ps:P585 ?d ; psv:P585 [ wikibase:timePrecision ?prec ] .
   OPTIONAL { ?b wdt:P361 ?war . }
   OPTIONAL { ?b wdt:P625 ?coord . }
-  OPTIONAL { ?b wdt:P276 ?loc . OPTIONAL { ?loc wdt:P625 ?locCoord . FILTER NOT EXISTS { ?loc wdt:P31 wd:Q6256 } FILTER NOT EXISTS { ?loc wdt:P31 wd:Q3624078 } FILTER NOT EXISTS { ?loc wdt:P31 wd:Q3024240 } } }
+  OPTIONAL { ?b wdt:P276 ?loc . OPTIONAL { ?loc wdt:P625 ?locCoord . FILTER NOT EXISTS { ?loc wdt:P31 ?broad . VALUES ?broad { wd:Q6256 wd:Q3624078 wd:Q3024240 wd:Q7275 wd:Q48349 wd:Q5107 wd:Q417175 wd:Q1250464 wd:Q15634554 wd:Q35657 wd:Q10864048 wd:Q82794 } } } }
   OPTIONAL { ?b wdt:P17 ?country . }
   OPTIONAL { ?article schema:about ?b ; schema:isPartOf <https://en.wikipedia.org/> . }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
