@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The Roman era (31 BCE to 300 CE) in NVG mode with the detail panel open on the eruption of Vesuvius: a world map pins the location, with reigns, battles and curated events in lanes above the axis and the Earth layer beneath it](docs/screenshot.png)
+![The years 1500 to 1800 in NVG mode: swimlanes of rulers at the top (emperors of Japan and China, popes, Holy Roman Emperors, English, Portuguese and French monarchs, Ottoman sultans, Mughal emperors), events in lanes above the axis, and the Earth layer with the largest-city ribbon beneath it](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
