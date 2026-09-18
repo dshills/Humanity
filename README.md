@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The years 1500 to 1800 in NVG mode: swimlanes of rulers at the top (emperors of Japan and China, popes, Holy Roman Emperors, English, Portuguese and French monarchs, Ottoman sultans, Mughal emperors), events in lanes above the axis, and the Earth layer with the largest-city ribbon beneath it](docs/screenshot.png)
+![The years 1960 to 1975 in NVG mode with the detail panel open on Apollo 11: a location map, an opt-in Wikimedia image with its credit line, and the "Load images from Wikimedia" checkbox; swimlanes of heads of state run across the top, with events, the Earth layer and the largest-city ribbon below](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
