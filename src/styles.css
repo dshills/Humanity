@@ -244,10 +244,11 @@ button {
   display: grid;
   height: 100vh;
   height: 100dvh;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
     "header"
+    "mini"
     "stage";
 }
 
@@ -255,6 +256,7 @@ body.panel-open #app {
   grid-template-columns: minmax(0, 1fr) 340px;
   grid-template-areas:
     "header header"
+    "mini   mini"
     "stage  panel";
 }
 
@@ -695,9 +697,12 @@ html[data-theme="crt"] .fx-scan::after { opacity: 1; animation: band-roll 7s lin
 .city-seg.alt { fill-opacity: 0.2; }
 .city-label { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; fill: var(--fg); }
 .city-key { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; fill: var(--muted); paint-order: stroke fill; stroke: var(--bg); stroke-width: 3px; }
-html[data-theme="paper"] .earth-line.temp, html[data-theme="paper"] .earth-label.temp tspan.k { stroke: #c2452a; fill: #c2452a; }
-html[data-theme="paper"] .earth-line.sea, html[data-theme="paper"] .earth-label.sea tspan.k { stroke: #2f6fb5; fill: #2f6fb5; }
-html[data-theme="paper"] .earth-line.pop, html[data-theme="paper"] .earth-label.pop tspan.k { stroke: #8a6a12; fill: #8a6a12; }
+html[data-theme="paper"] .earth-line.temp { stroke: #c2452a; }
+html[data-theme="paper"] .earth-label.temp tspan.k { fill: #c2452a; }
+html[data-theme="paper"] .earth-line.sea { stroke: #2f6fb5; }
+html[data-theme="paper"] .earth-label.sea tspan.k { fill: #2f6fb5; }
+html[data-theme="paper"] .earth-line.pop { stroke: #8a6a12; }
+html[data-theme="paper"] .earth-label.pop tspan.k { fill: #8a6a12; }
 html[data-theme="paper"] .earth-line.pop { fill: none; }
 html[data-theme="paper"] .earth-line.temp { fill: none; }
 html[data-theme="paper"] .earth-line.sea { fill: none; }
@@ -1170,15 +1175,73 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
 }
 
 /* --------------------------------------------------------------------------
+   Minimap — the whole 300,000 years on a log scale, with the current view
+   -------------------------------------------------------------------------- */
+#mini {
+  grid-area: mini;
+  height: 26px;
+  background: var(--bg-deep);
+  border-bottom: 1px solid var(--panel-border);
+  min-width: 0;
+}
+#minimap { display: block; width: 100%; height: 100%; cursor: pointer; touch-action: none; }
+#minimap .mm-density { fill: rgba(var(--accent-rgb), 0.22); }
+#minimap .mm-tick { stroke: var(--tick); stroke-width: 1; shape-rendering: crispEdges; }
+#minimap .mm-label { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.1em; text-transform: uppercase; fill: var(--muted); }
+#minimap .mm-window { fill: rgba(var(--accent-rgb), 0.25); stroke: var(--accent); stroke-width: 1; shape-rendering: crispEdges; }
+
+/* --------------------------------------------------------------------------
+   Region filter (inside the legend card) and help overlay
+   -------------------------------------------------------------------------- */
+#legend .legend-regions { grid-column: 1 / -1; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--panel-border); }
+#legend .legend-regions h3 { margin: 0 0 8px; font: 600 10px/1 var(--font-mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+#legend .region-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+#legend .region-chips button {
+  min-height: 28px; padding: 0 9px; border: 1px solid var(--panel-border); border-radius: 4px;
+  font: 600 10px/1 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
+#legend .region-chips button:hover { color: var(--fg); background: var(--hover); }
+#legend .region-chips button[aria-pressed="true"] { color: var(--accent-fg); background: var(--accent); border-color: var(--accent); }
+#region-map { display: block; width: 100%; max-width: 330px; height: auto; border: 1px solid var(--panel-border); border-radius: 4px; background: var(--bg-deep); cursor: pointer; }
+#region-map .land { fill: var(--tick); }
+#region-map .region-box { fill: rgba(var(--accent-rgb), 0.28); stroke: var(--accent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+#legend .region-note { margin-top: 6px; font: 500 9.5px/1.4 var(--font-mono); letter-spacing: 0.04em; text-transform: none; color: var(--muted); max-width: 330px; white-space: normal; }
+
+#help {
+  position: absolute; z-index: 8; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(560px, calc(100% - 28px)); max-height: calc(100% - 28px); overflow: auto;
+  padding: 22px 24px 20px; border: 1px solid var(--panel-border); border-radius: 8px;
+  background: var(--panel-bg); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  box-shadow: var(--shadow); animation: tt-in 200ms var(--ease-out);
+}
+#help h2 { margin: 0 40px 14px 0; font: 500 13px/1 var(--font-mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--accent); }
+#help dl { margin: 0; display: grid; grid-template-columns: minmax(120px, auto) 1fr; gap: 9px 18px; font-size: 13px; line-height: 1.45; }
+#help dt { font: 600 10.5px/1.5 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); }
+#help dd { margin: 0; color: var(--muted); }
+#help kbd { font: 600 10px/1 var(--font-mono); padding: 2px 5px; border: 1px solid var(--tick); border-radius: 3px; color: var(--fg); }
+#help-close { position: absolute; top: 8px; right: 8px; width: var(--hit); height: var(--hit); border-radius: 4px; font-size: 22px; line-height: 1; color: var(--muted); }
+#help-close:hover { background: var(--hover); color: var(--fg); }
+#help-ok, #panel-copy {
+  margin-top: 16px; min-height: var(--hit); padding: 0 16px; border-radius: 4px;
+  font: 600 11px/1 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase;
+}
+#help-ok { background: var(--accent); color: var(--accent-fg); box-shadow: var(--glow); }
+#panel-copy { margin-top: 8px; border: 1px solid var(--panel-border); color: var(--fg); transition: background-color 120ms var(--ease), border-color 120ms var(--ease); }
+#panel-copy:hover { background: var(--hover); border-color: rgba(var(--accent-rgb), 0.5); }
+#btn-help { min-width: var(--hit); padding: 0 !important; }
+#btn-help[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+
+/* --------------------------------------------------------------------------
    Narrow screens (≤ 640px)
    -------------------------------------------------------------------------- */
 @media (max-width: 640px) {
   #app,
   body.panel-open #app {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
     grid-template-areas:
       "header"
+      "mini"
       "stage"
       "panel";
   }
@@ -1195,9 +1258,19 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
   #tagline { display: none; }
   #controls { order: 2; flex: none; }
   #controls { gap: 4px; }
-  #controls button { padding: 0 7px; font-size: 9.5px; letter-spacing: 0.08em; min-width: 0; }
+  #controls button { padding: 0 6px; font-size: 9.5px; letter-spacing: 0.08em; min-width: 0; }
+  #btn-out { font-size: 0 !important; min-width: 30px !important; }     /* the words give way to a glyph */
+  #btn-out::before { content: "\2212"; font-size: 15px; letter-spacing: 0; }
+  #btn-help { min-width: 28px !important; font-size: 11px !important; }
   #btn-home { display: none; }                      /* the root crumb does the same job */
-  #btn-reigns { display: none; }                    /* no room for swimlanes on a phone; reigns stay ordinary events */
+  #btn-reigns { display: none; }
+  #help dl { grid-template-columns: 1fr; gap: 2px 0; }
+  #help { padding: 16px 18px 14px; max-height: calc(100% - 16px); }
+  #help h2 { margin-bottom: 10px; }
+  #help dl { line-height: 1.38; }
+  #help dd { margin-bottom: 4px; }
+  #help-ok { margin-top: 8px; }
+  #mini { height: 22px; }                    /* no room for swimlanes on a phone; reigns stay ordinary events */
   #title { letter-spacing: 0.2em; font-size: 15px; }
   #search { top: 10px; left: 10px; width: calc(100% - 20px); }
   #crumbs { order: 3; flex: 1 1 55%; min-width: 0; }

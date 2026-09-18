@@ -220,8 +220,12 @@ Cursor guide: vertical line + date readout in the header (`formatDateFull` when 
 Resize: recompute on `resize`, debounced 100ms. Categories: color from HT.tiers.COLORS; legend toggle in header.
 DOM ids the CSS and tests rely on: `#app, #header, #title, #crumbs, #btn-home, #btn-out, #btn-legend, #cursor-date,
 #timeline (svg), #panel, #panel-close, #panel-zoom, #tooltip, #legend`, plus `#dock` (mode buttons with `data-theme`),
-`#hud-*` readouts, `#cursor-chip` and `#btn-earth`. The Earth layer (`HT.earth` sparklines in `.g-earth`, toggled by `HT.app.setEarth(on)` / key E, persisted as `ht-earth`) draws beneath the tick labels and above the HUD. Modes: `HT.app.setTheme(name)` with `THEMES = ops|crt|nvg|ironbow|noir|paper` (or `auto`),
+`#hud-*` readouts, `#cursor-chip`, `#btn-earth`, `#btn-help`, `#help`, `#help-ok`, `#mini`, `#minimap`, `#panel-copy` and `#region-map`. The Earth layer (`HT.earth` sparklines in `.g-earth`, toggled by `HT.app.setEarth(on)` / key E, persisted as `ht-earth`) draws beneath the tick labels and above the HUD. Modes: `HT.app.setTheme(name)` with `THEMES = ops|crt|nvg|ironbow|noir|paper` (or `auto`),
 applied as `html[data-theme]`, persisted in localStorage `ht-theme`, serialised in the hash as `m=`; keys 1–6 and T.
+Permalinks: while the panel is open the hash carries `ev=<slug>` (title → NFKD, lowercase, non-alphanumerics to `-`, 64 chars max, `-2`, `-3` … on collision); opening/closing the panel rewrites the URL with replaceState, `hashchange`/`popstate` open or close the panel to match, unknown slugs are ignored, and a permalinked or searched event lifts any category/region filter that would hide it. `#panel-copy` copies `location.href`.
+Overview: `#mini > svg#minimap` sits between header and stage (grid rows header / mini / stage); x = 1 − log10(now − t + 1) / log10(now − ROOT_START + 1); density path over 160 bins, ticks at 100k/10k/1,000/100/10/1 years ago, `.mm-window` marks the view. Pointer down outside the window jumps there (pushState, animated) keeping the window's width on the strip (an eighth of the strip from the root); dragging scrubs with replaceState; moves under 3 px count as a click.
+Region filter: `HT.app.setRegion(key|null)` with keys `africa|europe|asia|namerica|samerica|oceania`, persisted as `ht-region`; coordinates come from `lat/lon` or `HT.geo`, rulers (`group`) map by office; every layer goes through one `passesFilters(ev, i)` gate; events without a region are hidden while one is set. The legend holds the chips (`[data-region]`) and `#region-map`.
+Guide: `#help` (role dialog) toggled by `#btn-help` and `?`; shown once when `ht-help-seen` is unset and the page loads without a hash; Escape closes it first.
 
 ## 8. CSS — `src/styles.css`
 

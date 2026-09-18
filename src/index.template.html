@@ -52,14 +52,18 @@
     <nav id="crumbs" aria-label="Zoom path"></nav>
     <div id="cursor-date" aria-live="off"></div>
     <div id="controls">
-      <button id="btn-out" type="button">Zoom out</button>
+      <button id="btn-out" type="button" aria-label="Zoom out">Zoom out</button>
       <button id="btn-home" type="button">Home</button>
       <button id="btn-earth" type="button" aria-pressed="true" title="Earth layer: CO₂, Antarctic temperature, sea level, world population and the largest city (E)">Earth</button>
       <button id="btn-reigns" type="button" aria-pressed="true" title="Swimlanes of rulers, one row per office (R)">Reigns</button>
       <button id="btn-search" type="button" aria-expanded="false" title="Search events (/)">Search</button>
-      <button id="btn-legend" type="button" aria-expanded="false" title="Categories: click to show or hide">Legend</button>
+      <button id="btn-legend" type="button" aria-expanded="false" title="Categories and regions: click to show or hide">Legend</button>
+      <button id="btn-help" type="button" aria-expanded="false" title="How to use the timeline (?)" aria-label="Help">?</button>
     </div>
   </header>
+  <div id="mini" title="All of human history on a logarithmic scale. Click or drag to move the view.">
+    <svg id="minimap" role="img" aria-label="Overview of the whole timeline with the current view marked"></svg>
+  </div>
   <main id="stage">
     <svg id="timeline" role="group" aria-label="Timeline of humanity. Click to zoom in; events are buttons."></svg>
     <div class="fx fx-grain" aria-hidden="true"></div>
@@ -89,10 +93,26 @@
       <button type="button" data-theme="noir" aria-pressed="false"><span>Noir</span><kbd>5</kbd></button>
       <button type="button" data-theme="paper" aria-pressed="false"><span>Paper</span><kbd>6</kbd></button>
     </nav>
+    <div id="help" role="dialog" aria-modal="false" aria-labelledby="help-title" hidden>
+      <button id="help-close" type="button" aria-label="Close">×</button>
+      <h2 id="help-title">Reading the timeline</h2>
+      <dl>
+        <dt>Click the axis</dt><dd>Zoom in four times around that moment. Keep clicking: years become months become days.</dd>
+        <dt>Shift+click · <kbd>-</kbd> · Zoom out</dt><dd>Step back out. <kbd>0</kbd> or Home returns to all of humanity.</dd>
+        <dt>Wheel · pinch · drag</dt><dd>Zoom around the pointer and pan. The strip under the header shows where you are; click or drag it to jump.</dd>
+        <dt>Click an event</dt><dd>Open its panel: a map, the story, a link, sometimes a museum object. Copy link shares that exact event.</dd>
+        <dt><kbd>/</kbd> Search</dt><dd>Find any of the events by name and jump to it.</dd>
+        <dt>Legend</dt><dd>Show or hide categories (Shift+click shows one alone) and filter by region.</dd>
+        <dt><kbd>R</kbd> Reigns · <kbd>E</kbd> Earth</dt><dd>Rulers as swimlanes across the top; climate, population and the largest city beneath the axis.</dd>
+        <dt><kbd>1</kbd>–<kbd>6</kbd> · <kbd>T</kbd></dt><dd>Visual modes: Ops, CRT, NVG, Ironbow, Noir, Paper.</dd>
+        <dt><kbd>?</kbd></dt><dd>This guide. <kbd>Esc</kbd> closes whatever is open.</dd>
+      </dl>
+      <button id="help-ok" type="button">Start exploring</button>
+    </div>
     <div id="tooltip" role="tooltip" hidden></div>
     <div id="legend" hidden></div>
     <div id="search" hidden role="search">
-      <input id="search-input" type="search" placeholder="Search 3,800 events…" autocomplete="off" spellcheck="false" aria-label="Search events" aria-controls="search-results">
+      <input id="search-input" type="search" placeholder="Search 3,900 events…" autocomplete="off" spellcheck="false" aria-label="Search events" aria-controls="search-results">
       <ul id="search-results" role="listbox" aria-label="Matching events"></ul>
     </div>
   </main>
@@ -118,6 +138,7 @@
       <div id="panel-object-credit"></div>
     </figure>
     <button id="panel-zoom" type="button">Zoom to this event</button>
+    <button id="panel-copy" type="button">Copy link to this event</button>
     <label id="panel-online" title="Off by default. When on, opening an event requests one thumbnail and its credit from Wikipedia and Wikimedia Commons, and the image of its museum object when it has one. Nothing is requested while this is off.">
       <input id="opt-images" type="checkbox"> <span>Load images from Wikimedia and museums</span>
     </label>

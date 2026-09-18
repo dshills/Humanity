@@ -30,6 +30,9 @@
   const HIDDEN_KEY = 'ht-hidden-cats';
   const REIGNS_KEY = 'ht-reigns';
   const IMAGES_KEY = 'ht-images';
+  const REGION_KEY = 'ht-region';
+  const HELP_KEY = 'ht-help-seen';
+  const MM_BINS = 160;
   const IMAGE_CACHE_KEY = 'ht-image-cache';
   const IMAGE_CACHE_MAX = 200;
   const API_UA = 'HumanityTimeline/1.0 (https://github.com/dshills/Humanity)';
@@ -88,6 +91,15 @@
   const hiddenCats = new Set();           // categories filtered out via the legend
   let reignsOn = true;                    // ruler swimlanes visible
   let imagesOn = false;                   // opt-in: fetch a thumbnail from Wikimedia for the open event
+  let regionFilter = null;                // null = everywhere, else a key of REGIONS
+  let regionCache = null;                 // event index -> region key | '' (unknown)
+  let slugIndex = null;                   // { bySlug: Map, byIndex: [] } for ev= permalinks
+  let pendingEv = -1;                     // event index named by the URL, opened once the view is set
+  let mmDensity = null;                   // minimap density bins
+  let mmDrag = false;
+  let mmGrab = 0;
+  let mmDownX = 0;
+  let mmMoved = false;
   let imageSeq = 0;                     // guards against a slow response landing on a different event
   let imageCache = null;                  // { title: { src, page, credit } | 0 }  (0 = nothing usable)
   let reignReserve = 0;                   // px at the top of the stage reserved for swimlanes this frame
@@ -240,7 +252,8 @@
   // root when the page is opened later (a numeric "now" would be seconds to days stale).
   function encodeHash(v) {
     const end = Math.abs(v.end - nowT()) < 5e-10 ? 'now' : fmtNum(v.end);
-    return '#s=' + fmtNum(v.start) + '&e=' + end + (theme !== 'auto' ? '&m=' + theme : '');
+    return '#s=' + fmtNum(v.start) + '&e=' + end + (theme !== 'auto' ? '&m=' + theme : '') +
+      (selected >= 0 && dom && !dom.panel.hidden ? '&ev=' + slugFor(selected) : '');
   }
 
   function parseHash(hash) {
@@ -248,6 +261,8 @@
     const params = new URLSearchParams(hash.replace(/^#/, ''));
     const m = params.get('m');
     if (m && THEMES.indexOf(m) >= 0 && m !== theme) setTheme(m, { silent: true });
+    const evSlug = params.get('ev');
+    pendingEv = evSlug ? indexForSlug(evSlug) : -1;
     const s = parseFloat(params.get('s'));
     const e = params.get('e') === 'now' ? nowT() : parseFloat(params.get('e'));
     if (!Number.isFinite(s) || !Number.isFinite(e) || !(e > s)) return null;
@@ -574,6 +589,7 @@
     dom.cursorLine.setAttribute('y2', h);
     if (lastMouseX !== null) updateCursor(lastMouseX);  // the date under a resting pointer changes with the view
     updateHud(shown);
+    renderMinimap();
     settleNext = false;
   }
 
@@ -594,7 +610,7 @@
     const byGroup = new Map();
     for (let i = 0; i < list.length; i++) {
       const ev = list[i];
-      if (!ev.group || hiddenCats.has(ev.category)) continue;
+      if (!ev.group || !passesFilters(ev, i)) continue;
       const tEnd = hasEnd(ev) ? ev.end : ev.t;
       if (tEnd < v.start || ev.t > v.end) continue;
       let g = byGroup.get(ev.group);
@@ -939,7 +955,7 @@
     for (let k = 0; k <= maxTier; k++) counts.push(0);
     for (let i = 0; i < list.length; i++) {
       const ev = list[i];
-      if (hiddenCats.has(ev.category) || (ev.group && reignsActive())) continue;
+      if (!passesFilters(ev, i) || (ev.group && reignsActive())) continue;
       const tEnd = hasEnd(ev) ? ev.end : ev.t;
       if (tEnd < v.start || ev.t > v.end) continue;
       counts[clamp(ev.tier, 0, maxTier)]++;
@@ -966,7 +982,7 @@
 
     for (let i = 0; i < list.length; i++) {
       const ev = list[i];
-      if (ev.tier > tierLimit || hiddenCats.has(ev.category) || (ev.group && reignsActive())) continue;
+      if (ev.tier > tierLimit || !passesFilters(ev, i) || (ev.group && reignsActive())) continue;
       const ranged = hasEnd(ev);
       const tEnd = ranged ? ev.end : ev.t;
       if (tEnd < v.start || ev.t > v.end) continue;
@@ -1142,8 +1158,33 @@
       item.appendChild(document.createTextNode(cats[i]));
       frag.appendChild(item);
     }
+    // Region filter: chips plus a small map; clicking the map picks the region under the pointer.
+    const reg = htmlEl('div', 'legend-regions');
+    reg.appendChild(htmlEl('h3', '', 'Region'));
+    const chips = htmlEl('div', 'region-chips');
+    const mk = function (key, label) {
+      const b = htmlEl('button', '', label); b.type = 'button'; b.dataset.region = key;
+      b.setAttribute('aria-pressed', String((regionFilter || '') === key));
+      return b;
+    };
+    chips.appendChild(mk('', 'Everywhere'));
+    for (let i = 0; i < REGIONS.length; i++) chips.appendChild(mk(REGIONS[i][0], REGIONS[i][1]));
+    reg.appendChild(chips);
+    if (HT.map) {
+      const W = HT.map.width; const H = HT.map.height;
+      const svg = svgEl('svg', { id: 'region-map', viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'World map: click a region to filter' });
+      svg.appendChild(svgEl('path', { class: 'land', d: HT.map.land }));
+      const boxes = regionFilter ? REGION_BOXES[regionFilter] : [];
+      for (let i = 0; i < boxes.length; i++) {
+        const b = boxes[i];
+        svg.appendChild(svgEl('rect', { class: 'region-box', x: (b[2] + 180) * W / 360, y: (90 - b[1]) * H / 180, width: (b[3] - b[2]) * W / 360, height: (b[1] - b[0]) * H / 180 }));
+      }
+      reg.appendChild(svg);
+    }
+    reg.appendChild(htmlEl('div', 'region-note', 'Regions are coarse boxes. With a region chosen, only events with a known location there are shown.'));
+    frag.appendChild(reg);
     dom.legend.replaceChildren(frag);
-    dom.btnLegend.classList.toggle('filtered', hiddenCats.size > 0);
+    dom.btnLegend.classList.toggle('filtered', hiddenCats.size > 0 || regionFilter !== null);
   }
 
   // --- Category filters (legend buttons) ---
@@ -1159,8 +1200,18 @@
   }
 
   function onLegendClick(e) {
+    const mapEl = e.target && typeof e.target.closest === 'function' ? e.target.closest('#region-map') : null;
+    if (mapEl && HT.map) {
+      const r = mapEl.getBoundingClientRect();
+      const lon = (e.clientX - r.left) / r.width * 360 - 180;
+      const lat = 90 - (e.clientY - r.top) / r.height * 180;
+      const key = regionOf(lat, lon);
+      if (key) setRegion(regionFilter === key ? null : key);
+      return;
+    }
     const t = e.target && typeof e.target.closest === 'function' ? e.target.closest('button') : null;
     if (!t) return;
+    if (t.dataset.region !== undefined) { setRegion(t.dataset.region || null); return; }
     const cats = (HT.tiers && HT.tiers.CATEGORIES) || [];
     if (t.dataset.act === 'all') hiddenCats.clear();
     else if (t.dataset.act === 'none') cats.forEach(function (c) { hiddenCats.add(c); });
@@ -1233,12 +1284,20 @@
     }
   }
 
+  // Lift whatever filter would hide this event, so a search hit or a shared link is never invisible.
+  function revealEvent(i) {
+    const ev = events()[i];
+    if (!ev) return;
+    if (hiddenCats.has(ev.category)) { hiddenCats.delete(ev.category); saveHidden(); renderLegend(); if (shown) { settleNext = true; render(); } }
+    if (regionFilter !== null && eventRegion(i) !== regionFilter) setRegion(null);
+  }
+
   function chooseSearchHit(k) {
     const hit = searchHits[k];
     if (!hit) return;
     const ev = events()[hit.i];
     toggleSearch(false);
-    if (hiddenCats.has(ev.category)) { hiddenCats.delete(ev.category); saveHidden(); renderLegend(); }
+    revealEvent(hit.i);
     zoomToEvent(ev);
     openPanel(hit.i);
   }
@@ -1373,6 +1432,194 @@
     if (dom && !dom.panel.hidden && selected >= 0) { updatePanelImage(events()[selected]); updatePanelObject(events()[selected]); }
   }
 
+  // --- Permalinks: ev=<slug of the title>. Titles are unique, so slugs are stable while a title is. ---
+  function slugify(title) {
+    let t = String(title || '').toLowerCase();
+    if (typeof t.normalize === 'function') t = t.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+    return t.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'event';
+  }
+
+  function buildSlugIndex() {
+    const list = events();
+    const bySlug = new Map();
+    const byIndex = new Array(list.length);
+    for (let i = 0; i < list.length; i++) {
+      const base = slugify(list[i].title);
+      let slug = base;
+      for (let k = 2; bySlug.has(slug); k++) slug = base + '-' + k;
+      bySlug.set(slug, i);
+      byIndex[i] = slug;
+    }
+    slugIndex = { bySlug: bySlug, byIndex: byIndex };
+  }
+
+  function slugFor(index) {
+    if (!slugIndex) buildSlugIndex();
+    return slugIndex.byIndex[index] || '';
+  }
+
+  function indexForSlug(slug) {
+    if (!slugIndex) buildSlugIndex();
+    const i = slugIndex.bySlug.get(String(slug));
+    return i === undefined ? -1 : i;
+  }
+
+  // Open or close the panel to match the ev= parameter last parsed from the URL.
+  function syncPanelFromUrl() {
+    if (!dom) return;
+    if (pendingEv >= 0) {
+      if (selected !== pendingEv || dom.panel.hidden) { revealEvent(pendingEv); openPanel(pendingEv, { silent: true }); }
+    }
+    else if (!dom.panel.hidden) closePanel({ silent: true });
+  }
+
+  function copyEventLink() {
+    const url = String(root.location.href);
+    const done = function () {
+      const old = dom.panelCopy.textContent;
+      dom.panelCopy.textContent = 'Link copied';
+      setTimeout(function () { dom.panelCopy.textContent = old; }, 1600);
+    };
+    if (root.navigator && root.navigator.clipboard && typeof root.navigator.clipboard.writeText === 'function') {
+      root.navigator.clipboard.writeText(url).then(done, function () { root.prompt('Copy this link', url); });
+    } else {
+      root.prompt('Copy this link', url);
+    }
+  }
+
+  // --- Regions: coarse boxes over lat/lon, first match wins. Good enough for a filter, not for geography. ---
+  const REGIONS = [
+    ['africa', 'Africa'], ['europe', 'Europe'], ['asia', 'Asia'], ['namerica', 'N. America'], ['samerica', 'S. America'], ['oceania', 'Oceania']
+  ];
+  const REGION_BOXES = {   // [latMin, latMax, lonMin, lonMax], drawn on the legend map
+    africa: [[-36, 37.5, -19, 52]], europe: [[35, 72, -25, 45]], asia: [[-11, 78, 45, 180], [12, 42, 34, 63]],
+    namerica: [[7, 84, -170, -50]], samerica: [[-56, 13, -82, -34]], oceania: [[-50, 0, 110, 180], [-30, 25, -180, -130]]
+  };
+  const OFFICE_REGION = [
+    [/pharaoh|Egypt|Ethiopia|Benin/, 'africa'],
+    [/Japan|China|Chinese|Mughal|India|khagan|Assyria|Babylon|Abbasid|Ottoman/, 'asia'],
+    [/United States/, 'namerica'],
+    [/Inca|tlatoani/, 'samerica'],
+    [/./, 'europe']
+  ];
+
+  function regionOf(lat, lon) {
+    if (lat >= 12 && lat <= 42 && lon >= 34 && lon <= 63) return 'asia';                 // Middle East before Africa
+    if (lat >= 35 && lat <= 72 && lon >= -25 && lon < 45) return 'europe';
+    if (lat >= -36 && lat < 37.5 && lon >= -19 && lon <= 52) return 'africa';
+    if (lon >= 110 && lat >= -50 && lat < -10) return 'oceania';
+    if (lon >= 140 && lat >= -12 && lat < 0) return 'oceania';                            // New Guinea
+    if (lon <= -130 && lat >= -30 && lat <= 25) return 'oceania';                         // Polynesia, Hawaii
+    if (lon >= 45 && lat >= -11 && lat <= 78) return 'asia';
+    if (lon >= -82 && lon <= -34 && lat >= -56 && lat < 12.5) return 'samerica';
+    if (lon >= -170 && lon <= -50 && lat >= 7 && lat <= 84) return 'namerica';
+    return '';
+  }
+
+  function eventRegion(i) {
+    if (!regionCache) regionCache = [];
+    if (regionCache[i] !== undefined) return regionCache[i];
+    const ev = events()[i];
+    let r = '';
+    const c = eventCoords(ev);
+    if (c) r = regionOf(c[0], c[1]);
+    else if (ev.group) {
+      if (/tlatoani/.test(ev.group)) r = 'namerica';
+      else for (let k = 0; k < OFFICE_REGION.length; k++) if (OFFICE_REGION[k][0].test(ev.group)) { r = OFFICE_REGION[k][1]; break; }
+    }
+    regionCache[i] = r;
+    return r;
+  }
+
+  // One gate for every layer: category filter and region filter.
+  function passesFilters(ev, i) {
+    if (hiddenCats.has(ev.category)) return false;
+    return regionFilter === null || eventRegion(i) === regionFilter;
+  }
+
+  function setRegion(key) {
+    regionFilter = key && REGION_BOXES[key] ? key : null;
+    try { if (regionFilter) root.localStorage.setItem(REGION_KEY, regionFilter); else root.localStorage.removeItem(REGION_KEY); } catch (err) { /* ignore */ }
+    renderLegend();
+    if (shown) { settleNext = true; render(); }
+  }
+
+  // --- Minimap: years before now on a log scale, so the last few thousand years get real width ---
+  function mmU(t) { return Math.log10(Math.max(1, nowT() - t + 1)); }
+  function mmX(t, w) { return (1 - mmU(t) / mmU(HT.time.ROOT_START)) * w; }
+  function mmT(x, w) { return nowT() + 1 - Math.pow(10, (1 - clamp(x / w, 0, 1)) * mmU(HT.time.ROOT_START)); }
+
+  function renderMinimap() {
+    if (!dom.minimap || !shown) return;
+    const w = Math.max(1, dom.minimap.clientWidth || size.width);
+    const h = Math.max(1, dom.minimap.clientHeight || 24);
+    if (!mmDensity) {
+      mmDensity = new Array(MM_BINS).fill(0);
+      const list = events();
+      const uMax = mmU(HT.time.ROOT_START);
+      for (let i = 0; i < list.length; i++) mmDensity[clamp(Math.floor((1 - mmU(list[i].t) / uMax) * MM_BINS), 0, MM_BINS - 1)]++;
+    }
+    if (dom.minimap.dataset.w !== String(w) || dom.minimap.dataset.h !== String(h)) {       // static parts, rebuilt on resize
+      dom.minimap.dataset.w = String(w); dom.minimap.dataset.h = String(h);
+      dom.minimap.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+      const peak = Math.sqrt(Math.max.apply(null, mmDensity) || 1);
+      let d = 'M0 ' + h;
+      for (let b = 0; b < MM_BINS; b++) d += ' L' + (b / MM_BINS * w).toFixed(1) + ' ' + (h - Math.sqrt(mmDensity[b]) / peak * (h - 3)).toFixed(1);
+      d += ' L' + w + ' ' + h + ' Z';
+      const parts = [svgEl('path', { class: 'mm-density', d: d })];
+      const ages = [[100000, '100k y ago'], [10000, '10k'], [1000, '1,000'], [100, '100'], [10, '10'], [1, '1 y']];
+      for (let k = 0; k < ages.length; k++) {
+        const x = crisp(mmX(nowT() - ages[k][0], w));
+        parts.push(svgEl('line', { class: 'mm-tick', x1: x, x2: x, y1: 0, y2: h }));
+        parts.push(svgEl('text', { class: 'mm-label', x: x + 4, y: 9 }, ages[k][1]));
+      }
+      dom.mmWindow = svgEl('rect', { class: 'mm-window', y: 1, height: h - 2, rx: 1 });
+      parts.push(dom.mmWindow);
+      dom.minimap.replaceChildren.apply(dom.minimap, parts);
+    }
+    const x0 = mmX(shown.start, w);
+    const x1 = mmX(shown.end, w);
+    dom.mmWindow.setAttribute('x', Math.min(x0, w - 3).toFixed(1));
+    dom.mmWindow.setAttribute('width', Math.max(3, x1 - x0).toFixed(1));
+  }
+
+  // The window behaves like a scrollbar thumb: it keeps its width on the strip, which on a log scale
+  // means the span grows with age. From the root, a press picks a window an eighth of the strip wide.
+  function minimapGo(e, first) {
+    const rect = dom.minimap.getBoundingClientRect();
+    const uMax = mmU(HT.time.ROOT_START);
+    const atRoot = isRoot(view);
+    const du = atRoot ? uMax / 8 : clamp(mmU(view.start) - mmU(view.end), 0, uMax);
+    const uMouse = (1 - clamp((e.clientX - rect.left) / Math.max(1, rect.width), 0, 1)) * uMax;
+    if (first) {
+      const uMid = (mmU(view.start) + mmU(view.end)) / 2;
+      const inside = !atRoot && Math.abs(uMouse - uMid) <= Math.max(du / 2, 3 / Math.max(1, rect.width) * uMax);
+      mmGrab = inside ? uMouse - uMid : 0;
+      if (inside) return;                                 // grabbed the thumb: wait for movement
+    }
+    let u0 = uMouse - mmGrab - du / 2;                    // newer edge
+    let u1 = u0 + du;                                     // older edge
+    if (u0 < 0) { u0 = 0; u1 = du; }
+    if (u1 > uMax) { u1 = uMax; u0 = uMax - du; }
+    const target = { start: nowT() + 1 - Math.pow(10, u1), end: nowT() + 1 - Math.pow(10, u0) };
+    if (first) commit(target, { animate: true, url: 'push', stack: 'push', discrete: true });
+    else commit(target, { animate: false, url: 'replace', stack: 'replace', discrete: false });
+  }
+
+  // --- Help overlay ---
+  function toggleHelp(force) {
+    const open = force === undefined ? dom.help.hidden : !!force;
+    dom.help.hidden = !open;
+    dom.btnHelp.setAttribute('aria-expanded', String(open));
+    if (open) {
+      if (!dom.legend.hidden) toggleLegend(false);
+      if (!dom.search.hidden) toggleSearch(false);
+      try { dom.helpOk.focus({ preventScroll: true }); } catch (err) { /* ignore */ }
+    } else {
+      try { root.localStorage.setItem(HELP_KEY, '1'); } catch (err) { /* ignore */ }
+    }
+  }
+
   // --- Panel map ---
   function eventCoords(ev) {
     if (Number.isFinite(ev.lat) && Number.isFinite(ev.lon)) return [ev.lat, ev.lon, 0];
@@ -1467,7 +1714,7 @@
     delete dom.tooltip.dataset.index;
   }
 
-  function openPanel(index) {
+  function openPanel(index, opts) {
     const ev = events()[index];
     if (!ev) return;
     selected = index;
@@ -1497,9 +1744,10 @@
     markSelected();
     if (wasHidden) afterLayoutChange();
     try { dom.panel.focus({ preventScroll: true }); } catch (err) { /* ignore */ }
+    if (!(opts && opts.silent) && view) writeUrl('replace');      // ev=<slug> makes the open event shareable
   }
 
-  function closePanel() {
+  function closePanel(opts) {
     if (!dom || dom.panel.hidden) return;
     dom.panel.hidden = true;
     document.body.classList.remove('panel-open');
@@ -1508,6 +1756,7 @@
     selected = -1;
     markSelected();
     afterLayoutChange();
+    if (!(opts && opts.silent) && view) writeUrl('replace');
   }
 
   function markSelected() {
@@ -1711,12 +1960,17 @@
     const tag = el && el.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el && el.isContentEditable)) return;
     switch (e.key) {
+      case '?':
+        toggleHelp();
+        e.preventDefault();
+        break;
       case '/':
         toggleSearch(true);
         e.preventDefault();
         break;
       case 'Escape':
-        if (dom.search && !dom.search.hidden) { toggleSearch(false); e.preventDefault(); }
+        if (dom.help && !dom.help.hidden) { toggleHelp(false); e.preventDefault(); }
+        else if (dom.search && !dom.search.hidden) { toggleSearch(false); e.preventDefault(); }
         else if (!dom.panel.hidden) { closePanel(); e.preventDefault(); }
         else if (!dom.legend.hidden) { toggleLegend(false); e.preventDefault(); }
         else hideTooltip();
@@ -1787,6 +2041,7 @@
   function onLocationChange(e) {
     discardPendingUrl();
     const target = parseHash(root.location.hash) || rootView();
+    syncPanelFromUrl();
     if (sameView(target, view)) return;
     const saved = e && e.state && e.state.ht ? restoreStack(e.state.stack, target) : null;
     stack = saved || deriveStack(target);
@@ -1811,6 +2066,31 @@
     dom.btnHome.addEventListener('click', function () { home(); });
     dom.btnLegend.addEventListener('click', function () { if (dom.search && !dom.search.hidden) toggleSearch(false); toggleLegend(); });
     dom.legend.addEventListener('click', onLegendClick);
+    if (dom.btnHelp) {
+      dom.btnHelp.addEventListener('click', function () { toggleHelp(); });
+      dom.helpClose.addEventListener('click', function () { toggleHelp(false); });
+      dom.helpOk.addEventListener('click', function () { toggleHelp(false); });
+    }
+    if (dom.panelCopy) dom.panelCopy.addEventListener('click', copyEventLink);
+    if (dom.minimap) {
+      dom.minimap.addEventListener('pointerdown', function (e) {
+        mmDrag = true;
+        mmDownX = e.clientX;
+        mmMoved = false;
+        try { dom.minimap.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        minimapGo(e, true);
+        e.preventDefault();
+      });
+      dom.minimap.addEventListener('pointermove', function (e) {
+        if (!mmDrag || isRoot(view)) return;
+        if (!mmMoved && Math.abs(e.clientX - mmDownX) < 3) return;     // a click, not a drag
+        mmMoved = true;
+        minimapGo(e, false);
+      });
+      const endDrag = function () { if (mmDrag) { mmDrag = false; flushUrl(); } };
+      dom.minimap.addEventListener('pointerup', endDrag);
+      dom.minimap.addEventListener('pointercancel', endDrag);
+    }
     if (dom.btnSearch) {
       dom.btnSearch.addEventListener('click', function () { toggleSearch(); });
       dom.searchInput.addEventListener('input', onSearchInput);
@@ -1895,6 +2175,7 @@
       panelMap: $('panel-map'), panelMapSvg: $('panel-map-svg'), panelMapCap: $('panel-map-cap'),
       panelImage: $('panel-image'), panelImg: $('panel-img'), panelImgLink: $('panel-img-link'), panelImgCredit: $('panel-img-credit'),
       optImages: $('opt-images'),
+      minimap: $('minimap'), help: $('help'), helpClose: $('help-close'), helpOk: $('help-ok'), btnHelp: $('btn-help'), panelCopy: $('panel-copy'),
       panelObject: $('panel-object'), panelObjectImg: $('panel-object-img'), panelObjectImgLink: $('panel-object-imglink'),
       panelObjectLink: $('panel-object-link'), panelObjectCredit: $('panel-object-credit')
     };
@@ -1919,6 +2200,7 @@
     try { earthOn = root.localStorage.getItem(EARTH_KEY) !== '0'; } catch (err) { /* ignore */ }
     try { reignsOn = root.localStorage.getItem(REIGNS_KEY) !== '0'; } catch (err) { /* ignore */ }
     try { imagesOn = root.localStorage.getItem(IMAGES_KEY) === '1'; } catch (err) { /* ignore */ }
+    try { const rk = root.localStorage.getItem(REGION_KEY); if (rk && REGION_BOXES[rk]) regionFilter = rk; } catch (err) { /* ignore */ }
     if (dom.optImages) {
       dom.optImages.checked = imagesOn;
       dom.optImages.addEventListener('change', function () { setImages(dom.optImages.checked); });
@@ -1953,6 +2235,12 @@
     settleNext = true;
     render();
     renderCrumbs();
+    renderLegend();                                       // region state may have been restored after the first build
+    if (pendingEv >= 0) { revealEvent(pendingEv); openPanel(pendingEv, { silent: true }); }
+    // First visit without a shared link: show the guide once.
+    let seen = true;
+    try { seen = root.localStorage.getItem(HELP_KEY) === '1'; } catch (err) { /* ignore */ }
+    if (!seen && dom.help && (!root.location.hash || root.location.hash.length < 2)) toggleHelp(true);
   }
 
   HT.app = {
@@ -1968,6 +2256,7 @@
     setEarth: setEarth,
     setReigns: setReigns,
     setImages: setImages,
+    setRegion: setRegion,
     THEMES: THEMES.slice()
   };
 })(typeof window !== 'undefined' ? window : globalThis);

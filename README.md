@@ -10,7 +10,7 @@
   <img src="docs/mode-paper.png" width="32%" alt="Paper mode: warm ink on paper">
 </p>
 
-A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 3,813 events in 16 color-coded categories, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, nothing to install, and no network requests unless you switch on the optional Wikimedia images.
+A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 3,929 events in 16 color-coded categories, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, nothing to install, and no network requests unless you switch on the optional Wikimedia images.
 
 ## Open it
 
@@ -37,11 +37,13 @@ Node 18 or newer, zero dependencies. The build concatenates `time.js, tiers.js, 
 | Touch pinch | Zoom, keeping the date under each finger fixed |
 | Drag | Pan (nothing to pan at the root view) |
 | Breadcrumbs | The chain of views from `All of humanity` to the current one; click any crumb to return to it |
-| Browser back / forward | Steps through zoom history; the URL hash (`#s=<start>&e=<end>`) is shareable and reloads to the same view |
+| Browser back / forward | Steps through zoom history; the URL hash (`#s=<start>&e=<end>`, plus `&ev=<event>` while a panel is open) is shareable and reloads to the same view |
+| Overview strip under the header | All 300,000 years on a logarithmic scale with the current view marked; click to jump there, drag the marker to scrub |
 | Hover | A vertical guide line and the date under the cursor in the header; hovering an event shows a tooltip with its date and detail |
-| Click an event | Opens the side panel (bottom sheet on narrow screens) with a **Zoom to this event** button; clicking an event never triggers the axis zoom |
-| **Legend** button | Toggles the category color legend |
-| `Escape` | Closes the panel, else the legend, else the tooltip |
+| Click an event | Opens the side panel (bottom sheet on narrow screens) with **Zoom to this event** and **Copy link to this event** buttons; clicking an event never triggers the axis zoom |
+| **Legend** button | Toggles the legend: category filters and the region filter |
+| **?** button, `?` key | Opens the guide, which also appears once on a first visit that did not arrive through a shared link |
+| `Escape` | Closes the guide, else search, else the panel, else the legend, else the tooltip |
 
 ## Visual modes
 
@@ -102,7 +104,14 @@ Both are build-time imports; the page still makes no network requests. Nobel Pri
 
 - **Where it happened.** The detail panel shows a small world map with a pin and crosshair for any event with known coordinates. Hazards, battles and launches carry coordinates from their sources; the hand-curated events get theirs from Wikidata through each event's Wikipedia link (`scripts/import-geo.mjs` writes `src/geo.js`). When the point comes from a related place, such as a location or birthplace, rather than the item itself, the caption says "approximate". Country-level places are never used: an event known only to a country, state, empire or continent shows no map rather than a pin at a centroid. The land outline is Natural Earth 110m (public domain), simplified to a single 17 KB path by `scripts/build-map.mjs`.
 - **Category filters.** The legend's entries are toggles: click to hide or show a category, Shift+click to show only that one, and use All or None to reset. A dot on the Legend button marks an active filter, and the choice is remembered. Hidden categories are excluded before tier selection, so the remaining events fill the view.
-- **Search.** Press `/` or the Search button, type at least two characters, and pick a result with the arrow keys and Enter or a click. Title-prefix matches rank first, then word starts, then substrings, with ties going to the more significant event. Choosing a result zooms to the event and opens its panel, un-hiding its category if needed.
+- **Region filter.** Below the categories, the legend has a row of regions and a small world map; pick Africa, Europe, Asia, N. America, S. America or Oceania (or click the map) and only events located there remain. Regions are coarse latitude/longitude boxes, with the Middle East counted as Asia; rulers, who carry no coordinates, are placed by their office. Events with no known location are hidden while a region is chosen, and the choice is remembered alongside the category filter.
+- **Search.** Press `/` or the Search button, type at least two characters, and pick a result with the arrow keys and Enter or a click. Title-prefix matches rank first, then word starts, then substrings, with ties going to the more significant event. Choosing a result zooms to the event and opens its panel, un-hiding its category and lifting the region filter if they would hide it.
+
+## Permalinks, overview strip and guide
+
+- **Event permalinks.** Opening an event adds `ev=<slug>` to the hash, where the slug is the event's title in lowercase ASCII with dashes (`#s=1960&e=1975&ev=apollo-11-lands-on-the-moon`). Loading or navigating to such a link opens the panel, and lifts any saved filter that would hide the event. Titles are unique across the data, so a slug stays valid for as long as its title does; an unknown slug is ignored. **Copy link to this event** puts the current URL on the clipboard.
+- **Overview strip.** The strip under the header plots every event's density against years before the present on a log scale, so the last few thousand years get as much room as the first quarter-million. The marked window behaves like a scrollbar thumb: it keeps its width on the strip as you drag, which means the span in view grows as you move back in time. A click from the root view picks a window an eighth of the strip wide.
+- **Guide.** A one-screen summary of the gestures and keys, shown once on a first visit without a hash and on demand from the **?** button or key (`ht-help-seen` in `localStorage`).
 
 ## Conflicts and museum objects
 
