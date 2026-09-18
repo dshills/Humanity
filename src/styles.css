@@ -738,7 +738,7 @@ html[data-theme="paper"] .earth-line.sea { fill: none; }
 .era-guide { stroke: var(--accent); stroke-opacity: 0.35; stroke-width: 1; stroke-dasharray: 2 4; pointer-events: none; }
 .era-bracket { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; }
 .era-label {
-  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
   fill: var(--accent); paint-order: stroke fill; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round;
 }
 .era-hit { fill: transparent; stroke: transparent; stroke-width: 1; transition: fill 120ms var(--ease), stroke 120ms var(--ease); }

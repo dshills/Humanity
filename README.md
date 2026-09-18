@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The years 601 BCE to 1400 CE in NVG mode with the legend open and the region filter set to Asia: the overview strip under the header marks the view on a logarithmic scale of all 300,000 years, the legend shows the category toggles, the region chips and a world map with the Asia boxes highlighted, and the timeline keeps only events located there, from the Buddha and Confucius to the Han dynasty, above the Earth layer and the largest-city ribbon](docs/screenshot.png)
+![The root view in NVG mode, all 300,000 years on one axis: the recorded-history bracket at the top right marks the last 5,300 years as a sliver against the Today line and offers a one-click zoom, the overview strip under the header shows the same span on a logarithmic scale, the first events stack above the axis, and 800,000-year climate curves with world population run beneath it](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">

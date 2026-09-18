@@ -899,8 +899,8 @@
     const y = ERA_TOP + 0.5;
     const years = Math.round((nowT() - RECORDED_START) / 100) * 100;
     const long = 'Recorded history \u00b7 last ' + years.toLocaleString('en-US') + ' years \u00b7 zoom \u25b8';
-    const text = x0 - 12 >= long.length * 7.4 ? long : 'Recorded history \u25b8';
-    const labelW = text.length * 7.4;
+    const text = x0 - 12 >= long.length * 8.2 ? long : 'Recorded history \u25b8';
+    const labelW = text.length * 8.2;
     const g = svgEl('g', {
       class: 'era-jump', tabindex: 0, role: 'button',
       'aria-label': 'Zoom to recorded history, the last ' + years.toLocaleString('en-US') + ' years'

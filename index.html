@@ -749,7 +749,7 @@ html[data-theme="paper"] .earth-line.sea { fill: none; }
 .era-guide { stroke: var(--accent); stroke-opacity: 0.35; stroke-width: 1; stroke-dasharray: 2 4; pointer-events: none; }
 .era-bracket { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; }
 .era-label {
-  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
   fill: var(--accent); paint-order: stroke fill; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round;
 }
 .era-hit { fill: transparent; stroke: transparent; stroke-width: 1; transition: fill 120ms var(--ease), stroke 120ms var(--ease); }
@@ -10274,8 +10274,8 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
     const y = ERA_TOP + 0.5;
     const years = Math.round((nowT() - RECORDED_START) / 100) * 100;
     const long = 'Recorded history \u00b7 last ' + years.toLocaleString('en-US') + ' years \u00b7 zoom \u25b8';
-    const text = x0 - 12 >= long.length * 7.4 ? long : 'Recorded history \u25b8';
-    const labelW = text.length * 7.4;
+    const text = x0 - 12 >= long.length * 8.2 ? long : 'Recorded history \u25b8';
+    const labelW = text.length * 8.2;
     const g = svgEl('g', {
       class: 'era-jump', tabindex: 0, role: 'button',
       'aria-label': 'Zoom to recorded history, the last ' + years.toLocaleString('en-US') + ' years'
