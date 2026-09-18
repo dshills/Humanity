@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Resolves coordinates for the hand-curated events (src/data/01..08) from Wikidata (CC0) via each event's
 // English Wikipedia link, and writes src/geo.js: HT.geo = { "<article title>": [lat, lon, approx] }.
-// approx = 1 when the point comes from a related place (location, birthplace, country) rather than the item itself.
+// approx = 1 when the point comes from a related place (location, birthplace) rather than the item itself;
+// country-level places are never used.
 // Also caches Q-ids and sitelink counts in scripts/cache/wikidata-curated.json for the significance scorer.
 // Run: node scripts/import-geo.mjs
 import { writeFileSync, readdirSync, mkdirSync } from 'node:fs';
@@ -31,7 +32,11 @@ const coordOf = (ent) => {
   const c = ent && ent.claims && ent.claims.P625 && ent.claims.P625[0] && ent.claims.P625[0].mainsnak.datavalue;
   return c && c.value && c.value.globe && c.value.globe.endsWith('Q2') ? [c.value.latitude, c.value.longitude] : null;
 };
-const FALLBACK = ['P276', 'P131', 'P159', 'P19', 'P119', 'P17', 'P495', 'P27'];
+// Related places that can stand in for an event's own coordinates. Country-level properties (P17, P495, P27) are
+// deliberately absent: a pin at a country's centroid misleads more than it informs (Apollo 11 is not in Kansas).
+const FALLBACK = ['P276', 'P131', 'P159', 'P19', 'P119'];
+// ...and a related place that is itself a country, state, empire or continent is rejected for the same reason.
+const TOO_BROAD = new Set(['Q6256', 'Q3624078', 'Q3024240', 'Q7275', 'Q48349', 'Q5107', 'Q417175', 'Q1250464', 'Q15634554', 'Q35657', 'Q10864048', 'Q82794']);
 const refOf = (ent) => {
   for (const p of FALLBACK) {
     const v = ent.claims && ent.claims[p] && ent.claims[p][0] && ent.claims[p][0].mainsnak.datavalue;
@@ -55,7 +60,11 @@ const refs = [...new Set([...byTitle.values()].filter((v) => !v.coord && v.ref).
 const refCoord = new Map();
 for (let i = 0; i < refs.length; i += 50) {
   const d = await api({ action: 'wbgetentities', ids: refs.slice(i, i + 50).join('|'), props: 'claims' });
-  for (const [q, ent] of Object.entries(d.entities || {})) { const c = coordOf(ent); if (c) refCoord.set(q, c); }
+  for (const [q, ent] of Object.entries(d.entities || {})) {
+    const classes = ((ent.claims && ent.claims.P31) || []).map((cl) => cl.mainsnak.datavalue && cl.mainsnak.datavalue.value && cl.mainsnak.datavalue.value.id);
+    if (classes.some((id) => TOO_BROAD.has(id))) continue;
+    const c = coordOf(ent); if (c) refCoord.set(q, c);
+  }
   await sleep(300);
 }
 const geo = {}; const cache = {}; let exact = 0, approx = 0;

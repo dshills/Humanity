@@ -148,7 +148,7 @@ async function battles(existing) {
   ?b p:P585 ?ds . ?ds ps:P585 ?d ; psv:P585 [ wikibase:timePrecision ?prec ] .
   OPTIONAL { ?b wdt:P361 ?war . }
   OPTIONAL { ?b wdt:P625 ?coord . }
-  OPTIONAL { ?b wdt:P276 ?loc . OPTIONAL { ?loc wdt:P625 ?locCoord . } }
+  OPTIONAL { ?b wdt:P276 ?loc . OPTIONAL { ?loc wdt:P625 ?locCoord . FILTER NOT EXISTS { ?loc wdt:P31 wd:Q6256 } FILTER NOT EXISTS { ?loc wdt:P31 wd:Q3624078 } FILTER NOT EXISTS { ?loc wdt:P31 wd:Q3024240 } } }
   OPTIONAL { ?b wdt:P17 ?country . }
   OPTIONAL { ?article schema:about ?b ; schema:isPartOf <https://en.wikipedia.org/> . }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }

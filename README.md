@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The years 1960 to 1975 in NVG mode with the detail panel open on Apollo 11: a location map, an opt-in Wikimedia image with its credit line, and the "Load images from Wikimedia" checkbox; swimlanes of heads of state run across the top, with events, the Earth layer and the largest-city ribbon below](docs/screenshot.png)
+![The years 1955 to 1972 in NVG mode with the detail panel open on the building of the Berlin Wall: a location map pinned at 52.5°N 13.4°E, an opt-in Wikimedia image with its credit line, and the "Load images from Wikimedia" checkbox; swimlanes of heads of state run across the top, with events, the Earth layer and the largest-city ribbon below](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
@@ -100,7 +100,7 @@ Both are build-time imports; the page still makes no network requests. Nobel Pri
 
 ## Map, filters and search
 
-- **Where it happened.** The detail panel shows a small world map with a pin and crosshair for any event with known coordinates. Hazards, battles and launches carry coordinates from their sources; the hand-curated events get theirs from Wikidata through each event's Wikipedia link (`scripts/import-geo.mjs` writes `src/geo.js`). When the point comes from a related place, such as a location, birthplace or country, rather than the item itself, the caption says "approximate". The land outline is Natural Earth 110m (public domain), simplified to a single 17 KB path by `scripts/build-map.mjs`.
+- **Where it happened.** The detail panel shows a small world map with a pin and crosshair for any event with known coordinates. Hazards, battles and launches carry coordinates from their sources; the hand-curated events get theirs from Wikidata through each event's Wikipedia link (`scripts/import-geo.mjs` writes `src/geo.js`). When the point comes from a related place, such as a location or birthplace, rather than the item itself, the caption says "approximate". Country-level places are never used: an event known only to a country, state, empire or continent shows no map rather than a pin at a centroid. The land outline is Natural Earth 110m (public domain), simplified to a single 17 KB path by `scripts/build-map.mjs`.
 - **Category filters.** The legend's entries are toggles: click to hide or show a category, Shift+click to show only that one, and use All or None to reset. A dot on the Legend button marks an active filter, and the choice is remembered. Hidden categories are excluded before tier selection, so the remaining events fill the view.
 - **Search.** Press `/` or the Search button, type at least two characters, and pick a result with the arrow keys and Enter or a click. Title-prefix matches rank first, then word starts, then substrings, with ties going to the more significant event. Choosing a result zooms to the event and opens its panel, un-hiding its category if needed.
 
