@@ -89,25 +89,29 @@
   }
 
   // ------------------------------------------------------------------
-  // URL hash: #s=<start>&e=<end|now>&m=<theme>&ev=<slug>, up to 9 decimals, trailing zeros trimmed. A view at
+  // URL hash: #s=<start>&e=<end|now>&m=<theme>&ev=<slug>&tour=<id>.<step>, up to 9 decimals, trailing zeros trimmed. A view at
   // the at-now limit writes the token "now", so a shared or reloaded link still rests on the present later on.
   // ------------------------------------------------------------------
   function fmtNum(x) {
     return String(Number(x.toFixed(HASH_DECIMALS)));
   }
 
-  function encodeHash(v, now, theme, slug) {
+  // `tour` is { id, step } with a zero-based step; it is written one-based, as tour=<id>.<n>.
+  function encodeHash(v, now, theme, slug, tour) {
     return '#s=' + fmtNum(v.start) + '&e=' + (atNow(v, now) ? 'now' : fmtNum(v.end)) +
-      (theme && theme !== 'auto' ? '&m=' + theme : '') + (slug ? '&ev=' + slug : '');
+      (theme && theme !== 'auto' ? '&m=' + theme : '') + (slug ? '&ev=' + slug : '') +
+      (tour && tour.id ? '&tour=' + tour.id + '.' + (tour.step + 1) : '');
   }
 
-  // { view | null, theme | '', ev | '' }: the view is null when s/e are missing or do not describe a span.
+  // { view | null, theme | '', ev | '', tour | null }: the view is null when s/e are missing or do not describe a span.
   function parseHash(hash, now) {
-    const out = { view: null, theme: '', ev: '' };
+    const out = { view: null, theme: '', ev: '', tour: null };
     if (!hash || hash.length < 2) return out;
     const params = new URLSearchParams(String(hash).replace(/^#/, ''));
     out.theme = params.get('m') || '';
     out.ev = params.get('ev') || '';
+    const tm = /^([a-z0-9-]{1,40})\.(\d{1,3})$/.exec(params.get('tour') || '');
+    if (tm && Number(tm[2]) >= 1) out.tour = { id: tm[1], step: Number(tm[2]) - 1 };
     const s = parseFloat(params.get('s'));
     const e = params.get('e') === 'now' ? (Number.isFinite(s) ? endAtNow(s, now) : NaN) : parseFloat(params.get('e'));
     if (Number.isFinite(s) && Number.isFinite(e) && e > s) out.view = clampView(s, e, now);

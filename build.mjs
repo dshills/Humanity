@@ -28,7 +28,7 @@ const OUT_FILE = path.join(ROOT, 'index.html');
 
 const TEMPLATE = 'index.template.html';
 const STYLES = 'styles.css';
-const JS_HEAD = ['time.js', 'tiers.js', 'ticks.js', 'layout.js', 'core.js', 'earth.js', 'context.js', 'map.js', 'geo.js', 'objects.js'];
+const JS_HEAD = ['time.js', 'tiers.js', 'ticks.js', 'layout.js', 'core.js', 'earth.js', 'context.js', 'map.js', 'geo.js', 'objects.js', 'tours.js'];
 const JS_TAIL = ['app.js'];
 const DATA_DIR = 'data';
 const STYLES_PLACEHOLDER = '<!--STYLES-->';

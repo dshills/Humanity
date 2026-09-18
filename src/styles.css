@@ -840,6 +840,15 @@ html[data-theme="paper"] .earth-line.sea { fill: none; }
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: none; }
 }
+/* Centred elements keep their own translate while they fade in; tt-in would drop it for the duration. */
+@keyframes center-in {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 6px)); }
+  to   { opacity: 1; transform: translate(-50%, -50%); }
+}
+@keyframes centerx-in {
+  from { opacity: 0; transform: translate(-50%, 6px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
 
 /* --------------------------------------------------------------------------
    Legend — floating card in the stage's top-right
@@ -1087,6 +1096,62 @@ html[data-theme="paper"] #panel-title { font-size: 24px; }
 .panel-jump .when { font: 500 9.5px/1.3 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
 .panel-jump .what { font-size: 13.5px; line-height: 1.35; }
 
+/* Guided tours: picker card, the bar that narrates a running tour, and the list inside the guide */
+#tours {
+  position: absolute; top: 14px; right: 14px; z-index: 5; width: min(380px, calc(100% - 28px));
+  max-height: calc(100% - 28px); overflow: auto; padding: 12px 12px 10px;
+  border: 1px solid var(--panel-border); border-radius: 6px; background: var(--panel-bg);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--shadow);
+  animation: tt-in 160ms var(--ease-out);
+}
+#tours[hidden], #tour-bar[hidden], #help-tours[hidden] { display: none; }
+#tours h3, #help-tours h3 { margin: 2px 4px 8px; font: 600 10px/1.3 var(--font-mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.tour-list, #help-tour-list { display: grid; gap: 4px; }
+.tour-pick {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; width: 100%;
+  padding: 8px 10px; text-align: left; border: 1px solid transparent; border-radius: 4px; color: var(--fg);
+  transition: background-color 120ms var(--ease), border-color 120ms var(--ease);
+}
+.tour-pick:hover, .tour-pick:focus-visible { background: var(--hover); border-color: rgba(var(--accent-rgb), 0.45); }
+.tour-pick .tp-title { font-size: 14.5px; line-height: 1.3; }
+.tour-pick .tp-steps { font: 500 9.5px/1 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); white-space: nowrap; }
+.tour-pick .tp-blurb { grid-column: 1 / -1; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+#help-tours { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--panel-border); }
+#help-tours h3 { margin-left: 0; }
+#help-tour-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#help-tour-list .tour-pick { padding: 6px 8px; border-color: var(--panel-border); }
+#help-tour-list .tp-blurb { display: none; }
+#help-tour-list .tp-title { font-size: 13px; }
+#btn-tours.active { border-color: rgba(var(--accent-rgb), 0.45); color: var(--accent); }
+
+#tour-bar {
+  position: absolute; z-index: 6; left: 50%; bottom: 76px; transform: translateX(-50%);
+  width: min(680px, calc(100% - 24px)); padding: 12px 14px 10px;
+  border: 1px solid rgba(var(--accent-rgb), 0.5); border-radius: 8px; background: var(--panel-bg);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: var(--shadow), var(--glow);
+  animation: centerx-in 200ms var(--ease-out);
+}
+/* On a phone the stage is too short to share with the bar, so while the panel is open the bar rides inside it. */
+#panel #tour-bar {
+  position: static; transform: none; width: auto; margin: 0 40px 16px 0; animation: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; background: transparent;
+}
+#tour-head { display: flex; justify-content: space-between; gap: 12px; font: 600 10px/1.3 var(--font-mono); letter-spacing: 0.16em; text-transform: uppercase; }
+#tour-title { color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tour-count { color: var(--muted); white-space: nowrap; }
+#tour-note { margin: 8px 0 10px; font-size: 15px; line-height: 1.5; color: var(--fg); }
+#tour-controls { display: flex; gap: 6px; }
+#tour-controls button {
+  min-height: 32px; padding: 0 12px; border: 1px solid var(--panel-border); border-radius: 4px;
+  font: 600 10px/1 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg);
+  transition: background-color 120ms var(--ease), border-color 120ms var(--ease);
+}
+#tour-controls button:hover:not(:disabled) { background: var(--hover); border-color: rgba(var(--accent-rgb), 0.5); }
+#tour-controls button:disabled { opacity: 0.4; cursor: default; }
+#tour-next { background: var(--accent); border-color: var(--accent) !important; color: var(--accent-fg) !important; }
+#tour-next:hover { filter: brightness(1.08); }
+#tour-exit { margin-left: auto; color: var(--muted) !important; }
+
 /* On-this-day chip and markers */
 #otd-chip {
   position: absolute; z-index: 4; left: 50%; bottom: 76px; transform: translateX(-50%);
@@ -1277,7 +1342,7 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
   width: min(560px, calc(100% - 28px)); max-height: calc(100% - 28px); overflow: auto;
   padding: 22px 24px 20px; border: 1px solid var(--panel-border); border-radius: 8px;
   background: var(--panel-bg); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
-  box-shadow: var(--shadow); animation: tt-in 200ms var(--ease-out);
+  box-shadow: var(--shadow); animation: center-in 200ms var(--ease-out);
 }
 #help h2 { margin: 0 40px 14px 0; font: 500 13px/1 var(--font-mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--accent); }
 #help dl { margin: 0; display: grid; grid-template-columns: minmax(120px, auto) 1fr; gap: 9px 18px; font-size: 13px; line-height: 1.45; }
@@ -1330,6 +1395,13 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
   #btn-home { display: none; }                      /* the root crumb does the same job */
   #btn-reigns { display: none; }
   #help dl { grid-template-columns: 1fr; gap: 2px 0; }
+  #btn-tours { display: none; }                          /* on a phone the tours are reached from the guide (?) */
+  #tour-bar { bottom: 8px; padding: 10px 12px 8px; }
+  #help .kbd-only { display: none; }                     /* no keyboard here: leave the room to the tours */
+  #tour-note { font-size: 13.5px; margin: 6px 0 8px; }
+  body.touring #dock, body.touring #hud { display: none; }  /* the bar takes their place while a tour runs */
+  #help-tour-list { grid-template-columns: 1fr 1fr; gap: 3px; }
+  #help-tour-list .tp-steps { display: none; }
   #otd-chip { bottom: auto; top: 10px; }                  /* the HUD owns the bottom of a phone stage */
   #help { padding: 16px 18px 14px; max-height: calc(100% - 16px); }
   #help h2 { margin-bottom: 10px; }

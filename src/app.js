@@ -121,6 +121,9 @@
   let otdInView = 0;                      // on-this-day events inside the current view
   let otdHint = true;                     // offer the layer on deep views while the opt-in is off
   let otdLinkIndex = null;                // article title -> [t] of bundled events, to skip what is already here
+  let tour = null;                        // { def, step } while a guided tour is running
+  let pendingTour = null;                 // { id, step } last parsed from the URL
+  let titleIndex = null;                  // event title -> index, for tour steps
   let pendingSlug = '';                   // ev= slug that named nothing yet (an on-this-day event not loaded)
   let imageCache = null;                  // { title: { src, page, credit } | 0 }  (0 = nothing usable)
   let reignReserve = 0;                   // px at the top of the stage reserved for swimlanes this frame
@@ -247,7 +250,8 @@
 
   // --- URL hash: #s=<start>&e=<end|now>&m=<theme>&ev=<slug> (format and parsing in HT.core) ---
   function encodeHash(v) {
-    return C.encodeHash(v, nowT(), theme, selected >= 0 && dom && !dom.panel.hidden ? slugFor(selected) : '');
+    return C.encodeHash(v, nowT(), theme, selected >= 0 && dom && !dom.panel.hidden ? slugFor(selected) : '',
+      tour ? { id: tour.def.id, step: tour.step } : null);
   }
 
   // Applies the hash's theme and event as side effects and returns its view (null when it names none).
@@ -257,6 +261,7 @@
     if (h.theme && THEMES.indexOf(h.theme) >= 0 && h.theme !== theme) setTheme(h.theme, { silent: true });
     pendingEv = h.ev ? indexForSlug(h.ev) : -1;
     pendingSlug = h.ev && pendingEv < 0 ? h.ev : '';
+    pendingTour = h.tour;
     return h.view;
   }
 
@@ -1597,7 +1602,7 @@
   function updateOtdChip() {
     if (!dom || !dom.otdChip || !shown) return;
     const deep = shown.end - shown.start <= OTD_MAX_SPAN && capNow(shown.end) >= 1;
-    if (!deep || (!imagesOn && !otdHint)) { dom.otdChip.hidden = true; return; }
+    if (!deep || tour || (!imagesOn && !otdHint)) { dom.otdChip.hidden = true; return; }
     let text;
     let offer = false;
     if (!imagesOn) { text = 'Load day-by-day events from Wikipedia'; offer = true; }
@@ -1684,6 +1689,122 @@
     });
     dom.panelMore.replaceChildren.apply(dom.panelMore, nodes);
     dom.panelMore.hidden = nodes.length === 0;
+  }
+
+  // --- Guided tours (HT.tours): a fixed path of events with a line of narration each. A step zooms to its
+  // event and opens its panel; the step rides in the URL (tour=<id>.<n>), so Back, Forward and shared links work. ---
+  function tourDefs() { return Array.isArray(HT.tours) ? HT.tours : []; }
+
+  function indexOfTitle(title) {
+    if (!titleIndex) {
+      titleIndex = new Map();
+      const list = events();
+      for (let i = 0; i < list.length; i++) if (!list[i].otd && !titleIndex.has(list[i].title)) titleIndex.set(list[i].title, i);
+    }
+    const i = titleIndex.get(title);
+    return i === undefined ? -1 : i;
+  }
+
+  function renderTourBar() {
+    if (!dom.tourBar) return;
+    document.body.classList.toggle('touring', !!tour);
+    dom.tourBar.hidden = !tour;
+    // Narrow screens: the bar lives in the panel sheet while that is open, in the stage otherwise.
+    const narrow = typeof root.matchMedia === 'function' && root.matchMedia('(max-width: 640px)').matches;
+    const home = tour && narrow && !dom.panel.hidden ? dom.panel : dom.stage;
+    if (dom.tourBar.parentNode !== home) {
+      if (home === dom.panel) dom.panel.insertBefore(dom.tourBar, dom.panelCategory);
+      else dom.stage.insertBefore(dom.tourBar, dom.tooltip);
+    }
+    if (dom.btnTours) dom.btnTours.classList.toggle('active', !!tour);
+    if (!tour) return;
+    const n = tour.def.steps.length;
+    dom.tourTitle.textContent = tour.def.title;
+    dom.tourCount.textContent = (tour.step + 1) + ' / ' + n;
+    dom.tourNote.textContent = tour.def.steps[tour.step].note;
+    dom.tourPrev.disabled = tour.step === 0;
+    dom.tourNext.textContent = tour.step === n - 1 ? 'Finish' : 'Next ›';
+  }
+
+  // Show step k: reveal the event, open its panel (so the URL written by the zoom already names it), zoom.
+  function showTourStep(k) {
+    if (!tour) return;
+    tour.step = clamp(k, 0, tour.def.steps.length - 1);
+    const i = indexOfTitle(tour.def.steps[tour.step].ev);
+    renderTourBar();
+    if (i < 0) { writeUrl('replace'); return; }           // a step whose event is gone: keep the narration, stay put
+    revealEvent(i);
+    openPanel(i, { silent: true });
+    const ev = events()[i];
+    const before = view;
+    zoomToEvent(ev);
+    if (sameView(before, view)) writeUrl('push');         // already framed: the zoom was a no-op, record the step anyway
+  }
+
+  function startTour(id, step) {
+    const def = tourDefs().filter(function (t) { return t.id === id; })[0];
+    if (!def || !def.steps || !def.steps.length) return;
+    toggleTours(false);
+    if (dom.help && !dom.help.hidden) toggleHelp(false);
+    if (!dom.legend.hidden) toggleLegend(false);
+    if (dom.search && !dom.search.hidden) toggleSearch(false);
+    tour = { def: def, step: 0 };
+    showTourStep(step || 0);
+  }
+
+  function tourStep(delta) {
+    if (!tour) return;
+    if (delta > 0 && tour.step === tour.def.steps.length - 1) { endTour(); return; }
+    showTourStep(tour.step + delta);
+  }
+
+  function endTour() {
+    if (!tour) return;
+    tour = null;
+    pendingTour = null;
+    renderTourBar();
+    if (view) writeUrl('replace');
+    if (shown) render();                                  // the chip and dock come back
+  }
+
+  // Match the tour state to the tour= parameter last parsed from the URL, without moving the view: the same
+  // URL already carries the view and the open event.
+  function syncTourFromUrl() {
+    if (!dom) return;
+    const want = pendingTour;
+    const def = want ? tourDefs().filter(function (t) { return t.id === want.id; })[0] : null;
+    if (!def) { if (tour) { tour = null; renderTourBar(); } return; }
+    tour = { def: def, step: clamp(want.step, 0, def.steps.length - 1) };
+    renderTourBar();
+  }
+
+  function tourButtons(container, onPick) {
+    const nodes = tourDefs().map(function (t) {
+      const b = htmlEl('button', 'tour-pick');
+      b.type = 'button';
+      b.dataset.tour = t.id;
+      b.appendChild(htmlEl('span', 'tp-title', t.title));
+      b.appendChild(htmlEl('span', 'tp-blurb', t.blurb));
+      b.appendChild(htmlEl('span', 'tp-steps', t.steps.length + ' steps'));
+      return b;
+    });
+    container.replaceChildren.apply(container, nodes);
+    container.addEventListener('click', function (e) {
+      const b = e.target && typeof e.target.closest === 'function' ? e.target.closest('.tour-pick') : null;
+      if (b) onPick(b.dataset.tour);
+    });
+  }
+
+  function toggleTours(force) {
+    if (!dom.tours) return;
+    const open = force === undefined ? dom.tours.hidden : !!force;
+    if (open) {
+      if (!dom.legend.hidden) toggleLegend(false);
+      if (dom.search && !dom.search.hidden) toggleSearch(false);
+      if (dom.help && !dom.help.hidden) toggleHelp(false);
+    }
+    dom.tours.hidden = !open;
+    if (dom.btnTours) dom.btnTours.setAttribute('aria-expanded', String(open));
   }
 
   // --- Permalinks: ev=<slug of the title>. Titles are unique, so slugs are stable while a title is. ---
@@ -1890,6 +2011,7 @@
 
   function toggleLegend(force) {
     const open = force === undefined ? dom.legend.hidden : !!force;
+    if (open && dom.tours && !dom.tours.hidden) toggleTours(false);
     dom.legend.hidden = !open;
     dom.btnLegend.setAttribute('aria-expanded', String(open));
   }
@@ -1965,6 +2087,7 @@
     dom.panel.hidden = false;
     document.body.classList.add('panel-open');
     markSelected();
+    if (tour) renderTourBar();
     if (wasHidden) afterLayoutChange();
     try { dom.panel.focus({ preventScroll: true }); } catch (err) { /* ignore */ }
     if (!(opts && opts.silent) && view) writeUrl('replace');      // ev=<slug> makes the open event shareable
@@ -1978,6 +2101,7 @@
     if (was) { try { was.focus({ preventScroll: true }); } catch (err) { /* ignore */ } }
     selected = -1;
     markSelected();
+    if (tour) renderTourBar();
     afterLayoutChange();
     if (!(opts && opts.silent) && view) writeUrl('replace');
   }
@@ -2197,7 +2321,15 @@
         else if (dom.search && !dom.search.hidden) { toggleSearch(false); e.preventDefault(); }
         else if (!dom.panel.hidden) { closePanel(); e.preventDefault(); }
         else if (!dom.legend.hidden) { toggleLegend(false); e.preventDefault(); }
+        else if (dom.tours && !dom.tours.hidden) { toggleTours(false); e.preventDefault(); }
+        else if (tour) { endTour(); e.preventDefault(); }
         else hideTooltip();
+        break;
+      case 'ArrowRight':
+        if (tour) { tourStep(1); e.preventDefault(); }
+        break;
+      case 'ArrowLeft':
+        if (tour) { tourStep(-1); e.preventDefault(); }
         break;
       case '-':
       case '_':
@@ -2266,6 +2398,8 @@
   function onLocationChange(e) {
     discardPendingUrl();
     const target = parseHash(root.location.hash) || rootView();
+    if (!root.location.hash || root.location.hash.length < 2) pendingTour = null;
+    syncTourFromUrl();
     syncPanelFromUrl();
     if (sameView(target, view)) return;
     const saved = e && e.state && e.state.ht ? restoreStack(e.state.stack, target) : null;
@@ -2405,6 +2539,9 @@
       panelMore: $('panel-more'), panelNear: $('panel-near'), panelNearList: $('panel-near-list'),
       panelRelated: $('panel-related'), panelRelatedHead: $('panel-related-head'), panelRelatedList: $('panel-related-list'),
       otdChip: $('otd-chip'), otdAction: $('otd-action'), otdDismiss: $('otd-dismiss'),
+      btnTours: $('btn-tours'), tours: $('tours'), tourBar: $('tour-bar'), tourTitle: $('tour-title'), tourCount: $('tour-count'),
+      tourNote: $('tour-note'), tourPrev: $('tour-prev'), tourNext: $('tour-next'), tourExit: $('tour-exit'),
+      helpTours: $('help-tours'), helpTourList: $('help-tour-list'),
       minimap: $('minimap'), help: $('help'), helpClose: $('help-close'), helpOk: $('help-ok'), btnHelp: $('btn-help'), panelCopy: $('panel-copy'),
       panelObject: $('panel-object'), panelObjectImg: $('panel-object-img'), panelObjectImgLink: $('panel-object-imglink'),
       panelObjectLink: $('panel-object-link'), panelObjectCredit: $('panel-object-credit')
@@ -2437,6 +2574,19 @@
     if (dom.optImages) {
       dom.optImages.checked = imagesOn;
       dom.optImages.addEventListener('change', function () { setImages(dom.optImages.checked); });
+    }
+    if (dom.tours && tourDefs().length) {
+      const head = htmlEl('h3', '', 'Guided tours');
+      const list = htmlEl('div', 'tour-list');
+      dom.tours.replaceChildren(head, list);
+      tourButtons(list, function (id) { startTour(id, 0); });
+      if (dom.helpTours) { dom.helpTours.hidden = false; tourButtons(dom.helpTourList, function (id) { startTour(id, 0); }); }
+      dom.btnTours.addEventListener('click', function () { toggleTours(); });
+      dom.tourPrev.addEventListener('click', function () { tourStep(-1); });
+      dom.tourNext.addEventListener('click', function () { tourStep(1); });
+      dom.tourExit.addEventListener('click', endTour);
+    } else if (dom.btnTours) {
+      dom.btnTours.hidden = true;
     }
     if (dom.otdChip) {
       try { otdHint = root.localStorage.getItem(OTD_HINT_KEY) !== 'off'; } catch (err) { /* ignore */ }
@@ -2486,6 +2636,7 @@
     render();
     renderCrumbs();
     renderLegend();                                       // region state may have been restored after the first build
+    syncTourFromUrl();
     if (pendingEv >= 0) { revealEvent(pendingEv); openPanel(pendingEv, { silent: true }); }
     // First visit without a shared link: show the guide once.
     let seen = true;

@@ -851,6 +851,15 @@ html[data-theme="paper"] .earth-line.sea { fill: none; }
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: none; }
 }
+/* Centred elements keep their own translate while they fade in; tt-in would drop it for the duration. */
+@keyframes center-in {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 6px)); }
+  to   { opacity: 1; transform: translate(-50%, -50%); }
+}
+@keyframes centerx-in {
+  from { opacity: 0; transform: translate(-50%, 6px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
 
 /* --------------------------------------------------------------------------
    Legend — floating card in the stage's top-right
@@ -1098,6 +1107,62 @@ html[data-theme="paper"] #panel-title { font-size: 24px; }
 .panel-jump .when { font: 500 9.5px/1.3 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
 .panel-jump .what { font-size: 13.5px; line-height: 1.35; }
 
+/* Guided tours: picker card, the bar that narrates a running tour, and the list inside the guide */
+#tours {
+  position: absolute; top: 14px; right: 14px; z-index: 5; width: min(380px, calc(100% - 28px));
+  max-height: calc(100% - 28px); overflow: auto; padding: 12px 12px 10px;
+  border: 1px solid var(--panel-border); border-radius: 6px; background: var(--panel-bg);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--shadow);
+  animation: tt-in 160ms var(--ease-out);
+}
+#tours[hidden], #tour-bar[hidden], #help-tours[hidden] { display: none; }
+#tours h3, #help-tours h3 { margin: 2px 4px 8px; font: 600 10px/1.3 var(--font-mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.tour-list, #help-tour-list { display: grid; gap: 4px; }
+.tour-pick {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; width: 100%;
+  padding: 8px 10px; text-align: left; border: 1px solid transparent; border-radius: 4px; color: var(--fg);
+  transition: background-color 120ms var(--ease), border-color 120ms var(--ease);
+}
+.tour-pick:hover, .tour-pick:focus-visible { background: var(--hover); border-color: rgba(var(--accent-rgb), 0.45); }
+.tour-pick .tp-title { font-size: 14.5px; line-height: 1.3; }
+.tour-pick .tp-steps { font: 500 9.5px/1 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); white-space: nowrap; }
+.tour-pick .tp-blurb { grid-column: 1 / -1; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+#help-tours { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--panel-border); }
+#help-tours h3 { margin-left: 0; }
+#help-tour-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#help-tour-list .tour-pick { padding: 6px 8px; border-color: var(--panel-border); }
+#help-tour-list .tp-blurb { display: none; }
+#help-tour-list .tp-title { font-size: 13px; }
+#btn-tours.active { border-color: rgba(var(--accent-rgb), 0.45); color: var(--accent); }
+
+#tour-bar {
+  position: absolute; z-index: 6; left: 50%; bottom: 76px; transform: translateX(-50%);
+  width: min(680px, calc(100% - 24px)); padding: 12px 14px 10px;
+  border: 1px solid rgba(var(--accent-rgb), 0.5); border-radius: 8px; background: var(--panel-bg);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: var(--shadow), var(--glow);
+  animation: centerx-in 200ms var(--ease-out);
+}
+/* On a phone the stage is too short to share with the bar, so while the panel is open the bar rides inside it. */
+#panel #tour-bar {
+  position: static; transform: none; width: auto; margin: 0 40px 16px 0; animation: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; background: transparent;
+}
+#tour-head { display: flex; justify-content: space-between; gap: 12px; font: 600 10px/1.3 var(--font-mono); letter-spacing: 0.16em; text-transform: uppercase; }
+#tour-title { color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tour-count { color: var(--muted); white-space: nowrap; }
+#tour-note { margin: 8px 0 10px; font-size: 15px; line-height: 1.5; color: var(--fg); }
+#tour-controls { display: flex; gap: 6px; }
+#tour-controls button {
+  min-height: 32px; padding: 0 12px; border: 1px solid var(--panel-border); border-radius: 4px;
+  font: 600 10px/1 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg);
+  transition: background-color 120ms var(--ease), border-color 120ms var(--ease);
+}
+#tour-controls button:hover:not(:disabled) { background: var(--hover); border-color: rgba(var(--accent-rgb), 0.5); }
+#tour-controls button:disabled { opacity: 0.4; cursor: default; }
+#tour-next { background: var(--accent); border-color: var(--accent) !important; color: var(--accent-fg) !important; }
+#tour-next:hover { filter: brightness(1.08); }
+#tour-exit { margin-left: auto; color: var(--muted) !important; }
+
 /* On-this-day chip and markers */
 #otd-chip {
   position: absolute; z-index: 4; left: 50%; bottom: 76px; transform: translateX(-50%);
@@ -1288,7 +1353,7 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
   width: min(560px, calc(100% - 28px)); max-height: calc(100% - 28px); overflow: auto;
   padding: 22px 24px 20px; border: 1px solid var(--panel-border); border-radius: 8px;
   background: var(--panel-bg); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
-  box-shadow: var(--shadow); animation: tt-in 200ms var(--ease-out);
+  box-shadow: var(--shadow); animation: center-in 200ms var(--ease-out);
 }
 #help h2 { margin: 0 40px 14px 0; font: 500 13px/1 var(--font-mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--accent); }
 #help dl { margin: 0; display: grid; grid-template-columns: minmax(120px, auto) 1fr; gap: 9px 18px; font-size: 13px; line-height: 1.45; }
@@ -1341,6 +1406,13 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
   #btn-home { display: none; }                      /* the root crumb does the same job */
   #btn-reigns { display: none; }
   #help dl { grid-template-columns: 1fr; gap: 2px 0; }
+  #btn-tours { display: none; }                          /* on a phone the tours are reached from the guide (?) */
+  #tour-bar { bottom: 8px; padding: 10px 12px 8px; }
+  #help .kbd-only { display: none; }                     /* no keyboard here: leave the room to the tours */
+  #tour-note { font-size: 13.5px; margin: 6px 0 8px; }
+  body.touring #dock, body.touring #hud { display: none; }  /* the bar takes their place while a tour runs */
+  #help-tour-list { grid-template-columns: 1fr 1fr; gap: 3px; }
+  #help-tour-list .tp-steps { display: none; }
   #otd-chip { bottom: auto; top: 10px; }                  /* the HUD owns the bottom of a phone stage */
   #help { padding: 16px 18px 14px; max-height: calc(100% - 16px); }
   #help h2 { margin-bottom: 10px; }
@@ -1473,6 +1545,7 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
       <button id="btn-home" type="button">Home</button>
       <button id="btn-earth" type="button" aria-pressed="true" title="Earth layer: CO₂, Antarctic temperature, sea level, world population and the largest city (E)">Earth</button>
       <button id="btn-reigns" type="button" aria-pressed="true" title="Swimlanes of rulers, one row per office (R)">Reigns</button>
+      <button id="btn-tours" type="button" aria-expanded="false" title="Guided tours through the timeline">Tours</button>
       <button id="btn-search" type="button" aria-expanded="false" title="Search events (/)">Search</button>
       <button id="btn-legend" type="button" aria-expanded="false" title="Categories and regions: click to show or hide">Legend</button>
       <button id="btn-help" type="button" aria-expanded="false" title="How to use the timeline (?)" aria-label="Help">?</button>
@@ -1520,15 +1593,29 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
         <dt>Click an event</dt><dd>Open its panel: a map, the story, links, what else happened around then, sometimes a museum object. Copy link shares that exact event. Zoomed in to a month or less, you can load Wikipedia's day-by-day events.</dd>
         <dt><kbd>/</kbd> Search</dt><dd>Find any of the events by name and jump to it.</dd>
         <dt>Legend</dt><dd>Show or hide categories (Shift+click shows one alone) and filter by region.</dd>
-        <dt><kbd>R</kbd> Reigns · <kbd>E</kbd> Earth</dt><dd>Rulers as swimlanes across the top; climate, population and the largest city beneath the axis.</dd>
-        <dt><kbd>1</kbd>–<kbd>6</kbd> · <kbd>T</kbd></dt><dd>Visual modes: Ops, CRT, NVG, Ironbow, Noir, Paper.</dd>
-        <dt><kbd>?</kbd></dt><dd>This guide. <kbd>Esc</kbd> closes whatever is open.</dd>
+        <dt class="kbd-only"><kbd>R</kbd> Reigns · <kbd>E</kbd> Earth</dt><dd class="kbd-only">Rulers as swimlanes across the top; climate, population and the largest city beneath the axis.</dd>
+        <dt class="kbd-only"><kbd>1</kbd>–<kbd>6</kbd> · <kbd>T</kbd></dt><dd class="kbd-only">Visual modes: Ops, CRT, NVG, Ironbow, Noir, Paper.</dd>
+        <dt class="kbd-only"><kbd>?</kbd></dt><dd class="kbd-only">This guide. <kbd>Esc</kbd> closes whatever is open.</dd>
       </dl>
+      <div id="help-tours" hidden>
+        <h3>Or take a guided tour</h3>
+        <div id="help-tour-list"></div>
+      </div>
       <button id="help-ok" type="button">Start exploring</button>
     </div>
     <div id="otd-chip" hidden>
       <button id="otd-action" type="button"></button>
       <button id="otd-dismiss" type="button" aria-label="Hide this prompt" title="Hide this prompt">×</button>
+    </div>
+    <div id="tours" hidden aria-label="Guided tours"></div>
+    <div id="tour-bar" hidden role="region" aria-label="Guided tour">
+      <div id="tour-head"><span id="tour-title"></span><span id="tour-count"></span></div>
+      <p id="tour-note" aria-live="polite"></p>
+      <div id="tour-controls">
+        <button id="tour-prev" type="button" title="Previous step (left arrow)">‹ Back</button>
+        <button id="tour-next" type="button" title="Next step (right arrow)">Next ›</button>
+        <button id="tour-exit" type="button" title="Leave the tour (Esc)">End tour</button>
+      </div>
     </div>
     <div id="tooltip" role="tooltip" hidden></div>
     <div id="legend" hidden></div>
@@ -2335,25 +2422,29 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
   }
 
   // ------------------------------------------------------------------
-  // URL hash: #s=<start>&e=<end|now>&m=<theme>&ev=<slug>, up to 9 decimals, trailing zeros trimmed. A view at
+  // URL hash: #s=<start>&e=<end|now>&m=<theme>&ev=<slug>&tour=<id>.<step>, up to 9 decimals, trailing zeros trimmed. A view at
   // the at-now limit writes the token "now", so a shared or reloaded link still rests on the present later on.
   // ------------------------------------------------------------------
   function fmtNum(x) {
     return String(Number(x.toFixed(HASH_DECIMALS)));
   }
 
-  function encodeHash(v, now, theme, slug) {
+  // `tour` is { id, step } with a zero-based step; it is written one-based, as tour=<id>.<n>.
+  function encodeHash(v, now, theme, slug, tour) {
     return '#s=' + fmtNum(v.start) + '&e=' + (atNow(v, now) ? 'now' : fmtNum(v.end)) +
-      (theme && theme !== 'auto' ? '&m=' + theme : '') + (slug ? '&ev=' + slug : '');
+      (theme && theme !== 'auto' ? '&m=' + theme : '') + (slug ? '&ev=' + slug : '') +
+      (tour && tour.id ? '&tour=' + tour.id + '.' + (tour.step + 1) : '');
   }
 
-  // { view | null, theme | '', ev | '' }: the view is null when s/e are missing or do not describe a span.
+  // { view | null, theme | '', ev | '', tour | null }: the view is null when s/e are missing or do not describe a span.
   function parseHash(hash, now) {
-    const out = { view: null, theme: '', ev: '' };
+    const out = { view: null, theme: '', ev: '', tour: null };
     if (!hash || hash.length < 2) return out;
     const params = new URLSearchParams(String(hash).replace(/^#/, ''));
     out.theme = params.get('m') || '';
     out.ev = params.get('ev') || '';
+    const tm = /^([a-z0-9-]{1,40})\.(\d{1,3})$/.exec(params.get('tour') || '');
+    if (tm && Number(tm[2]) >= 1) out.tour = { id: tm[1], step: Number(tm[2]) - 1 };
     const s = parseFloat(params.get('s'));
     const e = params.get('e') === 'now' ? (Number.isFinite(s) ? endAtNow(s, now) : NaN) : parseFloat(params.get('e'));
     if (Number.isFinite(s) && Number.isFinite(e) && e > s) out.view = clampView(s, e, now);
@@ -2992,6 +3083,121 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
   "credit": "The Cleveland Museum of Art, Open Access (CC0)"
  }
 };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+/* ======== src/tours.js ======== */
+(function (root) {
+  'use strict';
+  const HT = root.HT || (root.HT = {});
+
+  // Guided tours: short, hand-written paths through the events. A step names an event by its exact title
+  // (test/tours.test.js checks that every one exists and that each tour runs forward in time) and adds a
+  // sentence or two of narration that carries the thread from the previous step. Rules: id is a lowercase slug,
+  // title <= 40 characters, blurb 20-160, 5-12 steps, note 20-240 characters.
+  HT.tours = [
+    {
+      id: 'peopling-the-world',
+      title: 'Peopling the world',
+      blurb: 'From one corner of Africa to the last empty islands of the Pacific, in nine steps.',
+      steps: [
+        { ev: 'Earliest Homo sapiens (Jebel Irhoud, Morocco)', note: 'The story starts here, 300,000 years ago: people with faces like ours, scattered across Africa, a continent they will not leave in numbers for more than two hundred thousand years.' },
+        { ev: 'Modern humans disperse out of Africa', note: 'Earlier ventures into Arabia and the Levant faded out. This one did not: every living person outside Africa descends mostly from the people who left around now.' },
+        { ev: 'Humans reach Australia by sea', note: 'Following the southern coast of Asia, people reach a continent no human relative had ever seen. Even at the lowest sea level, the last stretch meant crossing open water.' },
+        { ev: 'Modern humans enter Europe', note: 'Turning north-west instead, others enter an Ice Age Europe that already belongs to the Neanderthals. Within a few thousand years only one kind of human is left there.' },
+        { ev: 'Humans reach the Americas from Beringia', note: 'The last continents fall when people living on the land bridge between Siberia and Alaska move south past the ice, reaching Chile within perhaps two thousand years.' },
+        { ev: 'Lapita voyagers reach Fiji, Tonga and Samoa by canoe', note: 'What is left is ocean. Farmers and sailors whose ancestors set out from Taiwan push beyond the islands any human had reached, carrying their pottery, pigs and crops.' },
+        { ev: 'Polynesian voyagers settle the Society Islands and eastern Polynesia (c. 1025)', note: 'After a pause of nearly two thousand years the voyaging resumes, faster than before, navigating thousands of kilometres by stars, swells and the flight of birds.' },
+        { ev: 'Polynesians settle the Hawaiian Islands (c. 1220)', note: 'North to the most isolated islands on Earth, 4,000 km from anywhere, found by people looking for land they had no way to know was there.' },
+        { ev: 'Polynesians settle New Zealand, the last large landmass reached', note: 'And south to the last large land without people. Some 300,000 years after Jebel Irhoud, and barely 250 before Columbus, the human map of the world is complete.' }
+      ]
+    },
+    {
+      id: 'story-of-writing',
+      title: 'The story of writing',
+      blurb: 'How marks on clay became books, alphabets and a web of linked pages.',
+      steps: [
+        { ev: 'Sumerians invent cuneiform writing at Uruk', note: 'Writing begins as bookkeeping: tallies of grain and sheep pressed into wet clay by temple accountants. It takes centuries before anyone uses it to record a sentence, let alone a story.' },
+        { ev: 'Egyptian hieroglyphs first appear at Abydos', note: 'At almost the same moment, labels in a royal tomb on the Nile show a second system. Whether Egypt borrowed the idea or had it independently is still argued.' },
+        { ev: 'Shang diviners carve the earliest Chinese writing on oracle bones', note: 'Two thousand years later and a continent away, questions to the ancestors are cut into ox bones and turtle shells in a script whose descendants are still in daily use.' },
+        { ev: 'Phoenicians spread the first widely used alphabet', note: 'The radical simplification: two dozen signs for sounds instead of hundreds for words. Traders carry it west, and Greek, Latin, Hebrew and Arabic letters all descend from it.' },
+        { ev: 'Painters at San Bartolo leave the earliest known Maya writing (c. 300 BCE)', note: 'Writing was invented at least once more, with no contact at all: in Mesoamerica, where the Maya developed a full script able to record anything they could say.' },
+        { ev: 'Cai Lun presents papermaking to the Han court', note: 'A script needs a surface. Paper, cheap and light, replaces bamboo and silk in China and slowly travels west, reaching Baghdad in the 700s and Europe four centuries after that.' },
+        { ev: 'Diamond Sutra printed, the earliest dated printed book', note: 'With paper comes printing: whole pages carved in reverse on wooden blocks. This scroll carries a date, 11 May 868, and a note that it was made for free distribution.' },
+        { ev: 'King Sejong promulgates Hangul, the Korean alphabet', note: 'Most scripts grew; this one was designed, by a king who wanted ordinary people to read. Its letters are diagrams of the mouth making each sound.' },
+        { ev: 'Gutenberg prints the 42-line Bible', note: 'Movable metal type, an oil-based ink and a press adapted from winemaking: within fifty years Europe has printed some twenty million books, and ideas move at a new speed.' },
+        { ev: 'Berners-Lee announces the World Wide Web on Usenet', note: 'Five thousand years after the clay tablets of Uruk, text comes loose from any surface at all: pages that link to other pages, readable from anywhere, and written by anyone.' }
+      ]
+    },
+    {
+      id: 'plagues-and-cures',
+      title: 'Plagues and cures',
+      blurb: 'Two thousand years of epidemics, and the slow invention of ways to stop them.',
+      steps: [
+        { ev: 'Antonine Plague sweeps the Roman Empire', note: 'Armies returning from the east bring home a disease, probably smallpox, that kills perhaps a tenth of the empire. Medicine can describe it and do nothing else.' },
+        { ev: 'Plague of Justinian, the first recorded plague pandemic', note: 'Four centuries on, bubonic plague arrives by grain ship from Egypt. It returns in waves for two hundred years, and no one connects it with rats or fleas.' },
+        { ev: 'Black Death kills a third or more of Europe', note: 'The same bacterium comes back along the trade routes from Asia. In five years it kills on a scale never seen before or since, and reshapes wages, faith and land across a continent.' },
+        { ev: 'Ragusa imposes the first quarantine against plague', note: 'The first effective defence needs no theory of disease at all: keep arriving ships and travellers apart for a month and see who sickens. The word quarantine comes from the forty days later used in Venice.' },
+        { ev: 'Edward Jenner performs the first smallpox vaccination', note: 'Inoculation with smallpox itself was old in Asia and Africa and risky. Jenner shows that harmless cowpox protects as well, and gives the world the word vaccine, from vacca, cow.' },
+        { ev: "Pasteur's swan-neck flask experiments disprove spontaneous generation", note: 'Now the theory: microbes come from other microbes, and specific ones cause specific diseases. Clean water, antiseptic surgery and new vaccines follow within a generation.' },
+        { ev: '1918 influenza pandemic', note: 'Knowing about germs is not yet knowing about viruses. Influenza kills some fifty million people in two years, more than the world war that helped to spread it.' },
+        { ev: 'Fleming discovers penicillin', note: 'A mould on a forgotten culture plate kills the bacteria around it. It takes until the 1940s to make the drug in quantity, and then infections that were death sentences become routine.' },
+        { ev: 'WHO certifies the eradication of smallpox', note: 'The disease of the Antonine Plague, killer of some 300 million people in the twentieth century alone, is hunted down case by case and wiped out. It is still the only human disease ever eradicated.' },
+        { ev: 'First Pfizer-BioNTech COVID-19 vaccine given outside clinical trials', note: 'A new coronavirus is sequenced in January 2020; a vaccine built from its genetic code is in use by December. What took Jenner\'s successors two centuries now takes eleven months.' }
+      ]
+    },
+    {
+      id: 'empires-of-africa',
+      title: 'Kingdoms and empires of Africa',
+      blurb: 'Five thousand years of African states, from the first pharaoh to independence.',
+      steps: [
+        { ev: 'Narmer unifies Upper and Lower Egypt', note: 'One of the first large states anywhere: a single king ruling a thousand kilometres of the Nile, with a bureaucracy, a script and a calendar to run it.' },
+        { ev: 'Kingdom of Kerma rules Nubia on the upper Nile', note: 'Upstream, in what is now Sudan, a rival power grows rich on gold, ivory and cattle. Egypt fears it enough to build a chain of fortresses along the border.' },
+        { ev: 'Piye of Kush conquers Egypt and founds the Nubian 25th Dynasty', note: 'A thousand years later the tables turn, and kings from Nubia rule the whole Nile valley as pharaohs, restoring temples their Egyptian predecessors had let decay.' },
+        { ev: 'Kingdom of Aksum rises as a Red Sea trading power (c. 100 CE)', note: 'In the Ethiopian highlands a new state mints its own gold coins, raises granite stelae thirty metres tall and trades with Rome, Arabia and India.' },
+        { ev: 'Ghana Empire rises on the trans-Saharan gold trade (c. 700)', note: 'Camels open the desert. South of it, the kings of Wagadu tax the exchange of gold from the forests for salt from the Sahara, and Arab geographers call their land the country of gold.' },
+        { ev: 'Great Zimbabwe rises as the capital of a gold-trading kingdom', note: 'Far to the south, mortarless granite walls eleven metres high enclose the court of a kingdom that sends its gold to the Swahili ports and receives Chinese porcelain in return.' },
+        { ev: 'Sundiata Keita founds the Mali Empire after the Battle of Kirina', note: 'Back in the west, Ghana\'s successor is larger still, stretching from the Atlantic to the bend of the Niger. Its founding is still sung by griots as the Epic of Sundiata.' },
+        { ev: "Mansa Musa's hajj displays the gold of the Mali Empire", note: 'Its most famous ruler crosses the Sahara with so much gold that prices in Cairo are said to have taken years to recover. European mapmakers draw him holding a nugget.' },
+        { ev: 'Askia Muhammad takes the Songhai throne and makes Timbuktu a city of scholars', note: 'Songhai overtakes Mali to become the largest state West Africa has known. Timbuktu\'s teachers and libraries draw students from across the Islamic world.' },
+        { ev: 'Ethiopia defeats Italy at the Battle of Adwa', note: 'By the 1890s Europe has claimed almost the whole continent. At Adwa an African army destroys a European one, and Ethiopia alone keeps its independence through the colonial age.' },
+        { ev: 'Ghana becomes independent, first of a wave of new African nations', note: 'Taking the name of the old empire, the Gold Coast becomes the first colony south of the Sahara to win its freedom. Within a decade more than thirty others follow.' }
+      ]
+    },
+    {
+      id: 'thinking-machines',
+      title: 'Thinking machines',
+      blurb: 'From counting boards to programs that write: the long road to the computer.',
+      steps: [
+        { ev: 'Sumerian scribes are thought to use the first abacus', note: 'Calculation leaves the head and moves onto a device: pebbles on a ruled board. For the next four thousand years, every aid to arithmetic is some version of this.' },
+        { ev: 'Al-Jazari describes programmable automata in his Book of Ingenious Devices', note: 'A different idea appears in a book of water clocks and mechanical musicians: a machine whose behaviour can be changed by rearranging pegs. It is a program, though nobody calls it that.' },
+        { ev: 'Blaise Pascal builds the Pascaline mechanical calculator', note: 'At nineteen, to spare his tax-collector father the drudgery, Pascal builds gears that add and carry by themselves. Arithmetic no longer needs a mind at all.' },
+        { ev: 'Ada Lovelace publishes the first computer program', note: 'Babbage designs an engine that could follow any instructions; Lovelace writes a set of them and sees further than he does, to a machine that might compose music if music can be expressed in symbols.' },
+        { ev: 'Turing submits "On Computable Numbers"', note: 'A paper about the limits of mathematics defines, almost in passing, a single abstract machine that can imitate any other. Every computer since is an instance of it.' },
+        { ev: 'ENIAC, the first general-purpose electronic computer, unveiled', note: 'The idea becomes 18,000 vacuum tubes in a room in Philadelphia, a thousand times faster than anything mechanical and reprogrammed by six women moving cables by hand.' },
+        { ev: 'Transistor demonstrated at Bell Labs', note: 'A sliver of germanium does the work of a vacuum tube with no warm-up, little power and nothing to burn out. It can also be made very, very small.' },
+        { ev: 'Intel 4004, the first commercial microprocessor', note: 'Twenty-three hundred transistors on a chip the size of a fingernail: a whole processor as a component you can buy. The computer becomes something that can be put inside other things.' },
+        { ev: 'Apple Computer founded', note: 'And something a person can own. Within a decade of the microprocessor, machines that once filled rooms and belonged to governments are sitting on kitchen tables.' },
+        { ev: 'Deep Blue defeats world chess champion Garry Kasparov', note: 'A machine beats the best human at the game long taken as the measure of intellect, by searching 200 million positions a second. It shows brute force, not understanding.' },
+        { ev: 'OpenAI releases ChatGPT', note: 'Twenty-five years later the approach is reversed: networks trained on much of what people have written, rather than programmed with rules. A hundred million people try it within two months.' }
+      ]
+    },
+    {
+      id: 'leaving-the-planet',
+      title: 'Leaving the planet',
+      blurb: 'Sixty-five years of spaceflight, from a beeping sphere to a telescope a million miles away.',
+      steps: [
+        { ev: 'Sputnik 1 opens the Space Age', note: 'An 84-kilogram polished sphere circles the Earth every 96 minutes, beeping. Anyone with a radio can hear it, and the country that launched it can plainly reach any city on the planet.' },
+        { ev: 'Yuri Gagarin becomes the first human in space', note: 'Less than four years later a person goes: one orbit, 108 minutes, and a landing by parachute in a field where a farmer and her granddaughter are the first to greet him.' },
+        { ev: 'Apollo 8 orbits the Moon and photographs Earthrise', note: 'Three men leave Earth orbit altogether, the first humans to see the whole planet at once. The photograph they bring back of it rising over the Moon becomes an emblem of the environmental movement.' },
+        { ev: 'Apollo 11 lands on the Moon', note: 'Eight years after Gagarin, two people walk on another world while some 600 million watch live. Ten more follow over the next three years, and then no one.' },
+        { ev: 'Voyager 1 launched', note: 'The farthest journeys are made by machines. Launched to tour Jupiter and Saturn, Voyager 1 keeps going; in 2012 it becomes the first human-made object to reach interstellar space.' },
+        { ev: 'Hubble Space Telescope launched', note: 'Above the blur of the atmosphere, a telescope the size of a bus shows galaxies thirteen billion years back in time, once astronauts have fitted it with corrective optics.' },
+        { ev: 'Expedition 1 begins continuous human presence aboard the ISS', note: 'Former rivals build a station together. From this day on there is never a moment when every human being is on Earth.' },
+        { ev: 'SpaceX Crew Dragon carries astronauts to orbit', note: 'Reaching orbit stops being something only governments do. A company flies a crew to the station, and lands its boosters upright to fly them again.' },
+        { ev: 'James Webb Space Telescope launched', note: 'A gold-plated mirror six and a half metres across unfolds itself a million and a half kilometres from Earth, and begins to look for the first galaxies and for air around other worlds.' }
+      ]
+    }
+  ];
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* ======== src/data/01-prehistory.js ======== */
@@ -10211,6 +10417,9 @@ HT.curatedCount = (HT.events || []).length;
   let otdInView = 0;                      // on-this-day events inside the current view
   let otdHint = true;                     // offer the layer on deep views while the opt-in is off
   let otdLinkIndex = null;                // article title -> [t] of bundled events, to skip what is already here
+  let tour = null;                        // { def, step } while a guided tour is running
+  let pendingTour = null;                 // { id, step } last parsed from the URL
+  let titleIndex = null;                  // event title -> index, for tour steps
   let pendingSlug = '';                   // ev= slug that named nothing yet (an on-this-day event not loaded)
   let imageCache = null;                  // { title: { src, page, credit } | 0 }  (0 = nothing usable)
   let reignReserve = 0;                   // px at the top of the stage reserved for swimlanes this frame
@@ -10337,7 +10546,8 @@ HT.curatedCount = (HT.events || []).length;
 
   // --- URL hash: #s=<start>&e=<end|now>&m=<theme>&ev=<slug> (format and parsing in HT.core) ---
   function encodeHash(v) {
-    return C.encodeHash(v, nowT(), theme, selected >= 0 && dom && !dom.panel.hidden ? slugFor(selected) : '');
+    return C.encodeHash(v, nowT(), theme, selected >= 0 && dom && !dom.panel.hidden ? slugFor(selected) : '',
+      tour ? { id: tour.def.id, step: tour.step } : null);
   }
 
   // Applies the hash's theme and event as side effects and returns its view (null when it names none).
@@ -10347,6 +10557,7 @@ HT.curatedCount = (HT.events || []).length;
     if (h.theme && THEMES.indexOf(h.theme) >= 0 && h.theme !== theme) setTheme(h.theme, { silent: true });
     pendingEv = h.ev ? indexForSlug(h.ev) : -1;
     pendingSlug = h.ev && pendingEv < 0 ? h.ev : '';
+    pendingTour = h.tour;
     return h.view;
   }
 
@@ -11687,7 +11898,7 @@ HT.curatedCount = (HT.events || []).length;
   function updateOtdChip() {
     if (!dom || !dom.otdChip || !shown) return;
     const deep = shown.end - shown.start <= OTD_MAX_SPAN && capNow(shown.end) >= 1;
-    if (!deep || (!imagesOn && !otdHint)) { dom.otdChip.hidden = true; return; }
+    if (!deep || tour || (!imagesOn && !otdHint)) { dom.otdChip.hidden = true; return; }
     let text;
     let offer = false;
     if (!imagesOn) { text = 'Load day-by-day events from Wikipedia'; offer = true; }
@@ -11774,6 +11985,122 @@ HT.curatedCount = (HT.events || []).length;
     });
     dom.panelMore.replaceChildren.apply(dom.panelMore, nodes);
     dom.panelMore.hidden = nodes.length === 0;
+  }
+
+  // --- Guided tours (HT.tours): a fixed path of events with a line of narration each. A step zooms to its
+  // event and opens its panel; the step rides in the URL (tour=<id>.<n>), so Back, Forward and shared links work. ---
+  function tourDefs() { return Array.isArray(HT.tours) ? HT.tours : []; }
+
+  function indexOfTitle(title) {
+    if (!titleIndex) {
+      titleIndex = new Map();
+      const list = events();
+      for (let i = 0; i < list.length; i++) if (!list[i].otd && !titleIndex.has(list[i].title)) titleIndex.set(list[i].title, i);
+    }
+    const i = titleIndex.get(title);
+    return i === undefined ? -1 : i;
+  }
+
+  function renderTourBar() {
+    if (!dom.tourBar) return;
+    document.body.classList.toggle('touring', !!tour);
+    dom.tourBar.hidden = !tour;
+    // Narrow screens: the bar lives in the panel sheet while that is open, in the stage otherwise.
+    const narrow = typeof root.matchMedia === 'function' && root.matchMedia('(max-width: 640px)').matches;
+    const home = tour && narrow && !dom.panel.hidden ? dom.panel : dom.stage;
+    if (dom.tourBar.parentNode !== home) {
+      if (home === dom.panel) dom.panel.insertBefore(dom.tourBar, dom.panelCategory);
+      else dom.stage.insertBefore(dom.tourBar, dom.tooltip);
+    }
+    if (dom.btnTours) dom.btnTours.classList.toggle('active', !!tour);
+    if (!tour) return;
+    const n = tour.def.steps.length;
+    dom.tourTitle.textContent = tour.def.title;
+    dom.tourCount.textContent = (tour.step + 1) + ' / ' + n;
+    dom.tourNote.textContent = tour.def.steps[tour.step].note;
+    dom.tourPrev.disabled = tour.step === 0;
+    dom.tourNext.textContent = tour.step === n - 1 ? 'Finish' : 'Next ›';
+  }
+
+  // Show step k: reveal the event, open its panel (so the URL written by the zoom already names it), zoom.
+  function showTourStep(k) {
+    if (!tour) return;
+    tour.step = clamp(k, 0, tour.def.steps.length - 1);
+    const i = indexOfTitle(tour.def.steps[tour.step].ev);
+    renderTourBar();
+    if (i < 0) { writeUrl('replace'); return; }           // a step whose event is gone: keep the narration, stay put
+    revealEvent(i);
+    openPanel(i, { silent: true });
+    const ev = events()[i];
+    const before = view;
+    zoomToEvent(ev);
+    if (sameView(before, view)) writeUrl('push');         // already framed: the zoom was a no-op, record the step anyway
+  }
+
+  function startTour(id, step) {
+    const def = tourDefs().filter(function (t) { return t.id === id; })[0];
+    if (!def || !def.steps || !def.steps.length) return;
+    toggleTours(false);
+    if (dom.help && !dom.help.hidden) toggleHelp(false);
+    if (!dom.legend.hidden) toggleLegend(false);
+    if (dom.search && !dom.search.hidden) toggleSearch(false);
+    tour = { def: def, step: 0 };
+    showTourStep(step || 0);
+  }
+
+  function tourStep(delta) {
+    if (!tour) return;
+    if (delta > 0 && tour.step === tour.def.steps.length - 1) { endTour(); return; }
+    showTourStep(tour.step + delta);
+  }
+
+  function endTour() {
+    if (!tour) return;
+    tour = null;
+    pendingTour = null;
+    renderTourBar();
+    if (view) writeUrl('replace');
+    if (shown) render();                                  // the chip and dock come back
+  }
+
+  // Match the tour state to the tour= parameter last parsed from the URL, without moving the view: the same
+  // URL already carries the view and the open event.
+  function syncTourFromUrl() {
+    if (!dom) return;
+    const want = pendingTour;
+    const def = want ? tourDefs().filter(function (t) { return t.id === want.id; })[0] : null;
+    if (!def) { if (tour) { tour = null; renderTourBar(); } return; }
+    tour = { def: def, step: clamp(want.step, 0, def.steps.length - 1) };
+    renderTourBar();
+  }
+
+  function tourButtons(container, onPick) {
+    const nodes = tourDefs().map(function (t) {
+      const b = htmlEl('button', 'tour-pick');
+      b.type = 'button';
+      b.dataset.tour = t.id;
+      b.appendChild(htmlEl('span', 'tp-title', t.title));
+      b.appendChild(htmlEl('span', 'tp-blurb', t.blurb));
+      b.appendChild(htmlEl('span', 'tp-steps', t.steps.length + ' steps'));
+      return b;
+    });
+    container.replaceChildren.apply(container, nodes);
+    container.addEventListener('click', function (e) {
+      const b = e.target && typeof e.target.closest === 'function' ? e.target.closest('.tour-pick') : null;
+      if (b) onPick(b.dataset.tour);
+    });
+  }
+
+  function toggleTours(force) {
+    if (!dom.tours) return;
+    const open = force === undefined ? dom.tours.hidden : !!force;
+    if (open) {
+      if (!dom.legend.hidden) toggleLegend(false);
+      if (dom.search && !dom.search.hidden) toggleSearch(false);
+      if (dom.help && !dom.help.hidden) toggleHelp(false);
+    }
+    dom.tours.hidden = !open;
+    if (dom.btnTours) dom.btnTours.setAttribute('aria-expanded', String(open));
   }
 
   // --- Permalinks: ev=<slug of the title>. Titles are unique, so slugs are stable while a title is. ---
@@ -11980,6 +12307,7 @@ HT.curatedCount = (HT.events || []).length;
 
   function toggleLegend(force) {
     const open = force === undefined ? dom.legend.hidden : !!force;
+    if (open && dom.tours && !dom.tours.hidden) toggleTours(false);
     dom.legend.hidden = !open;
     dom.btnLegend.setAttribute('aria-expanded', String(open));
   }
@@ -12055,6 +12383,7 @@ HT.curatedCount = (HT.events || []).length;
     dom.panel.hidden = false;
     document.body.classList.add('panel-open');
     markSelected();
+    if (tour) renderTourBar();
     if (wasHidden) afterLayoutChange();
     try { dom.panel.focus({ preventScroll: true }); } catch (err) { /* ignore */ }
     if (!(opts && opts.silent) && view) writeUrl('replace');      // ev=<slug> makes the open event shareable
@@ -12068,6 +12397,7 @@ HT.curatedCount = (HT.events || []).length;
     if (was) { try { was.focus({ preventScroll: true }); } catch (err) { /* ignore */ } }
     selected = -1;
     markSelected();
+    if (tour) renderTourBar();
     afterLayoutChange();
     if (!(opts && opts.silent) && view) writeUrl('replace');
   }
@@ -12287,7 +12617,15 @@ HT.curatedCount = (HT.events || []).length;
         else if (dom.search && !dom.search.hidden) { toggleSearch(false); e.preventDefault(); }
         else if (!dom.panel.hidden) { closePanel(); e.preventDefault(); }
         else if (!dom.legend.hidden) { toggleLegend(false); e.preventDefault(); }
+        else if (dom.tours && !dom.tours.hidden) { toggleTours(false); e.preventDefault(); }
+        else if (tour) { endTour(); e.preventDefault(); }
         else hideTooltip();
+        break;
+      case 'ArrowRight':
+        if (tour) { tourStep(1); e.preventDefault(); }
+        break;
+      case 'ArrowLeft':
+        if (tour) { tourStep(-1); e.preventDefault(); }
         break;
       case '-':
       case '_':
@@ -12356,6 +12694,8 @@ HT.curatedCount = (HT.events || []).length;
   function onLocationChange(e) {
     discardPendingUrl();
     const target = parseHash(root.location.hash) || rootView();
+    if (!root.location.hash || root.location.hash.length < 2) pendingTour = null;
+    syncTourFromUrl();
     syncPanelFromUrl();
     if (sameView(target, view)) return;
     const saved = e && e.state && e.state.ht ? restoreStack(e.state.stack, target) : null;
@@ -12495,6 +12835,9 @@ HT.curatedCount = (HT.events || []).length;
       panelMore: $('panel-more'), panelNear: $('panel-near'), panelNearList: $('panel-near-list'),
       panelRelated: $('panel-related'), panelRelatedHead: $('panel-related-head'), panelRelatedList: $('panel-related-list'),
       otdChip: $('otd-chip'), otdAction: $('otd-action'), otdDismiss: $('otd-dismiss'),
+      btnTours: $('btn-tours'), tours: $('tours'), tourBar: $('tour-bar'), tourTitle: $('tour-title'), tourCount: $('tour-count'),
+      tourNote: $('tour-note'), tourPrev: $('tour-prev'), tourNext: $('tour-next'), tourExit: $('tour-exit'),
+      helpTours: $('help-tours'), helpTourList: $('help-tour-list'),
       minimap: $('minimap'), help: $('help'), helpClose: $('help-close'), helpOk: $('help-ok'), btnHelp: $('btn-help'), panelCopy: $('panel-copy'),
       panelObject: $('panel-object'), panelObjectImg: $('panel-object-img'), panelObjectImgLink: $('panel-object-imglink'),
       panelObjectLink: $('panel-object-link'), panelObjectCredit: $('panel-object-credit')
@@ -12527,6 +12870,19 @@ HT.curatedCount = (HT.events || []).length;
     if (dom.optImages) {
       dom.optImages.checked = imagesOn;
       dom.optImages.addEventListener('change', function () { setImages(dom.optImages.checked); });
+    }
+    if (dom.tours && tourDefs().length) {
+      const head = htmlEl('h3', '', 'Guided tours');
+      const list = htmlEl('div', 'tour-list');
+      dom.tours.replaceChildren(head, list);
+      tourButtons(list, function (id) { startTour(id, 0); });
+      if (dom.helpTours) { dom.helpTours.hidden = false; tourButtons(dom.helpTourList, function (id) { startTour(id, 0); }); }
+      dom.btnTours.addEventListener('click', function () { toggleTours(); });
+      dom.tourPrev.addEventListener('click', function () { tourStep(-1); });
+      dom.tourNext.addEventListener('click', function () { tourStep(1); });
+      dom.tourExit.addEventListener('click', endTour);
+    } else if (dom.btnTours) {
+      dom.btnTours.hidden = true;
     }
     if (dom.otdChip) {
       try { otdHint = root.localStorage.getItem(OTD_HINT_KEY) !== 'off'; } catch (err) { /* ignore */ }
@@ -12576,6 +12932,7 @@ HT.curatedCount = (HT.events || []).length;
     render();
     renderCrumbs();
     renderLegend();                                       // region state may have been restored after the first build
+    syncTourFromUrl();
     if (pendingEv >= 0) { revealEvent(pendingEv); openPanel(pendingEv, { silent: true }); }
     // First visit without a shared link: show the guide once.
     let seen = true;

@@ -23,7 +23,7 @@ node build.mjs        # inlines src/ into index.html (fails loudly on problems)
 node --test test/     # runs the 270 tests
 ```
 
-Node 18 or newer, zero dependencies. The build concatenates `time.js, tiers.js, ticks.js, layout.js, core.js`, the generated modules, `data/*.js` (sorted by filename) and `app.js` into one `<script>`, inlines `styles.css`, appends `HT.app.init();`, and refuses to write output if any source is missing, the bundle has a syntax error, a source uses `import`/`export`/`require(`, or the page would reference an external URL.
+Node 18 or newer, zero dependencies. The build concatenates `time.js, tiers.js, ticks.js, layout.js, core.js`, the generated modules, `tours.js`, `data/*.js` (sorted by filename) and `app.js` into one `<script>`, inlines `styles.css`, appends `HT.app.init();`, and refuses to write output if any source is missing, the bundle has a syntax error, a source uses `import`/`export`/`require(`, or the page would reference an external URL.
 
 ## Using the timeline
 
@@ -45,7 +45,8 @@ Node 18 or newer, zero dependencies. The build concatenates `time.js, tiers.js, 
 | Click an event | Opens the side panel (bottom sheet on narrow screens) with **Zoom to this event** and **Copy link to this event** buttons; clicking an event never triggers the axis zoom |
 | **Legend** button | Toggles the legend: category filters and the region filter |
 | **?** button, `?` key | Opens the guide, which also appears once on a first visit that did not arrive through a shared link |
-| `Escape` | Closes the guide, else search, else the panel, else the legend, else the tooltip |
+| **Tours** button | Opens the list of guided tours; `←` / `→` step through a running tour |
+| `Escape` | Closes the guide, else search, else the panel, else the legend, else the tours list, else ends a running tour |
 
 ## Visual modes
 
@@ -108,6 +109,14 @@ Both are build-time imports; the page still makes no network requests. Nobel Pri
 - **Category filters.** The legend's entries are toggles: click to hide or show a category, Shift+click to show only that one, and use All or None to reset. A dot on the Legend button marks an active filter, and the choice is remembered. Hidden categories are excluded before tier selection, so the remaining events fill the view.
 - **Region filter.** Below the categories, the legend has a row of regions and a small world map; pick Africa, Europe, Asia, N. America, S. America or Oceania (or click the map) and only events located there remain. Regions are coarse latitude/longitude boxes, with the Middle East counted as Asia and Micronesia, Hawaii and Rapa Nui as Oceania; rulers, who carry no coordinates, are placed by their office. Events with no known location are hidden while a region is chosen, and the choice is remembered alongside the category filter.
 - **Search.** Press `/` or the Search button, type at least two characters, and pick a result with the arrow keys and Enter or a click. Title-prefix matches rank first, then word starts, then substrings, with ties going to the more significant event. Choosing a result zooms to the event and opens its panel, un-hiding its category and lifting the region filter if they would hide it.
+
+## Guided tours
+
+Six hand-written paths through the events, for anyone who would rather be shown around than explore: **Peopling the world**, **The story of writing**, **Plagues and cures**, **Kingdoms and empires of Africa**, **Thinking machines** and **Leaving the planet**. Pick one from the **Tours** button (on a phone, from the guide under **?**, which also offers them on a first visit). Each of a tour's nine to eleven steps flies the view to an event, opens its panel and shows a sentence or two of narration that carries the thread from the step before. **Next** and **Back**, or the right and left arrow keys, move through it; **Finish**, **End tour** or Escape leaves you where you are, free to look around.
+
+The step is part of the URL (`tour=story-of-writing.4`), so the browser's Back and Forward buttons walk the tour, a reload resumes it, and a link shares a particular stop. On a phone the narration rides at the top of the event sheet, since the stage is too short to share.
+
+Tours live in `src/tours.js`: an id, a title, a blurb and a list of `{ ev, note }` steps, where `ev` is the exact title of a curated event. `test/tours.test.js` checks that every step names a real event, that no tour visits one twice, that notes stay between 20 and 240 characters, and that each tour runs forward in time, so renaming or removing an event cannot silently break one.
 
 ## More in the panel
 
@@ -244,6 +253,7 @@ src/
   tiers.js              HT.tiers: categories, colors, tierForSpan, tierSpan
   ticks.js              HT.ticks: tick ladder, nice positions, minor ticks, label thinning
   layout.js             HT.layout: greedy lane packing for event labels
+  tours.js              HT.tours: the guided tours (steps name events by title)
   core.js               HT.core: the pure rules behind the app (view limits, URL hash, regions, slugs,
                         overview scale, tier selection, on-this-day parsing, panel neighbours)
   app.js                HT.app: rendering, zoom/pan/pinch, history and URL state, panel
@@ -262,6 +272,7 @@ test/
   ticks.test.js         regimes, ladder selection, nice positions, minors, thinning
   layout.test.js        lane packing, priorities, gaps, drops, purity
   data.test.js          every rule listed under "Adding an event"
+  tours.test.js         every tour step names a real event; tours run forward in time
   core.test.js          view clamping and the Today margin, hash round trips, slugs, regions, the overview
                         scale, tier selection, on-this-day parsing, the panel's neighbour lists
 scripts/

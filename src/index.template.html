@@ -56,6 +56,7 @@
       <button id="btn-home" type="button">Home</button>
       <button id="btn-earth" type="button" aria-pressed="true" title="Earth layer: CO₂, Antarctic temperature, sea level, world population and the largest city (E)">Earth</button>
       <button id="btn-reigns" type="button" aria-pressed="true" title="Swimlanes of rulers, one row per office (R)">Reigns</button>
+      <button id="btn-tours" type="button" aria-expanded="false" title="Guided tours through the timeline">Tours</button>
       <button id="btn-search" type="button" aria-expanded="false" title="Search events (/)">Search</button>
       <button id="btn-legend" type="button" aria-expanded="false" title="Categories and regions: click to show or hide">Legend</button>
       <button id="btn-help" type="button" aria-expanded="false" title="How to use the timeline (?)" aria-label="Help">?</button>
@@ -103,15 +104,29 @@
         <dt>Click an event</dt><dd>Open its panel: a map, the story, links, what else happened around then, sometimes a museum object. Copy link shares that exact event. Zoomed in to a month or less, you can load Wikipedia's day-by-day events.</dd>
         <dt><kbd>/</kbd> Search</dt><dd>Find any of the events by name and jump to it.</dd>
         <dt>Legend</dt><dd>Show or hide categories (Shift+click shows one alone) and filter by region.</dd>
-        <dt><kbd>R</kbd> Reigns · <kbd>E</kbd> Earth</dt><dd>Rulers as swimlanes across the top; climate, population and the largest city beneath the axis.</dd>
-        <dt><kbd>1</kbd>–<kbd>6</kbd> · <kbd>T</kbd></dt><dd>Visual modes: Ops, CRT, NVG, Ironbow, Noir, Paper.</dd>
-        <dt><kbd>?</kbd></dt><dd>This guide. <kbd>Esc</kbd> closes whatever is open.</dd>
+        <dt class="kbd-only"><kbd>R</kbd> Reigns · <kbd>E</kbd> Earth</dt><dd class="kbd-only">Rulers as swimlanes across the top; climate, population and the largest city beneath the axis.</dd>
+        <dt class="kbd-only"><kbd>1</kbd>–<kbd>6</kbd> · <kbd>T</kbd></dt><dd class="kbd-only">Visual modes: Ops, CRT, NVG, Ironbow, Noir, Paper.</dd>
+        <dt class="kbd-only"><kbd>?</kbd></dt><dd class="kbd-only">This guide. <kbd>Esc</kbd> closes whatever is open.</dd>
       </dl>
+      <div id="help-tours" hidden>
+        <h3>Or take a guided tour</h3>
+        <div id="help-tour-list"></div>
+      </div>
       <button id="help-ok" type="button">Start exploring</button>
     </div>
     <div id="otd-chip" hidden>
       <button id="otd-action" type="button"></button>
       <button id="otd-dismiss" type="button" aria-label="Hide this prompt" title="Hide this prompt">×</button>
+    </div>
+    <div id="tours" hidden aria-label="Guided tours"></div>
+    <div id="tour-bar" hidden role="region" aria-label="Guided tour">
+      <div id="tour-head"><span id="tour-title"></span><span id="tour-count"></span></div>
+      <p id="tour-note" aria-live="polite"></p>
+      <div id="tour-controls">
+        <button id="tour-prev" type="button" title="Previous step (left arrow)">‹ Back</button>
+        <button id="tour-next" type="button" title="Next step (right arrow)">Next ›</button>
+        <button id="tour-exit" type="button" title="Leave the tour (Esc)">End tour</button>
+      </div>
     </div>
     <div id="tooltip" role="tooltip" hidden></div>
     <div id="legend" hidden></div>

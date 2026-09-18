@@ -139,13 +139,22 @@ test('parseHash round-trips views, including the now token with a later now', ()
 });
 
 test('parseHash reports theme and event even when the view is unusable, and nothing for an empty hash', () => {
-  assert.deepEqual(C.parseHash('', NOW), { view: null, theme: '', ev: '' });
-  assert.deepEqual(C.parseHash('#', NOW), { view: null, theme: '', ev: '' });
+  assert.deepEqual(C.parseHash('', NOW), { view: null, theme: '', ev: '', tour: null });
+  assert.deepEqual(C.parseHash('#', NOW), { view: null, theme: '', ev: '', tour: null });
   const h = C.parseHash('#m=crt&ev=some-event', NOW);
   assert.equal(h.view, null); assert.equal(h.theme, 'crt'); assert.equal(h.ev, 'some-event');
   assert.equal(C.parseHash('#s=5&e=1', NOW).view, null);
   assert.equal(C.parseHash('#s=abc&e=now', NOW).view, null);
   assert.equal(C.parseHash('#s=1&e=%3Cscript%3E', NOW).view, null);
+});
+
+test('the tour step round-trips through the hash, one-based in the URL and zero-based in code', () => {
+  const hash = C.encodeHash({ start: 1960, end: 1975 }, NOW, 'auto', 'apollo-11-lands-on-the-moon', { id: 'leaving-the-planet', step: 3 });
+  assert.equal(hash, '#s=1960&e=1975&ev=apollo-11-lands-on-the-moon&tour=leaving-the-planet.4');
+  assert.deepEqual(C.parseHash(hash, NOW).tour, { id: 'leaving-the-planet', step: 3 });
+  assert.equal(C.encodeHash({ start: 1, end: 2 }, NOW, 'auto', '', null), '#s=1&e=2');
+  for (const bad of ['#tour=', '#tour=x', '#tour=x.0', '#tour=x.-1', '#tour=UPPER.1', '#tour=a.b', '#tour=%3Cscript%3E.1', '#tour=x.1.2'])
+    assert.equal(C.parseHash(bad, NOW).tour, null, bad);
 });
 
 test('parseHash clamps what it reads', () => {
