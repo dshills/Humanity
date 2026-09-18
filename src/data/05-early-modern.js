@@ -31,7 +31,7 @@
       t: ce(1503),
       title: "Leonardo da Vinci begins the Mona Lisa",
       detail: "Leonardo started his portrait of Lisa Gherardini in Florence and kept refining it until his death in France, where it entered the royal collection and became the world's most famous painting.",
-      tier: 5, category: 'art',
+      tier: 4, category: 'art',
       link: 'https://en.wikipedia.org/wiki/Mona_Lisa'
     },
     {
@@ -59,7 +59,7 @@
       t: ce(1519, 9, 20), end: ce(1522, 9, 6),
       title: "Magellan–Elcano expedition makes the first circumnavigation of the globe",
       detail: "Five ships left Spain under Ferdinand Magellan; after his death in the Philippines, Juan Sebastián Elcano brought the Victoria home with 18 survivors, proving the world's oceans were one connected sea.",
-      tier: 3, category: 'exploration',
+      tier: 4, category: 'exploration',
       link: 'https://en.wikipedia.org/wiki/Magellan_expedition'
     },
     {
@@ -80,21 +80,21 @@
       t: ce(1524), end: ce(1525),
       title: "German Peasants' War, Europe's largest popular uprising before 1789",
       detail: "Peasants across the German lands rose against feudal dues and serfdom, citing Luther's gospel of freedom; Luther disowned them and the princes' armies killed as many as 100,000 rebels.",
-      tier: 6, category: 'war',
+      tier: 5, category: 'war',
       link: 'https://en.wikipedia.org/wiki/German_Peasants%27_War'
     },
     {
       t: ce(1526, 4, 21),
       title: "Babur wins at Panipat and founds the Mughal Empire",
       detail: "Babur's field guns and cavalry tactics destroyed the Delhi Sultanate's far larger army; his descendants would rule most of the Indian subcontinent for two centuries.",
-      tier: 3, category: 'empire',
+      tier: 4, category: 'empire',
       link: 'https://en.wikipedia.org/wiki/First_Battle_of_Panipat'
     },
     {
       t: ce(1532, 11, 16),
       title: "Pizarro seizes the Inca emperor Atahualpa at Cajamarca",
       detail: "With about 170 men, Francisco Pizarro ambushed Atahualpa, took a room filled with gold and silver as ransom, then executed him, bringing the Inca Empire under Spanish control.",
-      tier: 4, category: 'empire',
+      tier: 5, category: 'empire',
       link: 'https://en.wikipedia.org/wiki/Battle_of_Cajamarca'
     },
     {
@@ -122,7 +122,7 @@
       t: ce(1543),
       title: "Vesalius publishes De humani corporis fabrica",
       detail: "Andreas Vesalius's lavishly illustrated anatomy, based on his own dissections of human bodies, corrected centuries of errors inherited from Galen and founded modern anatomy.",
-      tier: 4, category: 'medicine',
+      tier: 5, category: 'medicine',
       link: 'https://en.wikipedia.org/wiki/De_Humani_Corporis_Fabrica_Libri_Septem'
     },
     {
@@ -159,7 +159,7 @@
       t: ce(1556, 2, 14), end: ce(1605, 10, 27),
       title: "Akbar the Great consolidates the Mughal Empire",
       detail: "Akbar tripled Mughal territory, abolished the tax on non-Muslims, built a centralized bureaucracy and pursued religious dialogue, making the empire the wealthiest state on Earth.",
-      tier: 5, category: 'empire',
+      tier: 4, category: 'empire',
       link: 'https://en.wikipedia.org/wiki/Akbar'
     },
     {
@@ -222,7 +222,7 @@
       t: ce(1592, 5, 23), end: ce(1598, 12, 16),
       title: "Japanese invasions of Korea (Imjin War)",
       detail: "Toyotomi Hideyoshi sent some 150,000 troops to conquer Korea as a step toward China; Admiral Yi Sun-sin's fleet and Ming Chinese armies wore them down, and Japan withdrew after Hideyoshi's death, leaving Korea devastated.",
-      tier: 5, category: 'war',
+      tier: 6, category: 'war',
       link: 'https://en.wikipedia.org/wiki/Japanese_invasions_of_Korea_(1592%E2%80%931598)'
     },
 
@@ -231,14 +231,14 @@
       t: ce(1600, 12, 31),
       title: "English East India Company chartered by Elizabeth I",
       detail: "The royal charter granted London merchants a monopoly on English trade east of the Cape of Good Hope; the company would go on to conquer and rule most of India until the Crown took over in 1858.",
-      tier: 5, category: 'empire',
+      tier: 4, category: 'empire',
       link: 'https://en.wikipedia.org/wiki/East_India_Company'
     },
     {
       t: ce(1602, 3, 20),
       title: "Dutch East India Company (VOC) is chartered",
       detail: "The VOC received a monopoly on Dutch trade with Asia and became the first company to sell shares to the public, building a trading empire from Batavia to Nagasaki.",
-      tier: 5, category: 'empire',
+      tier: 4, category: 'empire',
       link: 'https://en.wikipedia.org/wiki/Dutch_East_India_Company'
     },
     {
@@ -259,21 +259,21 @@
       t: ce(1607, 5, 14),
       title: "Jamestown founded, the first permanent English settlement in America",
       detail: "Virginia Company colonists landed on the James River; despite starvation and war with the Powhatan, tobacco made the colony pay and began English North America.",
-      tier: 4, category: 'migration',
+      tier: 5, category: 'migration',
       link: 'https://en.wikipedia.org/wiki/Jamestown,_Virginia'
     },
     {
       t: ce(1609),
       title: "Kepler publishes his first two laws of planetary motion",
       detail: "In Astronomia Nova, Johannes Kepler showed from Tycho Brahe's data that Mars moves in an ellipse and sweeps equal areas in equal times, discarding the ancient dogma of circular orbits.",
-      tier: 4, category: 'science',
+      tier: 5, category: 'science',
       link: 'https://en.wikipedia.org/wiki/Astronomia_nova'
     },
     {
       t: ce(1610, 3, 13),
       title: "Galileo publishes Sidereus Nuncius, his telescope discoveries",
       detail: "Galileo Galilei reported mountains on the Moon, countless stars in the Milky Way and four moons circling Jupiter, the first observational blows against the Earth-centered cosmos.",
-      tier: 3, category: 'science',
+      tier: 4, category: 'science',
       link: 'https://en.wikipedia.org/wiki/Sidereus_Nuncius'
     },
     {
@@ -336,14 +336,14 @@
       t: ce(1642, 11, 24),
       title: "Abel Tasman sights Tasmania, then New Zealand",
       detail: "Sailing for the Dutch East India Company, Tasman was the first European to reach Van Diemen's Land and, on 13 December, the South Island of New Zealand, where a clash with Māori at Golden Bay killed four of his crew.",
-      tier: 6, category: 'exploration',
+      tier: 5, category: 'exploration',
       link: 'https://en.wikipedia.org/wiki/Abel_Tasman'
     },
     {
       t: ce(1644, 6, 6),
       title: "Manchu armies take Beijing and establish Qing rule over China",
       detail: "After the Ming dynasty collapsed in a peasant rebellion, the Manchu Qing entered Beijing; their dynasty would rule China until 1912 and expand it to its greatest extent.",
-      tier: 3, category: 'empire',
+      tier: 4, category: 'empire',
       link: 'https://en.wikipedia.org/wiki/Transition_from_Ming_to_Qing'
     },
 
@@ -352,7 +352,7 @@
       t: ce(1651),
       title: "Hobbes publishes Leviathan",
       detail: "Written in exile during the English Civil War, Thomas Hobbes's Leviathan argued that people escape a brutish state of nature only by submitting to an absolute sovereign, founding modern political philosophy.",
-      tier: 6, category: 'politics',
+      tier: 5, category: 'politics',
       link: 'https://en.wikipedia.org/wiki/Leviathan_(Hobbes_book)'
     },
     {
@@ -394,14 +394,14 @@
       t: ce(1674, 6, 6),
       title: "Shivaji crowned Chhatrapati, founding the Maratha Empire",
       detail: "Crowned at Raigad after decades of guerrilla war against the Bijapur sultanate and the Mughals, Shivaji created a Hindu state in western India whose Maratha successors dominated the subcontinent in the 18th century.",
-      tier: 5, category: 'empire',
+      tier: 4, category: 'empire',
       link: 'https://en.wikipedia.org/wiki/Shivaji'
     },
     {
       t: ce(1676, 10, 9),
       title: "Leeuwenhoek reports the first observations of bacteria",
       detail: "Using single-lens microscopes he ground himself, Antonie van Leeuwenhoek described tiny 'animalcules' in rainwater and pepper-water infusions (and, in 1683, in scrapings from his own teeth), opening the microbial world to science.",
-      tier: 5, category: 'science',
+      tier: 4, category: 'science',
       link: 'https://en.wikipedia.org/wiki/Antonie_van_Leeuwenhoek'
     },
     {
@@ -452,14 +452,14 @@
       t: ce(1701),
       title: "Osei Tutu founds the Ashanti Empire",
       detail: "Uniting the Akan states around Kumasi under the sacred Golden Stool and defeating their overlord Denkyira, Osei Tutu created a gold-rich empire that dominated the forests of present-day Ghana for two centuries.",
-      tier: 5, category: 'empire',
+      tier: 6, category: 'empire',
       link: 'https://en.wikipedia.org/wiki/Ashanti_Empire'
     },
     {
       t: ce(1707, 3, 3),
       title: "Death of Aurangzeb begins the decline of the Mughal Empire",
       detail: "The last great Mughal emperor died at 88 after a 49-year reign that had stretched the empire to its widest extent but exhausted it in wars against the Marathas; succession struggles and regional breakaways followed.",
-      tier: 5, category: 'empire',
+      tier: 4, category: 'empire',
       link: 'https://en.wikipedia.org/wiki/Aurangzeb'
     },
     {
@@ -629,14 +629,14 @@
       t: ce(1781, 3, 13),
       title: "William Herschel discovers Uranus",
       detail: "Observing from his garden in Bath with a telescope he built himself, Herschel found the first planet unknown to the ancients, doubling the size of the known solar system overnight.",
-      tier: 6, category: 'space',
+      tier: 5, category: 'space',
       link: 'https://en.wikipedia.org/wiki/William_Herschel'
     },
     {
       t: ce(1782, 4, 6),
       title: "Rama I founds the Chakri dynasty and makes Bangkok the capital of Siam",
       detail: "After the fall of Ayutthaya to Burma in 1767 and the reign of Taksin, the general Chao Phraya Chakri took the throne and built a new capital on the Chao Phraya River; his dynasty still reigns in Thailand.",
-      tier: 6, category: 'empire',
+      tier: 5, category: 'empire',
       link: 'https://en.wikipedia.org/wiki/Rama_I'
     },
     {
@@ -671,7 +671,7 @@
       t: ce(1789),
       title: "Lavoisier publishes the Elementary Treatise on Chemistry",
       detail: "Antoine Lavoisier's textbook set out the conservation of mass, the role of oxygen in combustion and a systematic chemical nomenclature, founding modern chemistry.",
-      tier: 4, category: 'science',
+      tier: 5, category: 'science',
       link: 'https://en.wikipedia.org/wiki/Trait%C3%A9_%C3%A9l%C3%A9mentaire_de_chimie'
     },
     {
@@ -713,7 +713,7 @@
       t: ce(1795, 5),
       title: "Kamehameha wins the Battle of Nuʻuanu and unites most of Hawaii",
       detail: "Driving the Oʻahu army over the Nuʻuanu Pali cliffs, Kamehameha added Oʻahu to Hawaiʻi, Maui and Molokaʻi; with Kauaʻi's submission in 1810 he ruled the first unified Hawaiian Kingdom.",
-      tier: 6, category: 'empire',
+      tier: 5, category: 'empire',
       link: 'https://en.wikipedia.org/wiki/Kamehameha_I'
     },
     {
@@ -734,14 +734,14 @@
       t: ce(1799, 7, 15),
       title: "Rosetta Stone discovered by French soldiers in Egypt",
       detail: "Troops of Napoleon's expedition rebuilding a fort near Rashid found a slab inscribed with the same decree in hieroglyphs, Demotic and Greek; it let Jean-François Champollion decipher Egyptian hieroglyphs in 1822.",
-      tier: 5, category: 'science',
+      tier: 4, category: 'science',
       link: 'https://en.wikipedia.org/wiki/Rosetta_Stone'
     },
     {
       t: ce(1799, 11, 9),
       title: "Napoleon seizes power in the coup of 18 Brumaire",
       detail: "Napoleon Bonaparte overthrew the Directory and made himself First Consul, closing the French Revolution's decade of upheaval and beginning his domination of Europe.",
-      tier: 6, category: 'politics',
+      tier: 5, category: 'politics',
       link: 'https://en.wikipedia.org/wiki/Coup_of_18_Brumaire'
     }
   );

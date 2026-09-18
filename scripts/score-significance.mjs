@@ -105,7 +105,9 @@ ${agree} of ${rows.length} curated events (${Math.round(agree / rows.length * 10
 
 The signal is imperfect on purpose-blind cases: an event linked to a broad article (a person, a country, a
 religion) inherits that article's traffic, and recent events draw more readers than ancient ones. Treat the
-lists below as prompts for editorial review, not as corrections. Hand-assigned tiers are left unchanged.
+lists below as prompts for editorial review, not as corrections. \`scripts/apply-tier-audit.mjs\` applies a tempered
+version of this audit (sitelink-weighted, recency-corrected, one tier per run, with limits by age, tiers 0 and 1 left
+editorial); what remains below is the disagreement after that pass.
 
 ## Possibly under-ranked (the data suggests at least two tiers more prominent)
 
