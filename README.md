@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The years 1440 to 1560 in NVG mode with the detail panel open on Michelangelo painting the Sistine Chapel ceiling: a location map pinned at Rome, an opt-in Wikimedia photograph of the ceiling with its credit, and the paired museum object, Michelangelo's studies for the Libyan Sibyl from The Met; swimlanes of rulers run across the top, with events, the Earth layer and the largest-city ribbon below](docs/screenshot.png)
+![The years 601 BCE to 1400 CE in NVG mode with the legend open and the region filter set to Asia: the overview strip under the header marks the view on a logarithmic scale of all 300,000 years, the legend shows the category toggles, the region chips and a world map with the Asia boxes highlighted, and the timeline keeps only events located there, from the Buddha and Confucius to the Han dynasty, above the Earth layer and the largest-city ribbon](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
