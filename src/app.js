@@ -33,6 +33,9 @@
   const REGION_KEY = 'ht-region';
   const HELP_KEY = 'ht-help-seen';
   const MM_BINS = 160;
+  const FUTURE_FRAC = 0.035;          // share of a view that may lie past today
+  const REIGN_MAX_SPAN = 20000;       // wider than this, five millennia of reigns are a smear at the edge
+  const CITY_MAX_SPAN = 40000;
   const IMAGE_CACHE_KEY = 'ht-image-cache';
   const IMAGE_CACHE_MAX = 200;
   const API_UA = 'HumanityTimeline/1.0 (https://github.com/dshills/Humanity)';
@@ -122,8 +125,17 @@
     return NOW;
   }
 
+  // A view may run a little past the present so "today" is a visible line instead of the clipped
+  // right edge: up to FUTURE_FRAC of its own span. A view resting on that limit is "at now".
+  function maxEnd(span) { return nowT() + FUTURE_FRAC * span; }
+  function endAtNow(start) { return (nowT() - FUTURE_FRAC * start) / (1 - FUTURE_FRAC); }
+  // nowT() is fixed once at init (NOW), not a live clock, so an exact comparison at URL precision is stable
+  // for the life of the page; across loads the limit is re-derived from the `now` token.
+  function atNow(v) { return Math.abs(v.end - maxEnd(v.end - v.start)) < 5e-10; }
+  function capNow(t) { return Math.min(t, nowT()); }
+
   function rootView() {
-    return { start: HT.time.ROOT_START, end: nowT() };
+    return { start: HT.time.ROOT_START, end: endAtNow(HT.time.ROOT_START) };
   }
 
   function rootEntry() {
@@ -153,7 +165,7 @@
     // Snap edges that sit on (or within an hour of) the root bounds onto them so a view written by
     // an earlier page load, when "now" was a little earlier, is still recognised as the root.
     if (start < r.start + 1e-6) start = r.start;
-    if (end > r.end - MIN_SPAN / 24) end = r.end;
+    if (end > maxEnd(end - start) - MIN_SPAN / 24) end = endAtNow(start);
     let span = end - start;
     if (!(span > 0)) span = MIN_SPAN;
     if (span >= rootSpan - 1e-9) return r;
@@ -162,7 +174,7 @@
     start = c - span / 2;
     end = c + span / 2;
     if (start < r.start) { start = r.start; end = start + span; }
-    if (end > r.end) { end = r.end; start = end - span; }
+    if (end > maxEnd(span)) { end = maxEnd(span); start = end - span; }
     return { start: start, end: end };
   }
 
@@ -251,7 +263,7 @@
   // The root's end is written as the token "now" so a shared or reloaded root link is still the
   // root when the page is opened later (a numeric "now" would be seconds to days stale).
   function encodeHash(v) {
-    const end = Math.abs(v.end - nowT()) < 5e-10 ? 'now' : fmtNum(v.end);
+    const end = atNow(v) ? 'now' : fmtNum(v.end);
     return '#s=' + fmtNum(v.start) + '&e=' + end + (theme !== 'auto' ? '&m=' + theme : '') +
       (selected >= 0 && dom && !dom.panel.hidden ? '&ev=' + slugFor(selected) : '');
   }
@@ -264,7 +276,7 @@
     const evSlug = params.get('ev');
     pendingEv = evSlug ? indexForSlug(evSlug) : -1;
     const s = parseFloat(params.get('s'));
-    const e = params.get('e') === 'now' ? nowT() : parseFloat(params.get('e'));
+    const e = params.get('e') === 'now' ? (Number.isFinite(s) ? endAtNow(s) : NaN) : parseFloat(params.get('e'));
     if (!Number.isFinite(s) || !Number.isFinite(e) || !(e > s)) return null;
     return clampView(s, e);
   }
@@ -297,7 +309,7 @@
 
   function serializeStack() {
     return stack.map(function (e) {
-      return [e.start, Math.abs(e.end - nowT()) < 5e-10 ? 'now' : e.end, e.discrete ? 1 : 0];
+      return [e.start, atNow(e) ? 'now' : e.end, e.discrete ? 1 : 0];
     });
   }
 
@@ -308,7 +320,7 @@
     for (let i = 0; i < arr.length; i++) {
       const x = arr[i];
       if (!Array.isArray(x)) return null;
-      const e = { start: Number(x[0]), end: x[1] === 'now' ? nowT() : Number(x[1]), discrete: !!x[2] };
+      const e = { start: Number(x[0]), end: x[1] === 'now' ? endAtNow(Number(x[0])) : Number(x[1]), discrete: !!x[2] };
       if (!Number.isFinite(e.start) || !Number.isFinite(e.end) || !(e.end > e.start)) return null;
       if (i > 0 && !contains(s[i - 1], e)) return null;
       s.push(e);
@@ -601,7 +613,7 @@
   function planReigns(v, axisY) {
     reignRows = [];
     reignReserve = 0;
-    if (!reignsActive()) return;
+    if (!reignsActive() || v.end - v.start > REIGN_MAX_SPAN) return;
     const list = events();
     if (!groupOrder) {
       groupOrder = [];
@@ -691,7 +703,8 @@
     const segs = HT.context && HT.context.cities;
     if (!segs) return null;
     for (let i = 0; i < segs.length; i++) if (t >= segs[i][0] && t < segs[i][1]) return segs[i];
-    return null;
+    const last = segs[segs.length - 1];
+    return last && t >= last[1] && t <= nowT() ? last : null;   // the last city holds to today
   }
 
   function popFormat(v) {
@@ -755,7 +768,7 @@
     let floor = h - 108;                                 // above the HUD and dock
     if (size.hudTop > top) floor = Math.min(floor, size.hudTop - 10);
     // The city ribbon is dropped before the sparklines are: it needs CITY_H + 12 px under the band.
-    const hasCities = !!(HT.context && HT.context.cities) && floor - top - (CITY_H + 12) >= 56;
+    const hasCities = !!(HT.context && HT.context.cities) && v.end - v.start <= CITY_MAX_SPAN && floor - top - (CITY_H + 12) >= 56;
     const bottom = Math.min(floor - (hasCities ? CITY_H + 12 : 0), top + 150);
     if (bottom - top < 40) { g.replaceChildren(); return; }
     const frag = document.createDocumentFragment();
@@ -773,23 +786,25 @@
       // Points: interpolated value at each view edge plus every sample inside the view. When samples are
       // sparser than pixels we draw them all; when denser, we thin to one per `step` px.
       const pts = [];
+      const tEnd = capNow(v.end);                          // the band stops at the Today line
+      const xEnd = Math.min(w, tToPx(tEnd, v));
       const v0 = seriesAt(arr, v.start, EARTH_HOLD[key]);
       if (v0 !== null) pts.push([0, y(v0)]);
       let lastPx = -Infinity;
       for (let i = firstIndexAtOrAfter(arr, v.start); i < arr.length; i++) {
         const t = arr[i][0];
-        if (t > v.end) break;
+        if (t > tEnd) break;
         const px = tToPx(t, v);
         if (px - lastPx < step) continue;
         lastPx = px;
         pts.push([px, y(arr[i][1])]);
       }
-      const v1 = seriesAt(arr, v.end, EARTH_HOLD[key]);
-      if (v1 !== null) pts.push([w, y(v1)]);
+      const v1 = seriesAt(arr, tEnd, EARTH_HOLD[key]);
+      if (v1 !== null) pts.push([xEnd, y(v1)]);
       if (pts.length < 2) continue;
       const d = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
       if (key === 'co2') {
-        frag.appendChild(svgEl('path', { class: 'earth-fill co2', d: d + ' L' + w + ' ' + bottom + ' L0 ' + bottom + ' Z' }));
+        frag.appendChild(svgEl('path', { class: 'earth-fill co2', d: d + ' L' + xEnd.toFixed(1) + ' ' + bottom + ' L0 ' + bottom + ' Z' }));
       }
       frag.appendChild(svgEl('path', { class: 'earth-line ' + key, d: d }));
       // Stacked legend at the band's top-left: series name and the value at the view's end.
@@ -808,9 +823,10 @@
       let any = false;
       for (let i = 0; i < segs.length; i++) {
         const seg = segs[i];
-        if (seg[1] < v.start || seg[0] > v.end) continue;
+        const segEnd = i === segs.length - 1 ? nowT() : seg[1];        // the last city holds to today, never past it
+        if (segEnd < v.start || seg[0] > v.end) continue;
         const x0 = clamp(tToPx(seg[0], v), 0, w);
-        const x1 = clamp(tToPx(seg[1], v), 0, w);
+        const x1 = clamp(tToPx(segEnd, v), 0, w);
         if (x1 - x0 < 1) continue;
         any = true;
         frag.appendChild(svgEl('rect', { class: 'city-seg' + (i % 2 ? ' alt' : ''), x: x0, y: ry, width: x1 - x0, height: CITY_H }));
@@ -837,10 +853,18 @@
     const inView = now >= v.start && now <= v.end;
     if (!inView) { dom.gNow.replaceChildren(); return; }
     const x = crisp(tToPx(now, v));
-    dom.gNow.replaceChildren(
-      svgEl('line', { class: 'now-marker', x1: x, x2: x, y1: axisY - 14, y2: axisY + 14 }),
-      svgEl('circle', { class: 'now-dot', cx: x, cy: axisY, r: 3, fill: 'var(--accent)' })
-    );
+    const w = size.width;
+    const parts = [];
+    if (w - x > 1) parts.push(svgEl('rect', { class: 'future-zone', x: x, y: 0, width: w - x, height: size.height }));
+    parts.push(svgEl('line', { class: 'now-line', x1: x, x2: x, y1: 0, y2: size.height }));
+    parts.push(svgEl('line', { class: 'now-marker', x1: x, x2: x, y1: axisY - 14, y2: axisY + 14 }));
+    parts.push(svgEl('circle', { class: 'now-dot', cx: x, cy: axisY, r: 3.5, fill: 'var(--accent)' }));
+    // The flag sits left of the line unless there is no room for it there.
+    // The flag reads up the line, in the empty strip past it when there is one.
+    const lx = w - x >= 14 ? x + 11 : x - 5;
+    const ly = axisY - 22;
+    parts.push(svgEl('text', { class: 'now-label', x: lx, y: ly, transform: 'rotate(-90 ' + lx + ' ' + ly + ')', 'text-anchor': 'start' }, 'Today'));
+    dom.gNow.replaceChildren.apply(dom.gNow, parts);
   }
 
   // --- HUD telemetry ---
@@ -854,13 +878,13 @@
   function updateHud(v) {
     if (!dom || !dom.hudSpan) return;
     const span = v.end - v.start;
-    dom.hudSpan.textContent = fmtSpan(span);
+    dom.hudSpan.textContent = fmtSpan(capNow(v.end) - v.start);
     dom.hudEvents.textContent = hudStats.visible + ' / ' + hudStats.inWindow;
     dom.hudTier.textContent = '\u2264 ' + hudStats.tier;
     dom.hudScale.textContent = '1 px = ' + fmtSpan(span / Math.max(1, size.width));
     const now = nowT();
     dom.hudNow.hidden = !(now >= v.start && now <= v.end);
-    const tRead = lastMouseX !== null ? pxToT(lastMouseX - svgLeft(), v) : v.end;
+    const tRead = capNow(lastMouseX !== null ? pxToT(lastMouseX - svgLeft(), v) : v.end);
     if (dom.hudEarth) dom.hudEarth.textContent = earthReadout(tRead);
     updateCityReadout(tRead);
   }
@@ -920,12 +944,15 @@
       const ticks = HT.ticks.computeTicks(v.start, v.end, w, { labelWidth: measureTickLabel });
       const labelGap = (HT.ticks.DEFAULTS && HT.ticks.DEFAULTS.labelGap) || 12;
       let prevRight = -Infinity;                        // right edge of the last label actually drawn
+      const tMax = nowT() + 1e-9;                       // nothing is ticked past today
       for (let i = 0; i < ticks.minor.length; i++) {
+        if (ticks.minor[i] > tMax) continue;
         const x = crisp(tToPx(ticks.minor[i], v));
         minor.appendChild(svgEl('line', { class: 'tick minor', x1: x, x2: x, y1: axisY, y2: axisY + 6 }));
       }
       for (let i = 0; i < ticks.major.length; i++) {
         const m = ticks.major[i];
+        if (m.t > tMax) continue;
         const x = crisp(tToPx(m.t, v));
         major.appendChild(svgEl('line', { class: 'tick major', x1: x, x2: x, y1: axisY - 8, y2: axisY + 12 }));
         if (m.labeled) {
@@ -1085,10 +1112,11 @@
     dom.cursorLine.setAttribute('x1', crisp(px));
     dom.cursorLine.setAttribute('x2', crisp(px));
     dom.cursorLine.setAttribute('visibility', 'visible');
-    const label = cursorLabel(pxToT(px, shown), shown.end - shown.start);
+    const tCur = capNow(pxToT(px, shown));              // past the Today line the readout stays on today
+    const label = cursorLabel(tCur, shown.end - shown.start);
     dom.cursorDate.textContent = label;
-    if (dom.hudEarth) dom.hudEarth.textContent = earthReadout(pxToT(px, shown));
-    updateCityReadout(pxToT(px, shown));
+    if (dom.hudEarth) dom.hudEarth.textContent = earthReadout(tCur);
+    updateCityReadout(tCur);
     if (dom.cursorChip) {
       if (dom.cursorChip.textContent !== label) {     // measure only when the text changes (no layout per mousemove)
         dom.cursorChip.textContent = label;
@@ -1116,7 +1144,7 @@
     for (let i = 0; i < stack.length; i++) {
       const e = stack[i];
       const b = htmlEl('button', 'crumb' + (i === last ? ' current' : ''),
-        i === 0 ? ROOT_CRUMB : HT.time.formatRange(e.start, e.end));
+        i === 0 ? ROOT_CRUMB : HT.time.formatRange(e.start, capNow(e.end)));
       b.type = 'button';
       b.dataset.index = String(i);
       if (i === last) b.setAttribute('aria-current', 'page');
@@ -1602,6 +1630,7 @@
     if (u0 < 0) { u0 = 0; u1 = du; }
     if (u1 > uMax) { u1 = uMax; u0 = uMax - du; }
     const target = { start: nowT() + 1 - Math.pow(10, u1), end: nowT() + 1 - Math.pow(10, u0) };
+    if (u0 === 0) target.end = endAtNow(target.start);    // resting on the present keeps the Today margin
     if (first) commit(target, { animate: true, url: 'push', stack: 'push', discrete: true });
     else commit(target, { animate: false, url: 'replace', stack: 'replace', discrete: false });
   }
