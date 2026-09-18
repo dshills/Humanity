@@ -49,6 +49,7 @@ function curatedSpaceDates() {
 }
 
 const [launches, sites, orgs] = await Promise.all([tsv('launch/launch.tsv'), tsv('tables/sites.tsv'), tsv('tables/orgs.tsv')]);
+const siteGeo = new Map(sites.map((s) => [s.Site, [parseFloat(s.Latitude), parseFloat(s.Longitude)]]));
 const siteName = new Map(sites.map((s) => [s.Site, s.ShortEName && s.ShortEName !== '-' ? s.ShortEName : s.ShortName || s.Site]));
 const orgName = new Map(orgs.map((o) => [o.Code, o.ShortEName && o.ShortEName !== '-' ? o.ShortEName : o.ShortName || o.Code]));
 const curated = curatedSpaceDates();
@@ -61,7 +62,8 @@ const add = (l, title, detail, tier) => {
   const t = parseDate(l.Launch_Date);
   const a = astro(t);
   if (nearCurated(a)) return;
-  out.push({ t, a, title: clip(title, 80), detail: clip(detail, 300), tier });
+  const g = siteGeo.get(l.Launch_Site);
+  out.push({ t, a, title: clip(title, 80), detail: clip(detail, 300), tier, lat: g && g[0], lon: g && g[1] });
 };
 const status = (l) => (/^OS/.test(l.LaunchCode) ? 'reached orbit' : /^OF/.test(l.LaunchCode) ? 'failed to reach orbit' : 'outcome unknown');
 const where = (l) => `${siteName.get(l.Launch_Site) || l.Launch_Site}${l.Launch_Pad && l.Launch_Pad !== '-' ? ' ' + l.Launch_Pad : ''}`;
@@ -105,7 +107,8 @@ console.log(`crewed ${crewed}, sites ${siteSeen.size}, vehicles ${lvSeen.size}`)
 out.sort((x, y) => x.a - y.a);
 const seen = new Set();
 for (const e of out) { let t = e.title; if (seen.has(t.toLowerCase())) t = clip(e.title, 73) + ` (${e.t.y})`; let k = 2; while (seen.has(t.toLowerCase())) t = clip(e.title, 70) + ` (${e.t.y}, ${k++})`; e.title = t; seen.add(t.toLowerCase()); }
-const lines = out.map((e) => `    { t: ymd(${e.t.y}, ${e.t.m}, ${e.t.d}), title: '${esc(e.title)}', tier: ${e.tier}, category: 'space', detail: '${esc(e.detail)}' }`);
+const geo = (e) => (Number.isFinite(e.lat) && Number.isFinite(e.lon) ? `, lat: ${Math.round(e.lat * 10) / 10}, lon: ${Math.round(e.lon * 10) / 10}` : '');
+const lines = out.map((e) => `    { t: ymd(${e.t.y}, ${e.t.m}, ${e.t.d}), title: '${esc(e.title)}', tier: ${e.tier}, category: 'space', detail: '${esc(e.detail)}'${geo(e)} }`);
 const file = `(function (root) {
   'use strict';
   const HT = root.HT || (root.HT = {});

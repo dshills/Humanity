@@ -27,7 +27,12 @@
   const THEMES = ['ops', 'crt', 'nvg', 'ironbow', 'noir', 'paper'];
   const THEME_KEY = 'ht-theme';
   const EARTH_KEY = 'ht-earth';
-  const EARTH_ORDER = ['co2', 'temp', 'sea'];
+  const HIDDEN_KEY = 'ht-hidden-cats';
+  const WIKI_PREFIX = 'https://en.wikipedia.org/wiki/';
+  const SEARCH_LIMIT = 12;
+  const EARTH_ORDER = ['co2', 'temp', 'sea', 'pop'];
+  const POP_META = { label: 'Population', range: [6.5, 10], log: true };   // log10 scale: 3 million to 10 billion
+  const CITY_H = 15;
   const DRAG_THRESHOLD = 4;               // px of movement before a press becomes a drag
   const RESIZE_DEBOUNCE_MS = 100;
   const URL_DEBOUNCE_MS = 200;            // trailing replaceState during wheel/drag (Safari rate-limits history writes)
@@ -71,6 +76,10 @@
   let hudStats = { visible: 0, inWindow: 0, tier: 0 };
   let clockTimer = 0;
   let earthOn = true;                     // climate sparklines visible
+  const hiddenCats = new Set();           // categories filtered out via the legend
+  let searchIndex = null;                 // lazily built [{ i, key }] of lower-cased titles
+  let searchHits = [];
+  let searchActive = -1;
   let suppressClickUntil = 0;
 
   // ------------------------------------------------------------------
@@ -450,7 +459,9 @@
       start = ev.t - pad;
       end = ev.end + pad;
     } else {
-      const span = Math.max(MIN_SPAN, tierSpan(ev.tier) / 10);
+      // A tenth of the tier's span keeps the event visible with context; recent events are capped at 8% of
+      // their age (at least a decade) so a search for Apollo 11 lands in the 1960s, not in a 10,000-year view.
+      const span = Math.max(MIN_SPAN, Math.min(tierSpan(ev.tier) / 10, Math.max(10, (nowT() - ev.t) * 0.08)));
       start = ev.t - span / 2;
       end = ev.t + span / 2;
     }
@@ -534,7 +545,8 @@
     dom.svg.setAttribute('width', w);
     dom.svg.setAttribute('height', h);
     dom.svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
-    const axisY = Math.round(h * AXIS_FRACTION);
+    // On short stages the Earth layer needs room beneath the axis; the lanes above have slack, so lift the axis.
+    const axisY = Math.round(h * (earthOn && h < 760 ? Math.min(AXIS_FRACTION, 0.52) : AXIS_FRACTION));
     lastAxisY = axisY;
     renderTicks(shown, axisY);
     renderEvents(shown, axisY);
@@ -549,11 +561,33 @@
 
   // --- Earth layer: climate sparklines beneath the axis ---
   function earthSeries() {
-    return HT.earth && HT.earth.series ? HT.earth.series : null;
+    const base = HT.earth && HT.earth.series ? HT.earth.series : null;
+    if (!base) return null;
+    if (!base.pop && HT.context && HT.context.pop) base.pop = HT.context.pop;   // world population rides with the climate series
+    return base;
+  }
+
+  function earthMeta(key) {
+    if (key === 'pop') return POP_META;
+    return (HT.earth && HT.earth.meta && HT.earth.meta[key]) || { range: [0, 1] };
+  }
+
+  // The world's largest city at time t: [start, end, name, peak population] or null.
+  function cityAt(t) {
+    const segs = HT.context && HT.context.cities;
+    if (!segs) return null;
+    for (let i = 0; i < segs.length; i++) if (t >= segs[i][0] && t < segs[i][1]) return segs[i];
+    return null;
+  }
+
+  function popFormat(v) {
+    if (v >= 1e9) return (v / 1e9).toFixed(1) + ' B';
+    if (v >= 1e6) return Math.round(v / 1e6) + ' M';
+    return Math.round(v / 1e3) + ' K';
   }
 
   // How long a series' last value is held past its final sample (ice cores stop before the present).
-  const EARTH_HOLD = { co2: 3, temp: 150, sea: 120 };
+  const EARTH_HOLD = { co2: 3, temp: 150, sea: 120, pop: 5 };
 
   // Linear interpolation of a [t, v] series at t (null outside its range). Binary search.
   function seriesAt(arr, t, hold) {
@@ -585,6 +619,7 @@
 
   function earthFormat(key, v) {
     if (v === null) return '—';
+    if (key === 'pop') return popFormat(v);
     if (key === 'co2') return Math.round(v) + ' ppm';
     if (key === 'temp') return (v > 0 ? '+' : '') + v.toFixed(1) + '°';
     return (v > 0 ? '+' : '') + Math.round(v) + ' m';
@@ -605,17 +640,22 @@
     const top = axisY + 46;                              // below the tick labels
     let floor = h - 108;                                 // above the HUD and dock
     if (size.hudTop > top) floor = Math.min(floor, size.hudTop - 10);
-    const bottom = Math.min(floor, top + 150);
-    if (bottom - top < 48) { g.replaceChildren(); return; }
+    // The city ribbon is dropped before the sparklines are: it needs CITY_H + 12 px under the band.
+    const hasCities = !!(HT.context && HT.context.cities) && floor - top - (CITY_H + 12) >= 56;
+    const bottom = Math.min(floor - (hasCities ? CITY_H + 12 : 0), top + 150);
+    if (bottom - top < 40) { g.replaceChildren(); return; }
     const frag = document.createDocumentFragment();
-    const meta = (HT.earth && HT.earth.meta) || {};
     const step = Math.max(1, Math.floor(w / 700));       // px per sample when the view is dense
     for (let s = 0; s < EARTH_ORDER.length; s++) {
       const key = EARTH_ORDER[s];
       const arr = series[key];
       if (!arr || arr.length < 2) continue;
-      const range = (meta[key] && meta[key].range) || [0, 1];
-      const y = function (val) { return bottom - (val - range[0]) / (range[1] - range[0]) * (bottom - top); };
+      const km = earthMeta(key);
+      const range = km.range || [0, 1];
+      const y = function (val) {
+        const u = km.log ? Math.log10(Math.max(1, val)) : val;
+        return bottom - clamp((u - range[0]) / (range[1] - range[0]), 0, 1) * (bottom - top);
+      };
       // Points: interpolated value at each view edge plus every sample inside the view. When samples are
       // sparser than pixels we draw them all; when denser, we thin to one per `step` px.
       const pts = [];
@@ -640,13 +680,33 @@
       frag.appendChild(svgEl('path', { class: 'earth-line ' + key, d: d }));
       // Stacked legend at the band's top-left: series name and the value at the view's end.
       const label = svgEl('text', { class: 'earth-label ' + key, x: 10, y: top + 12 + s * 13, 'text-anchor': 'start' });
-      const k = svgEl('tspan', { class: 'k' }, (meta[key] && meta[key].label ? meta[key].label : key) + ' ');
+      const k = svgEl('tspan', { class: 'k' }, (km.label ? km.label : key) + ' ');
       const val = svgEl('tspan', { class: 'v' }, earthFormat(key, v1 !== null ? v1 : (pts.length ? null : null)));
       label.appendChild(k);
       label.appendChild(val);
       frag.appendChild(label);
     }
     frag.appendChild(svgEl('line', { class: 'earth-base', x1: 0, x2: w, y1: crisp(bottom), y2: crisp(bottom) }));
+    // Largest-city ribbon beneath the band: one segment per reigning city, named where it fits.
+    if (hasCities) {
+      const segs = HT.context.cities;
+      const ry = bottom + 8;
+      let any = false;
+      for (let i = 0; i < segs.length; i++) {
+        const seg = segs[i];
+        if (seg[1] < v.start || seg[0] > v.end) continue;
+        const x0 = clamp(tToPx(seg[0], v), 0, w);
+        const x1 = clamp(tToPx(seg[1], v), 0, w);
+        if (x1 - x0 < 1) continue;
+        any = true;
+        frag.appendChild(svgEl('rect', { class: 'city-seg' + (i % 2 ? ' alt' : ''), x: x0, y: ry, width: x1 - x0, height: CITY_H }));
+        const name = seg[2];
+        if (x1 - x0 >= name.length * 6.6 + 12) {
+          frag.appendChild(svgEl('text', { class: 'city-label', x: (x0 + x1) / 2, y: ry + 11, 'text-anchor': 'middle' }, name));
+        }
+      }
+      if (any) frag.appendChild(svgEl('text', { class: 'city-key', x: 10, y: ry - 3, 'text-anchor': 'start' }, 'Largest city'));
+    }
     g.replaceChildren(frag);
   }
 
@@ -686,7 +746,15 @@
     dom.hudScale.textContent = '1 px = ' + fmtSpan(span / Math.max(1, size.width));
     const now = nowT();
     dom.hudNow.hidden = !(now >= v.start && now <= v.end);
-    if (dom.hudEarth) dom.hudEarth.textContent = earthReadout(lastMouseX !== null ? pxToT(lastMouseX - svgLeft(), v) : v.end);
+    const tRead = lastMouseX !== null ? pxToT(lastMouseX - svgLeft(), v) : v.end;
+    if (dom.hudEarth) dom.hudEarth.textContent = earthReadout(tRead);
+    updateCityReadout(tRead);
+  }
+
+  function updateCityReadout(t) {
+    if (!dom.hudCity) return;
+    const c = cityAt(t);
+    dom.hudCity.textContent = c ? c[2] + ' · ' + popFormat(c[3]) : '\u2014';
   }
 
   function tickClock() {
@@ -773,6 +841,7 @@
     for (let k = 0; k <= maxTier; k++) counts.push(0);
     for (let i = 0; i < list.length; i++) {
       const ev = list[i];
+      if (hiddenCats.has(ev.category)) continue;
       const tEnd = hasEnd(ev) ? ev.end : ev.t;
       if (tEnd < v.start || ev.t > v.end) continue;
       counts[clamp(ev.tier, 0, maxTier)]++;
@@ -799,7 +868,7 @@
 
     for (let i = 0; i < list.length; i++) {
       const ev = list[i];
-      if (ev.tier > tierLimit) continue;
+      if (ev.tier > tierLimit || hiddenCats.has(ev.category)) continue;
       const ranged = hasEnd(ev);
       const tEnd = ranged ? ev.end : ev.t;
       if (tEnd < v.start || ev.t > v.end) continue;
@@ -905,6 +974,7 @@
     const label = cursorLabel(pxToT(px, shown), shown.end - shown.start);
     dom.cursorDate.textContent = label;
     if (dom.hudEarth) dom.hudEarth.textContent = earthReadout(pxToT(px, shown));
+    updateCityReadout(pxToT(px, shown));
     if (dom.cursorChip) {
       if (dom.cursorChip.textContent !== label) {     // measure only when the text changes (no layout per mousemove)
         dom.cursorChip.textContent = label;
@@ -957,8 +1027,17 @@
     const cats = (HT.tiers && HT.tiers.CATEGORIES) || [];
     const colors = (HT.tiers && HT.tiers.COLORS) || {};
     const frag = document.createDocumentFragment();
+    const actions = htmlEl('div', 'legend-actions');
+    const all = htmlEl('button', '', 'All'); all.type = 'button'; all.dataset.act = 'all';
+    const none = htmlEl('button', '', 'None'); none.type = 'button'; none.dataset.act = 'none';
+    actions.appendChild(all); actions.appendChild(none);
+    frag.appendChild(actions);
     for (let i = 0; i < cats.length; i++) {
-      const item = htmlEl('span', 'legend-item');
+      const item = htmlEl('button', 'legend-item');
+      item.type = 'button';
+      item.dataset.cat = cats[i];
+      item.setAttribute('aria-pressed', String(!hiddenCats.has(cats[i])));
+      item.title = 'Show or hide ' + cats[i] + ' events';
       const swatch = document.createElement('i');
       swatch.style.background = colors[cats[i]] || 'currentColor';
       item.appendChild(swatch);
@@ -966,6 +1045,175 @@
       frag.appendChild(item);
     }
     dom.legend.replaceChildren(frag);
+    dom.btnLegend.classList.toggle('filtered', hiddenCats.size > 0);
+  }
+
+  // --- Category filters (legend buttons) ---
+  function saveHidden() {
+    try { root.localStorage.setItem(HIDDEN_KEY, JSON.stringify(Array.from(hiddenCats))); } catch (err) { /* ignore */ }
+  }
+
+  function setCategoryHidden(cat, hidden) {
+    if (hidden) hiddenCats.add(cat); else hiddenCats.delete(cat);
+    saveHidden();
+    renderLegend();
+    if (shown) { settleNext = true; render(); }
+  }
+
+  function onLegendClick(e) {
+    const t = e.target && typeof e.target.closest === 'function' ? e.target.closest('button') : null;
+    if (!t) return;
+    const cats = (HT.tiers && HT.tiers.CATEGORIES) || [];
+    if (t.dataset.act === 'all') hiddenCats.clear();
+    else if (t.dataset.act === 'none') cats.forEach(function (c) { hiddenCats.add(c); });
+    else if (t.dataset.cat) {
+      if (e.shiftKey) {                                   // shift-click: show only this category
+        hiddenCats.clear();
+        cats.forEach(function (c) { if (c !== t.dataset.cat) hiddenCats.add(c); });
+      } else if (hiddenCats.has(t.dataset.cat)) hiddenCats.delete(t.dataset.cat);
+      else hiddenCats.add(t.dataset.cat);
+    } else return;
+    saveHidden();
+    renderLegend();
+    if (shown) { settleNext = true; render(); }
+  }
+
+  // --- Search ---
+  function buildSearchIndex() {
+    const list = events();
+    searchIndex = new Array(list.length);
+    for (let i = 0; i < list.length; i++) searchIndex[i] = String(list[i].title || '').toLowerCase();
+  }
+
+  // Prefix matches first, then word-start matches, then substrings; ties go to the more significant tier.
+  function searchEvents(query) {
+    const q = String(query || '').trim().toLowerCase();
+    if (q.length < 2) return [];
+    if (!searchIndex) buildSearchIndex();
+    const list = events();
+    const hits = [];
+    for (let i = 0; i < searchIndex.length; i++) {
+      const pos = searchIndex[i].indexOf(q);
+      if (pos < 0) continue;
+      const rank = pos === 0 ? 0 : /[\s(\-:,]/.test(searchIndex[i].charAt(pos - 1)) ? 1 : 2;
+      hits.push({ i: i, rank: rank, tier: list[i].tier });
+    }
+    hits.sort(function (a, b) { return a.rank - b.rank || a.tier - b.tier || a.i - b.i; });
+    return hits.slice(0, SEARCH_LIMIT);
+  }
+
+  function renderSearchResults() {
+    const list = events();
+    const frag = document.createDocumentFragment();
+    if (searchHits.length === 0 && dom.searchInput.value.trim().length >= 2) {
+      frag.appendChild(htmlEl('li', 'sr-empty', 'No events match.'));
+    }
+    for (let k = 0; k < searchHits.length; k++) {
+      const ev = list[searchHits[k].i];
+      const li = htmlEl('li', 'cat-' + ev.category);
+      li.setAttribute('role', 'option');
+      li.setAttribute('aria-selected', String(k === searchActive));
+      li.dataset.k = String(k);
+      li.appendChild(document.createElement('i'));
+      li.appendChild(htmlEl('span', 'sr-title', ev.title));
+      li.appendChild(htmlEl('span', 'sr-date', eventDateLabel(ev)));
+      frag.appendChild(li);
+    }
+    dom.searchResults.replaceChildren(frag);
+  }
+
+  function toggleSearch(force) {
+    const open = force === undefined ? dom.search.hidden : !!force;
+    dom.search.hidden = !open;
+    dom.btnSearch.setAttribute('aria-expanded', String(open));
+    if (open) {
+      if (!dom.legend.hidden) toggleLegend(false);
+      dom.searchInput.value = '';
+      searchHits = []; searchActive = -1;
+      renderSearchResults();
+      try { dom.searchInput.focus({ preventScroll: true }); } catch (err) { /* ignore */ }
+    }
+  }
+
+  function chooseSearchHit(k) {
+    const hit = searchHits[k];
+    if (!hit) return;
+    const ev = events()[hit.i];
+    toggleSearch(false);
+    if (hiddenCats.has(ev.category)) { hiddenCats.delete(ev.category); saveHidden(); renderLegend(); }
+    zoomToEvent(ev);
+    openPanel(hit.i);
+  }
+
+  function onSearchInput() {
+    searchHits = searchEvents(dom.searchInput.value);
+    searchActive = searchHits.length ? 0 : -1;
+    renderSearchResults();
+  }
+
+  function onSearchKey(e) {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (!searchHits.length) return;
+      searchActive = (searchActive + (e.key === 'ArrowDown' ? 1 : -1) + searchHits.length) % searchHits.length;
+      renderSearchResults();
+      const el = dom.searchResults.querySelector('[aria-selected="true"]');
+      if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
+      e.preventDefault();
+    } else if (e.key === 'Enter') {
+      chooseSearchHit(searchActive >= 0 ? searchActive : 0);
+      e.preventDefault();
+    } else if (e.key === 'Escape') {
+      toggleSearch(false);
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  // --- Panel map ---
+  function eventCoords(ev) {
+    if (Number.isFinite(ev.lat) && Number.isFinite(ev.lon)) return [ev.lat, ev.lon, 0];
+    if (HT.geo && typeof ev.link === 'string' && ev.link.indexOf(WIKI_PREFIX) === 0) {
+      let key = ev.link.slice(WIKI_PREFIX.length);
+      try { key = decodeURIComponent(key); } catch (err) { /* keep the raw key */ }
+      const g = HT.geo[key];
+      if (g) return g;
+    }
+    return null;
+  }
+
+  function buildPanelMap() {
+    if (!dom.panelMapSvg || !HT.map) return;
+    const W = HT.map.width;
+    const H = HT.map.height;
+    const svg = dom.panelMapSvg;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    const parts = [];
+    for (let lon = -120; lon <= 120; lon += 60) parts.push(svgEl('line', { class: 'grat', x1: (lon + 180) * W / 360, x2: (lon + 180) * W / 360, y1: 0, y2: H }));
+    for (let lat = -60; lat <= 60; lat += 30) parts.push(svgEl('line', { class: 'grat', x1: 0, x2: W, y1: (90 - lat) * H / 180, y2: (90 - lat) * H / 180 }));
+    parts.push(svgEl('path', { class: 'land', d: HT.map.land }));
+    dom.mapCrossV = svgEl('line', { class: 'cross', y1: 0, y2: H });
+    dom.mapCrossH = svgEl('line', { class: 'cross', x1: 0, x2: W });
+    dom.mapRing = svgEl('circle', { class: 'pin-ring', r: 9 });
+    dom.mapPin = svgEl('circle', { class: 'pin', r: 7 });
+    parts.push(dom.mapCrossV, dom.mapCrossH, dom.mapRing, dom.mapPin);
+    svg.replaceChildren.apply(svg, parts);
+  }
+
+  function updatePanelMap(ev) {
+    if (!dom.panelMap || !HT.map) return;
+    const c = eventCoords(ev);
+    if (!c) { dom.panelMap.hidden = true; return; }
+    const x = (c[1] + 180) * HT.map.width / 360;
+    const y = (90 - c[0]) * HT.map.height / 180;
+    dom.mapCrossV.setAttribute('x1', x); dom.mapCrossV.setAttribute('x2', x);
+    dom.mapCrossH.setAttribute('y1', y); dom.mapCrossH.setAttribute('y2', y);
+    dom.mapPin.setAttribute('cx', x); dom.mapPin.setAttribute('cy', y);
+    dom.mapRing.setAttribute('cx', x); dom.mapRing.setAttribute('cy', y);
+    const lat = Math.abs(c[0]).toFixed(1) + '°' + (c[0] >= 0 ? 'N' : 'S');
+    const lon = Math.abs(c[1]).toFixed(1) + '°' + (c[1] >= 0 ? 'E' : 'W');
+    dom.panelMapCap.textContent = lat + ' ' + lon + (c[2] ? ' · approximate' : '');
+    dom.panelMapSvg.setAttribute('aria-label', 'Location on a world map: ' + lat + ', ' + lon);
+    dom.panelMap.hidden = false;
   }
 
   function toggleLegend(force) {
@@ -1027,6 +1275,7 @@
     dom.panelTitle.textContent = ev.title;
     dom.panelDate.textContent = eventDateLabel(ev);
     dom.panelDetail.textContent = ev.detail || '';
+    updatePanelMap(ev);
     if (typeof ev.link === 'string' && /^https:\/\//.test(ev.link)) {
       dom.panelLink.href = ev.link;
       dom.panelLink.textContent = /^https:\/\/[a-z-]+\.wikipedia\.org\//.test(ev.link) ? 'Read more on Wikipedia ↗' : 'Read more ↗';
@@ -1256,8 +1505,13 @@
     const tag = el && el.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el && el.isContentEditable)) return;
     switch (e.key) {
+      case '/':
+        toggleSearch(true);
+        e.preventDefault();
+        break;
       case 'Escape':
-        if (!dom.panel.hidden) { closePanel(); e.preventDefault(); }
+        if (dom.search && !dom.search.hidden) { toggleSearch(false); e.preventDefault(); }
+        else if (!dom.panel.hidden) { closePanel(); e.preventDefault(); }
         else if (!dom.legend.hidden) { toggleLegend(false); e.preventDefault(); }
         else hideTooltip();
         break;
@@ -1344,7 +1598,17 @@
 
     dom.btnOut.addEventListener('click', function () { zoomOut(); });
     dom.btnHome.addEventListener('click', function () { home(); });
-    dom.btnLegend.addEventListener('click', function () { toggleLegend(); });
+    dom.btnLegend.addEventListener('click', function () { if (dom.search && !dom.search.hidden) toggleSearch(false); toggleLegend(); });
+    dom.legend.addEventListener('click', onLegendClick);
+    if (dom.btnSearch) {
+      dom.btnSearch.addEventListener('click', function () { toggleSearch(); });
+      dom.searchInput.addEventListener('input', onSearchInput);
+      dom.searchInput.addEventListener('keydown', onSearchKey);
+      dom.searchResults.addEventListener('click', function (e) {
+        const li = e.target && typeof e.target.closest === 'function' ? e.target.closest('li[data-k]') : null;
+        if (li) chooseSearchHit(Number(li.dataset.k));
+      });
+    }
     dom.crumbs.addEventListener('click', onCrumbClick);
     dom.panelClose.addEventListener('click', closePanel);
     dom.panelZoom.addEventListener('click', function () {
@@ -1414,7 +1678,9 @@
       dock: $('dock'), cursorChip: $('cursor-chip'),
       hudSpan: $('hud-span'), hudEvents: $('hud-events'), hudTier: $('hud-tier'), hudScale: $('hud-scale'),
       hudMode: $('hud-mode'), hudClock: $('hud-clock'), hudNow: $('hud-now'),
-      hudEarth: $('hud-earth'), btnEarth: $('btn-earth'), hud: $('hud')
+      hudEarth: $('hud-earth'), hudCity: $('hud-city'), btnEarth: $('btn-earth'), hud: $('hud'),
+      btnSearch: $('btn-search'), search: $('search'), searchInput: $('search-input'), searchResults: $('search-results'),
+      panelMap: $('panel-map'), panelMapSvg: $('panel-map-svg'), panelMapCap: $('panel-map-cap')
     };
     NOW = HT.time.now();
     // Theme: URL param (read in parseHash below) > stored choice > auto.
@@ -1439,7 +1705,12 @@
       dom.btnEarth.setAttribute('aria-pressed', String(earthOn));
       dom.btnEarth.addEventListener('click', function () { setEarth(!earthOn); });
     }
+    try {
+      const saved = JSON.parse(root.localStorage.getItem(HIDDEN_KEY) || '[]');
+      if (Array.isArray(saved)) saved.forEach(function (c) { if (HT.tiers.CATEGORIES.indexOf(c) >= 0) hiddenCats.add(c); });
+    } catch (err) { /* ignore */ }
     buildSvgScaffold();
+    buildPanelMap();
     renderLegend();
 
     // Initial view from the hash; breadcrumb chain from history.state when a reload preserved it.

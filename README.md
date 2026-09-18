@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The Roman era (31 BCE to 300 CE) in NVG mode: reigns of emperors and popes as bars, battles and curated events in lanes above the axis, the Earth layer beneath it, HUD readouts and the mode dock](docs/screenshot.png)
+![The Roman era (31 BCE to 300 CE) in NVG mode with the detail panel open on the eruption of Vesuvius: a world map pins the location, with reigns, battles and curated events in lanes above the axis and the Earth layer beneath it](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
@@ -10,7 +10,7 @@
   <img src="docs/mode-paper.png" width="32%" alt="Paper mode: warm ink on paper">
 </p>
 
-A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 2,795 events in 16 color-coded categories, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, no network requests and nothing to install to view it.
+A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 3,813 events in 16 color-coded categories, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, no network requests and nothing to install to view it.
 
 ## Open it
 
@@ -62,6 +62,8 @@ The choice is remembered in `localStorage` and written into the URL as `m=<mode>
 
 Three climate sparklines run beneath the axis and resolve as you zoom: atmospheric CO₂ (ice-core composite to 1957, Mauna Loa annual means since), Antarctic temperature anomaly (EPICA Dome C) and global sea level (Spratt & Lisiecki stack), covering the last 800,000 years. The HUD's **Earth** row shows the three values under the pointer. Toggle the layer with the **Earth** button or the `E` key; the choice is remembered.
 
+Two human context series ride in the same layer, from `scripts/import-context.mjs` (`src/context.js`): **world population** as a dashed, log-scaled line from 10,000 BCE, and a **largest city** ribbon beneath the band naming the world's biggest city through time (Ebla, Ur, Babylon, Rome, Chang'an, Baghdad, Kaifeng, Hangzhou, Beijing, London, New York). The HUD's City row names the city under the pointer. The ribbon is derived by interpolating each city between its own observations in Chandler's table and taking the largest at benchmark years; observations at least five times both neighbours are treated as digitisation slips and dropped (Delhi's 1375 figure carries an extra zero). On short screens the axis lifts slightly to make room, and the ribbon yields before the sparklines do.
+
 The same import adds 263 natural-hazard events in a sixteenth category, `earth`: earthquakes with at least 10,000 recorded deaths or magnitude 8.5+, tsunamis with at least 5,000 deaths not already carried by their quake, and eruptions of VEI 6+ or at least 1,000 deaths, each linking to its NCEI record. Records within a year of a hand-curated quake, tsunami or eruption are skipped.
 
 Regenerate both from the sources with:
@@ -69,6 +71,8 @@ Regenerate both from the sources with:
 ```
 node scripts/import-noaa.mjs   # writes src/earth.js and src/data/09-hazards.js, then rebuild
 ```
+
+Population: Our World in Data, "Population, including UN projections" (CC BY 4.0); its values before 1800 derive from HYDE 3.3, which is CC BY-NC-SA 4.0, so reuse this series commercially only from 1800 onward. Cities: Chandler's historical urban population table as digitised by Reba, Reitsma & Seto (2016), figshare doi:10.6084/m9.figshare.2059494 (CC BY 4.0); the estimates are contested and end in 1975.
 
 Data credits (US Government works, unrestricted): Bereiter et al. 2015 CO₂ composite and Jouzel et al. 2007 EPICA Dome C temperature (NOAA NCEI Paleoclimatology); Spratt & Lisiecki 2016 sea-level stack (NOAA NCEI); NOAA GML Mauna Loa CO₂ record; NCEI/WDS Global Significant Earthquake, Tsunami and Volcanic Eruption Databases, doi:10.7289/V5TD9V7K.
 
@@ -91,6 +95,16 @@ node scripts/import-wikidata.mjs   # writes src/data/10-wikidata.js, then rebuil
 - `scripts/import-gcat.mjs` writes `src/data/12-launches.js` from Jonathan McDowell's General Catalog of Artificial Space Objects (GCAT, CC BY 4.0, planet4589.org): every human orbital spaceflight launch, the first orbital launch from each launch site, and the first flight of each launch vehicle family with at least ten orbital launches. Launches within two days of a curated space event are skipped.
 
 Both are build-time imports; the page still makes no network requests. Nobel Prize® is a registered trademark of the Nobel Foundation. Launch data: J. McDowell, planet4589.org.
+
+## Map, filters and search
+
+- **Where it happened.** The detail panel shows a small world map with a pin and crosshair for any event with known coordinates. Hazards, battles and launches carry coordinates from their sources; the hand-curated events get theirs from Wikidata through each event's Wikipedia link (`scripts/import-geo.mjs` writes `src/geo.js`). When the point comes from a related place, such as a location, birthplace or country, rather than the item itself, the caption says "approximate". The land outline is Natural Earth 110m (public domain), simplified to a single 17 KB path by `scripts/build-map.mjs`.
+- **Category filters.** The legend's entries are toggles: click to hide or show a category, Shift+click to show only that one, and use All or None to reset. A dot on the Legend button marks an active filter, and the choice is remembered. Hidden categories are excluded before tier selection, so the remaining events fill the view.
+- **Search.** Press `/` or the Search button, type at least two characters, and pick a result with the arrow keys and Enter or a click. Title-prefix matches rank first, then word starts, then substrings, with ties going to the more significant event. Choosing a result zooms to the event and opens its panel, un-hiding its category if needed.
+
+## Significance scores
+
+`scripts/score-significance.mjs` scores every event that links to English Wikipedia by averaging the z-scores of log10(12-month pageviews) and log10(Wikidata sitelinks). Scores are mapped to tiers by keeping the curated tier counts and re-dealing the tiers in score order. The Wikidata importer uses the same thresholds, so imported battles and rulers sit on the same scale as the curated events (never above tier 3). Hand-assigned tiers are not changed automatically: [docs/TIER-AUDIT.md](docs/TIER-AUDIT.md) lists the curated events the data disagrees with most, as prompts for editorial review. The scorer takes about fifteen minutes and caches its results in `scripts/cache/`.
 
 ## Adding an event
 
@@ -263,7 +277,7 @@ Choices the spec left open, as implemented:
 - Transitions animate over 250 ms with a cubic ease-out, interpolating `log(span)` and the center so that zooming looks uniform at every scale. A 350 ms safety timer lands the view if animation frames are starved. Animation is skipped under `prefers-reduced-motion`.
 - Mouse wheel zooms by `exp(deltaY × 0.002)` per event, clamped to [0.5, 2]; a trackpad pinch (a wheel event with `ctrlKey`) uses `0.01` because it reports much smaller deltas. Shift+wheel and horizontal wheel deltas pan. Line- and page-mode deltas are scaled to pixels.
 - Touch uses Pointer Events with `touch-action: none`; a press becomes a drag after 4 px of movement; a two-finger pinch keeps the date under each finger fixed by solving the linear pixel mapping; three or more fingers are ignored; when one finger of a pinch lifts, the other continues as a pan. Safari's `gesturestart`/`gesturechange` are suppressed. Touch pointers never show the tooltip or the cursor guide.
-- Keyboard: `Escape`, `-`/`_` (zoom out), `0` (home), `+`/`=` (zoom in at center), `1`–`6` (visual mode), `T` (cycle modes), `E` (Earth layer). Ignored while Ctrl, Alt or Meta is held or while focus is in a form field. There is no Home-key binding; Home is the button.
+- Keyboard: `Escape`, `-`/`_` (zoom out), `0` (home), `+`/`=` (zoom in at center), `1`–`6` (visual mode), `T` (cycle modes), `E` (Earth layer), `/` (search). Ignored while Ctrl, Alt or Meta is held or while focus is in a form field. There is no Home-key binding; Home is the button.
 - The stage is resized on `window.resize` and on a `ResizeObserver` for the stage (so opening the panel reflows without a window event), debounced 100 ms.
 
 **Appearance**

@@ -8,6 +8,10 @@ Research notes, verified 2026-09-17, on open data that could add richness to the
 - **Bundle size.** The page is ~435 KB today. Structured fields are cheap (a Q-id plus coordinates is ~20 bytes per event, ~17 KB for all 834). Images are not: a 60 px Wikipedia thumbnail is ~3 KB as a data URI, so baking thumbnails for every event would add 2.6 MB; only a small curated subset is viable.
 - **Licence.** The repository is MIT. CC0 and CC BY sources can be bundled freely (CC BY needs a credit line). CC BY-SA *text* (Wikipedia prose, EventKG, Pantheon rows) bundled into the page would make the bundled data share-alike; prefer Wikidata labels and descriptions (CC0) for titles and keep Wikipedia only as the `link` target. Non-commercial sources (Seshat) are not compatible with bundling.
 
+## Status
+
+Implemented so far: Wikidata battles and rulers, coordinates for the panel map (Wikidata + Natural Earth), the pageviews and sitelinks significance score, NOAA climate series and hazards, Nobel Prizes, GCAT launch milestones, and the world population and largest-city context series. Not implemented: opt-in online images, UCDP conflicts, museum objects.
+
 ## Ranked recommendation
 
 1. **Wikidata (CC0), at build time.** A `scripts/import-wikidata.mjs` step that runs class-scoped SPARQL queries (battles, treaties, disasters, inventions, discoveries, epidemics, elections) filtered by `wikibase:sitelinks`, and separately bakes Q-id, coordinates (P625, falling back to P276 → P625) and the Commons filename of P18 into the existing 834 events. Enables a map pin, localized article links and thousands of candidate events with no licence obligations and no runtime requests.

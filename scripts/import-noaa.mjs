@@ -201,7 +201,7 @@ async function hazards() {
     detail += ' (NCEI Significant Earthquake Database).';
     usedQuakeIds.add(q.id);
     out.push({ t: dateExpr(yr, q.month, q.day), y: yr, title, detail, tier: tierFor(deaths, 0),
-      link: `https://www.ngdc.noaa.gov/hazel/view/hazards/earthquake/event-more-info/${q.id}` });
+      link: `https://www.ngdc.noaa.gov/hazel/view/hazards/earthquake/event-more-info/${q.id}`, lat: q.latitude, lon: q.longitude });
   }
   for (const ts of tsunamis) {
     const deaths = ts.deathsTotal || ts.deaths || 0;
@@ -214,7 +214,7 @@ async function hazards() {
     if (ts.maxWaterHeight) detail += `, run-ups to ${ts.maxWaterHeight} m`;
     detail += `; about ${fmt(deaths)} deaths recorded (NCEI Global Historical Tsunami Database).`;
     out.push({ t: dateExpr(yr, ts.month, ts.day), y: yr, title, detail, tier: tierFor(deaths, 0),
-      link: `https://www.ngdc.noaa.gov/hazel/view/hazards/tsunami/event-more-info/${ts.id}` });
+      link: `https://www.ngdc.noaa.gov/hazel/view/hazards/tsunami/event-more-info/${ts.id}`, lat: ts.latitude, lon: ts.longitude });
   }
   for (const v of volcanoes) {
     const deaths = v.deathsTotal || v.deaths || 0;
@@ -227,7 +227,7 @@ async function hazards() {
     if (deaths) detail += `; about ${fmt(deaths)} deaths recorded`;
     detail += ' (NCEI Significant Volcanic Eruption Database).';
     out.push({ t: dateExpr(yr, v.month, v.day), y: yr, title, detail, tier: tierFor(deaths, vei),
-      link: `https://www.ngdc.noaa.gov/hazel/view/hazards/volcano/event-more-info/${v.id}` });
+      link: `https://www.ngdc.noaa.gov/hazel/view/hazards/volcano/event-more-info/${v.id}`, lat: v.latitude, lon: v.longitude });
   }
   // Same title in the same year (a main shock and its aftershock, two eruptive phases): keep the deadliest.
   const byKey = new Map();
@@ -249,7 +249,8 @@ async function hazards() {
     if (e.title.length > 80) e.title = e.title.slice(0, 79).replace(/\s+\S*$/, '') + '…';
     if (e.detail.length > 300) e.detail = e.detail.slice(0, 296).replace(/\s+\S*$/, '') + '….';
   }
-  const lines = out.map((e) => `    { t: ${e.t}, title: '${esc(e.title)}', tier: ${e.tier}, category: 'earth',\n      detail: '${esc(e.detail)}',\n      link: '${e.link}' }`);
+  const geo = (e) => (Number.isFinite(e.lat) && Number.isFinite(e.lon) ? `, lat: ${Math.round(e.lat * 10) / 10}, lon: ${Math.round(e.lon * 10) / 10}` : '');
+  const lines = out.map((e) => `    { t: ${e.t}, title: '${esc(e.title)}', tier: ${e.tier}, category: 'earth',\n      detail: '${esc(e.detail)}',\n      link: '${e.link}'${geo(e)} }`);
   const file = `(function (root) {
   'use strict';
   const HT = root.HT || (root.HT = {});

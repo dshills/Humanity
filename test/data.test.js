@@ -23,7 +23,7 @@ const { ROOT_START, bce, ce, now } = HT.time;
 const { CATEGORIES, tierForSpan } = HT.tiers;
 
 const DATA_DIR = path.join(__dirname, '..', 'src', 'data');
-const ALLOWED_KEYS = ['t', 'end', 'title', 'detail', 'tier', 'category', 'link'];
+const ALLOWED_KEYS = ['t', 'end', 'title', 'detail', 'tier', 'category', 'link', 'lat', 'lon'];
 const MAX_TIER = 7;
 const TITLE_MAX = 80;
 const DETAIL_MIN = 20;
@@ -306,6 +306,16 @@ describe('link (optional)', () => {
       if (e.link === undefined) continue;
       assert.equal(typeof e.link, 'string', `link must be a string: ${e.title}`);
       assert.match(e.link, /^https:\/\/[^\s]+$/, `link must be an https URL without spaces: ${e.title}`);
+    }
+  });
+});
+
+describe('lat/lon (optional)', () => {
+  test('are a valid coordinate pair when present', () => {
+    for (const e of globalThis.HT.events) {
+      if (e.lat === undefined && e.lon === undefined) continue;
+      assert.ok(Number.isFinite(e.lat) && e.lat >= -90 && e.lat <= 90, `lat out of range: ${e.title}`);
+      assert.ok(Number.isFinite(e.lon) && e.lon >= -180 && e.lon <= 180, `lon out of range: ${e.title}`);
     }
   });
 });

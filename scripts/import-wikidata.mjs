@@ -92,6 +92,40 @@ const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const clip = (s, n) => (s.length <= n ? s : s.slice(0, n - 1).replace(/\s+\S*$/, '') + '…');
 const NOW_ASTRO = new Date().getUTCFullYear() + new Date().getUTCMonth() / 12;   // events after today are excluded
 
+// "Point(lon lat)" -> [lat, lon]
+function point(wkt) {
+  const m = /Point\(([-\d.]+) ([-\d.]+)\)/.exec(wkt || '');
+  return m ? [Math.round(parseFloat(m[2]) * 10) / 10, Math.round(parseFloat(m[1]) * 10) / 10] : null;
+}
+
+// Blended significance (pageviews + sitelinks) from scripts/score-significance.mjs, when it has been run:
+// thresholds[k] is the lowest score a curated tier-k event holds, so imports land on the curated scale.
+let SIG = null;
+try { SIG = JSON.parse(readFileSync(join(ROOT, 'scripts/cache/significance.json'), 'utf8')); } catch (e) { /* fall back to sitelinks */ }
+// Imports lean on sitelinks (70%) over English pageviews (30%): pageviews skew to anglophone subjects (every US
+// president outranks most emperors), while sitelinks count language editions. The blended score is read against
+// the curated thresholds and then compressed, so only the most prominent imports reach tier 3.
+let SIG_STATS = null;
+function sigStats() {
+  if (SIG_STATS || !SIG) return SIG_STATS;
+  const rows = Object.values(SIG.titles);
+  const stat = (f) => { const xs = rows.map(f); const m = xs.reduce((x, y) => x + y, 0) / xs.length; const sd = Math.sqrt(xs.reduce((x, y) => x + (y - m) ** 2, 0) / xs.length) || 1; return { m, sd }; };
+  SIG_STATS = { v: stat((d) => Math.log10(1 + (d.views || 0))), s: stat((d) => Math.log10(1 + (d.sitelinks || 0))) };
+  return SIG_STATS;
+}
+const COMPRESS = [3, 3, 4, 4, 5, 6, 7, 7];                                // curated-scale tier -> import tier
+function blendedTier(article, fallback, floor, year) {
+  if (!SIG || !SIG.thresholds || !article) return fallback;
+  const d = SIG.titles[article.slice('https://en.wikipedia.org/wiki/'.length)];
+  if (!d) return fallback;
+  const st = sigStats();
+  const score = 0.3 * (Math.log10(1 + (d.views || 0)) - st.v.m) / st.v.sd + 0.7 * (Math.log10(1 + (d.sitelinks || 0)) - st.s.m) / st.s.sd;
+  let tier = 7;
+  for (let k = 0; k < SIG.thresholds.length; k++) if (score >= SIG.thresholds[k]) { tier = k; break; }
+  // Recent figures are over-covered in every language edition: one tier down after 1800.
+  return Math.min(7, Math.max(floor, COMPRESS[tier]) + (year >= 1800 ? 1 : 0));
+}
+
 function curated() {
   const events = [];
   for (const f of readdirSync(join(ROOT, 'src/data')).sort()) {
@@ -109,11 +143,12 @@ function curated() {
 }
 
 async function battles(existing) {
-  const q = `SELECT ?b ?bLabel ?bDescription ?d ?prec ?s ?article ?warLabel ?locLabel ?countryLabel WHERE {
+  const q = `SELECT ?b ?bLabel ?bDescription ?d ?prec ?s ?article ?warLabel ?locLabel ?countryLabel ?coord ?locCoord WHERE {
   ?b wdt:P31/wdt:P279* wd:Q178561 ; wikibase:sitelinks ?s . FILTER(?s >= ${BATTLE_MIN_SITELINKS})
   ?b p:P585 ?ds . ?ds ps:P585 ?d ; psv:P585 [ wikibase:timePrecision ?prec ] .
   OPTIONAL { ?b wdt:P361 ?war . }
-  OPTIONAL { ?b wdt:P276 ?loc . }
+  OPTIONAL { ?b wdt:P625 ?coord . }
+  OPTIONAL { ?b wdt:P276 ?loc . OPTIONAL { ?loc wdt:P625 ?locCoord . } }
   OPTIONAL { ?b wdt:P17 ?country . }
   OPTIONAL { ?article schema:about ?b ; schema:isPartOf <https://en.wikipedia.org/> . }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
@@ -137,7 +172,8 @@ async function battles(existing) {
     const place = label.replace(/^(First |Second |Third |Fourth )?(Battle|Siege|Sack|Capture|Fall|Bombardment|Raid) (of|at|on) (the )?/i, '').split(/[(,]/)[0].trim();
     if (place.length >= 4 && existing.some((e) => Math.abs(e.y - y) <= 1 && e.title.toLowerCase().includes(place.toLowerCase()))) continue;
     const s = Number(val(r, 's'));
-    const tier = s >= 90 ? 3 : s >= 55 ? 4 : s >= 35 ? 5 : 6;
+    const tier = blendedTier(val(r, 'article'), s >= 90 ? 3 : s >= 55 ? 4 : s >= 35 ? 5 : 6, 3, y);
+    const geo = point(val(r, 'coord')) || point(val(r, 'locCoord'));
     const desc = cap(val(r, 'bDescription') || 'battle');
     const war = val(r, 'warLabel'); const loc = val(r, 'locLabel'); const country = val(r, 'countryLabel');
     let detail = `${desc}, fought ${dateText(t)}`;
@@ -145,7 +181,7 @@ async function battles(existing) {
     if (country && !/^Q\d+$/.test(country) && country !== loc) detail += `${loc ? ',' : ' in'} ${country}`;
     if (war && !/^Q\d+$/.test(war) && !desc.toLowerCase().includes(war.toLowerCase())) detail += `; part of the ${war}`;
     detail += '.';
-    out.push({ t: dateExpr(t), y, title: clip(label, 80), detail: clip(detail, 300), tier, category: 'war',
+    out.push({ t: dateExpr(t), y, geo, title: clip(label, 80), detail: clip(detail, 300), tier, category: 'war',
       link: val(r, 'article') || `https://www.wikidata.org/wiki/${val(r, 'b').split('/').pop()}` });
   }
   return out;
@@ -173,7 +209,7 @@ async function rulers(existing) {
       if (y > NOW_ASTRO) continue;
       const endT = val(r, 'end') ? parseTime(val(r, 'end'), 11) : null;
       const s = Number(val(r, 's'));
-      const tier = s >= 250 ? 3 : s >= 140 ? 4 : s >= 70 ? 5 : s >= 40 ? 6 : 7;
+      const tier = blendedTier(val(r, 'article'), s >= 250 ? 3 : s >= 140 ? 4 : s >= 70 ? 5 : s >= 40 ? 6 : 7, 3, y);
       const desc = val(r, 'pDescription');
       const span = `${dateText(t)}${endT && astro(endT) > y ? ` to ${dateText(endT)}` : ''}`;
       // Wikidata descriptions often already say the office ("President of the United States from 1861 to 1865");
@@ -214,7 +250,7 @@ for (const e of all) {
   }
   used.add(e.title.toLowerCase());
 }
-const lines = all.map((e) => `    { t: ${e.t},${e.end ? ` end: ${e.end},` : ''} title: '${esc(e.title)}', tier: ${e.tier}, category: '${e.category}', detail: '${esc(e.detail)}', link: '${e.link}' }`);
+const lines = all.map((e) => `    { t: ${e.t},${e.end ? ` end: ${e.end},` : ''} title: '${esc(e.title)}', tier: ${e.tier}, category: '${e.category}', detail: '${esc(e.detail)}', link: '${e.link}'${e.geo ? `, lat: ${e.geo[0]}, lon: ${e.geo[1]}` : ''} }`);
 const file = `(function (root) {
   'use strict';
   const HT = root.HT || (root.HT = {});
