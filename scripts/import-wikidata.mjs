@@ -220,7 +220,7 @@ async function rulers(existing) {
       const title = clip(`${label}, ${office}`, 80);
       if (existing.some((e) => e.title.toLowerCase() === title.toLowerCase())) continue;
       out.push({ t: dateExpr(t), y, end: endT && astro(endT) > y ? dateExpr(endT) : null, title, detail: clip(detail, 300),
-        tier, category, link: val(r, 'article') || `https://www.wikidata.org/wiki/${val(r, 'p').split('/').pop()}`, key: val(r, 'p') + '|' + qid + '|' + Math.floor(y) });
+        tier, category, group: office, link: val(r, 'article') || `https://www.wikidata.org/wiki/${val(r, 'p').split('/').pop()}`, key: val(r, 'p') + '|' + qid + '|' + Math.floor(y) });
       n++;
     }
     console.log(`${office}: ${n}`);
@@ -250,7 +250,7 @@ for (const e of all) {
   }
   used.add(e.title.toLowerCase());
 }
-const lines = all.map((e) => `    { t: ${e.t},${e.end ? ` end: ${e.end},` : ''} title: '${esc(e.title)}', tier: ${e.tier}, category: '${e.category}', detail: '${esc(e.detail)}', link: '${e.link}'${e.geo ? `, lat: ${e.geo[0]}, lon: ${e.geo[1]}` : ''} }`);
+const lines = all.map((e) => `    { t: ${e.t},${e.end ? ` end: ${e.end},` : ''} title: '${esc(e.title)}', tier: ${e.tier}, category: '${e.category}', detail: '${esc(e.detail)}', link: '${e.link}'${e.geo ? `, lat: ${e.geo[0]}, lon: ${e.geo[1]}` : ''}${e.group ? `, group: '${esc(e.group)}'` : ''} }`);
 const file = `(function (root) {
   'use strict';
   const HT = root.HT || (root.HT = {});

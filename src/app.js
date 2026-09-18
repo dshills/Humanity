@@ -28,6 +28,11 @@
   const THEME_KEY = 'ht-theme';
   const EARTH_KEY = 'ht-earth';
   const HIDDEN_KEY = 'ht-hidden-cats';
+  const REIGNS_KEY = 'ht-reigns';
+  const REIGN_ROW_H = 17;                 // px per swimlane row
+  const REIGN_TOP = 22;                   // px from the top of the stage to the first row (clears the corner bracket)
+  const REIGN_MAX_ROWS = 12;
+  const REIGN_MIN_WIDTH = 640;            // narrower stages keep reigns as ordinary events
   const WIKI_PREFIX = 'https://en.wikipedia.org/wiki/';
   const SEARCH_LIMIT = 12;
   const EARTH_ORDER = ['co2', 'temp', 'sea', 'pop'];
@@ -77,6 +82,10 @@
   let clockTimer = 0;
   let earthOn = true;                     // climate sparklines visible
   const hiddenCats = new Set();           // categories filtered out via the legend
+  let reignsOn = true;                    // ruler swimlanes visible
+  let reignReserve = 0;                   // px at the top of the stage reserved for swimlanes this frame
+  let reignRows = [];                     // [{ group, items: [event index] }] chosen for this frame
+  let groupOrder = null;                  // stable row order: first appearance in the data
   let searchIndex = null;                 // lazily built [{ i, key }] of lower-cased titles
   let searchHits = [];
   let searchActive = -1;
@@ -548,8 +557,10 @@
     // On short stages the Earth layer needs room beneath the axis; the lanes above have slack, so lift the axis.
     const axisY = Math.round(h * (earthOn && h < 760 ? Math.min(AXIS_FRACTION, 0.52) : AXIS_FRACTION));
     lastAxisY = axisY;
+    planReigns(shown, axisY);                           // decides rows and reserves their height before lanes are packed
     renderTicks(shown, axisY);
     renderEvents(shown, axisY);
+    renderReigns(shown);
     renderEarth(shown, axisY);
     renderNowMarker(shown, axisY);
     dom.cursorLine.setAttribute('y1', 0);
@@ -557,6 +568,86 @@
     if (lastMouseX !== null) updateCursor(lastMouseX);  // the date under a resting pointer changes with the view
     updateHud(shown);
     settleNext = false;
+  }
+
+  // --- Reign swimlanes: one row per office at the top of the stage ---
+  function reignsActive() {
+    return reignsOn && size.width >= REIGN_MIN_WIDTH;
+  }
+
+  function planReigns(v, axisY) {
+    reignRows = [];
+    reignReserve = 0;
+    if (!reignsActive()) return;
+    const list = events();
+    if (!groupOrder) {
+      groupOrder = [];
+      for (let i = 0; i < list.length; i++) if (list[i].group && groupOrder.indexOf(list[i].group) < 0) groupOrder.push(list[i].group);
+    }
+    const byGroup = new Map();
+    for (let i = 0; i < list.length; i++) {
+      const ev = list[i];
+      if (!ev.group || hiddenCats.has(ev.category)) continue;
+      const tEnd = hasEnd(ev) ? ev.end : ev.t;
+      if (tEnd < v.start || ev.t > v.end) continue;
+      let g = byGroup.get(ev.group);
+      if (!g) { g = { group: ev.group, items: [], weight: 0 }; byGroup.set(ev.group, g); }
+      g.items.push(i);
+      g.weight += 1 / (1 + ev.tier);                      // prominence decides who stays when rows run out
+    }
+    if (byGroup.size === 0) return;
+    // Leave the event lanes at least four rows; swimlanes take what is left above them.
+    const room = axisY - LANE_TOP_PAD - 4 * LANE_PITCH - REIGN_TOP;
+    const maxRows = Math.min(REIGN_MAX_ROWS, Math.max(0, Math.floor(room / REIGN_ROW_H)));
+    if (maxRows === 0) return;
+    let chosen = Array.from(byGroup.values());
+    if (chosen.length > maxRows) chosen = chosen.sort(function (a, b) { return b.weight - a.weight; }).slice(0, maxRows);
+    chosen.sort(function (a, b) { return groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group); });
+    reignRows = chosen;
+    reignReserve = REIGN_TOP + chosen.length * REIGN_ROW_H + 8;
+  }
+
+  function renderReigns(v) {
+    const g = dom.gReigns;
+    if (!reignRows.length) { g.replaceChildren(); return; }
+    const list = events();
+    const w = size.width;
+    const frag = document.createDocumentFragment();
+    for (let r = 0; r < reignRows.length; r++) {
+      const row = reignRows[r];
+      const y = REIGN_TOP + r * REIGN_ROW_H;
+      frag.appendChild(svgEl('line', { class: 'row-line', x1: 0, x2: w, y1: crisp(y + REIGN_ROW_H - 1), y2: crisp(y + REIGN_ROW_H - 1) }));
+      const labelW = row.group.length * 6.6 + 26;         // keep names clear of the row label
+      for (let k = 0; k < row.items.length; k++) {
+        const i = row.items[k];
+        const ev = list[i];
+        const x0 = clamp(tToPx(ev.t, v), 0, w);
+        const x1 = clamp(tToPx(hasEnd(ev) ? ev.end : ev.t, v), 0, w);
+        const width = Math.max(2, x1 - x0);
+        const seg = svgEl('g', {
+          class: 'event reign cat-' + ev.category + (k % 2 ? ' alt' : '') + (i === selected ? ' selected' : ''),
+          id: 'ev-' + i, 'data-index': i, tabindex: 0, role: 'button',
+          'aria-label': ev.title + ', ' + eventDateLabel(ev)
+        });
+        seg.appendChild(svgEl('rect', { class: 'seg', x: x0, y: y + 1, width: width, height: REIGN_ROW_H - 3, rx: 2 }));
+        // The row already says the office and country: "Henry II of France" -> "Henry II", "Kangxi Emperor" -> "Kangxi".
+        const name = String(ev.title).split(',')[0].replace(/ of (France|England|Portugal|Spain|Russia|Prussia|Ethiopia|Japan|China|the United Kingdom)$/, '').replace(/^Emperor /, '').replace(/ Emperor$/, '').replace(/^Pope /, '');
+        const lx = Math.max(x0, labelW) + 5;
+        if (x0 + width - lx >= name.length * 5.9 + 4) {
+          seg.appendChild(svgEl('text', { class: 'seg-label', x: lx, y: y + REIGN_ROW_H - 5 }, name));
+        }
+        frag.appendChild(seg);
+      }
+      frag.appendChild(svgEl('text', { class: 'row-label', x: 18, y: y + REIGN_ROW_H - 5 }, row.group));
+    }
+    g.replaceChildren(frag);
+  }
+
+  function setReigns(on) {
+    reignsOn = !!on;
+    try { root.localStorage.setItem(REIGNS_KEY, reignsOn ? '1' : '0'); } catch (err) { /* ignore */ }
+    if (dom && dom.btnReigns) dom.btnReigns.setAttribute('aria-pressed', String(reignsOn));
+    if (dom && shown) { settleNext = true; render(); }
   }
 
   // --- Earth layer: climate sparklines beneath the axis ---
@@ -841,7 +932,7 @@
     for (let k = 0; k <= maxTier; k++) counts.push(0);
     for (let i = 0; i < list.length; i++) {
       const ev = list[i];
-      if (hiddenCats.has(ev.category)) continue;
+      if (hiddenCats.has(ev.category) || (ev.group && reignsActive())) continue;
       const tEnd = hasEnd(ev) ? ev.end : ev.t;
       if (tEnd < v.start || ev.t > v.end) continue;
       counts[clamp(ev.tier, 0, maxTier)]++;
@@ -859,7 +950,7 @@
     const span = v.end - v.start;
     const list = events();
     const colors = (HT.tiers && HT.tiers.COLORS) || {};
-    const maxLanes = clamp(Math.floor((axisY - LANE_TOP_PAD) / LANE_PITCH), 1, MAX_LANES);
+    const maxLanes = clamp(Math.floor((axisY - LANE_TOP_PAD - reignReserve) / LANE_PITCH), 1, MAX_LANES);
     const maxLabelW = Math.max(60, Math.min(320, w * 0.6));
     const items = [];
     const meta = [];
@@ -868,7 +959,7 @@
 
     for (let i = 0; i < list.length; i++) {
       const ev = list[i];
-      if (ev.tier > tierLimit || hiddenCats.has(ev.category)) continue;
+      if (ev.tier > tierLimit || hiddenCats.has(ev.category) || (ev.group && reignsActive())) continue;
       const ranged = hasEnd(ev);
       const tEnd = ranged ? ev.end : ev.t;
       if (tEnd < v.start || ev.t > v.end) continue;
@@ -1297,7 +1388,7 @@
     if (!dom || dom.panel.hidden) return;
     dom.panel.hidden = true;
     document.body.classList.remove('panel-open');
-    const was = selected >= 0 ? dom.gEvents.querySelector('.event[data-index="' + selected + '"]') : null;
+    const was = selected >= 0 ? dom.svg.querySelector('.event[data-index="' + selected + '"]') : null;
     if (was) { try { was.focus({ preventScroll: true }); } catch (err) { /* ignore */ } }
     selected = -1;
     markSelected();
@@ -1305,7 +1396,7 @@
   }
 
   function markSelected() {
-    const nodes = dom.gEvents.querySelectorAll('.event');
+    const nodes = dom.svg.querySelectorAll('.event');
     for (let i = 0; i < nodes.length; i++) {
       nodes[i].classList.toggle('selected', Number(nodes[i].dataset.index) === selected);
     }
@@ -1539,6 +1630,11 @@
         setTheme(THEMES[Number(e.key) - 1]);
         e.preventDefault();
         break;
+      case 'r':
+      case 'R':
+        setReigns(!reignsOn);
+        e.preventDefault();
+        break;
       case 'e':
       case 'E':
         setEarth(!earthOn);
@@ -1640,6 +1736,7 @@
     dom.gAxis = svgEl('g', { class: 'g-axis' });
     dom.gEvents = svgEl('g', { class: 'g-events' });
     dom.gEarth = svgEl('g', { class: 'g-earth', 'pointer-events': 'none' });
+    dom.gReigns = svgEl('g', { class: 'g-reigns' });
     dom.gNow = svgEl('g', { class: 'g-now', 'pointer-events': 'none' });
     dom.gCursor = svgEl('g', { class: 'g-cursor', 'pointer-events': 'none' });
     dom.cursorLine = svgEl('line', { class: 'cursor-line', x1: 0, x2: 0, y1: 0, y2: 0, visibility: 'hidden' });
@@ -1651,7 +1748,7 @@
     measureEvent.appendChild(measureLabelEl);
     gMeasure.appendChild(measureTickEl);
     gMeasure.appendChild(measureEvent);
-    svg.replaceChildren(dom.gMinor, dom.gMajor, dom.gEarth, dom.gLabels, dom.gAxis, dom.gNow, dom.gEvents, dom.gCursor, gMeasure);
+    svg.replaceChildren(dom.gMinor, dom.gMajor, dom.gEarth, dom.gLabels, dom.gAxis, dom.gNow, dom.gReigns, dom.gEvents, dom.gCursor, gMeasure);
 
     // The tooltip is positioned in stage coordinates; make sure the stage is its containing block.
     dom.tooltip.style.position = 'absolute';
@@ -1679,7 +1776,7 @@
       hudSpan: $('hud-span'), hudEvents: $('hud-events'), hudTier: $('hud-tier'), hudScale: $('hud-scale'),
       hudMode: $('hud-mode'), hudClock: $('hud-clock'), hudNow: $('hud-now'),
       hudEarth: $('hud-earth'), hudCity: $('hud-city'), btnEarth: $('btn-earth'), hud: $('hud'),
-      btnSearch: $('btn-search'), search: $('search'), searchInput: $('search-input'), searchResults: $('search-results'),
+      btnReigns: $('btn-reigns'), btnSearch: $('btn-search'), search: $('search'), searchInput: $('search-input'), searchResults: $('search-results'),
       panelMap: $('panel-map'), panelMapSvg: $('panel-map-svg'), panelMapCap: $('panel-map-cap')
     };
     NOW = HT.time.now();
@@ -1701,6 +1798,11 @@
     tickClock();
     clockTimer = setInterval(tickClock, 1000);
     try { earthOn = root.localStorage.getItem(EARTH_KEY) !== '0'; } catch (err) { /* ignore */ }
+    try { reignsOn = root.localStorage.getItem(REIGNS_KEY) !== '0'; } catch (err) { /* ignore */ }
+    if (dom.btnReigns) {
+      dom.btnReigns.setAttribute('aria-pressed', String(reignsOn));
+      dom.btnReigns.addEventListener('click', function () { setReigns(!reignsOn); });
+    }
     if (dom.btnEarth) {
       dom.btnEarth.setAttribute('aria-pressed', String(earthOn));
       dom.btnEarth.addEventListener('click', function () { setEarth(!earthOn); });
@@ -1740,6 +1842,7 @@
     setTheme: setTheme,
     getTheme: getTheme,
     setEarth: setEarth,
+    setReigns: setReigns,
     THEMES: THEMES.slice()
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -23,7 +23,7 @@ const { ROOT_START, bce, ce, now } = HT.time;
 const { CATEGORIES, tierForSpan } = HT.tiers;
 
 const DATA_DIR = path.join(__dirname, '..', 'src', 'data');
-const ALLOWED_KEYS = ['t', 'end', 'title', 'detail', 'tier', 'category', 'link', 'lat', 'lon'];
+const ALLOWED_KEYS = ['t', 'end', 'title', 'detail', 'tier', 'category', 'link', 'lat', 'lon', 'group'];
 const MAX_TIER = 7;
 const TITLE_MAX = 80;
 const DETAIL_MIN = 20;
@@ -316,6 +316,15 @@ describe('lat/lon (optional)', () => {
       if (e.lat === undefined && e.lon === undefined) continue;
       assert.ok(Number.isFinite(e.lat) && e.lat >= -90 && e.lat <= 90, `lat out of range: ${e.title}`);
       assert.ok(Number.isFinite(e.lon) && e.lon >= -180 && e.lon <= 180, `lon out of range: ${e.title}`);
+    }
+  });
+});
+
+describe('group (optional)', () => {
+  test('is a short non-empty string when present', () => {
+    for (const e of globalThis.HT.events) {
+      if (e.group === undefined) continue;
+      assert.ok(typeof e.group === 'string' && e.group.length > 0 && e.group.length <= 60, `bad group: ${e.title}`);
     }
   });
 });

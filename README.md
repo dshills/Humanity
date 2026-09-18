@@ -83,6 +83,8 @@ Data credits (US Government works, unrestricted): Bereiter et al. 2015 CO₂ com
 - **Battles**: every item classed as a battle with a dated point in time and at least 20 sitelinks (roughly 600), tiered by sitelink count. A battle that a hand-curated event of the same year already names is skipped so the curated entry keeps its place.
 - **Rulers and heads of government**: holders of 31 offices, from pharaohs, Assyrian and Babylonian kings, Roman and Byzantine emperors, emperors of China, Japan and Ethiopia, popes, caliphs, khagans, sultans, Incas and tlatoque to US presidents, British and Indian prime ministers, French presidents and German chancellors. Each reign or term is a ranged event with at least 25 sitelinks.
 
+With **Reigns** on (the header button or `R`, on by default on screens at least 640 px wide), rulers leave the ordinary event lanes and appear as **swimlanes** at the top of the stage: one row per office, each reign or term a bar labelled with the ruler's name when it fits. Rows keep a stable order, only offices with a holder in view are drawn, and when more offices are in view than there is room for, the most prominent ones stay. The event lanes always keep at least four rows. Bars behave like any other event: hover for the tooltip, click or press Enter for the panel. Category filters apply to the swimlanes too.
+
 Titles and one-line descriptions are Wikidata's own; each event links to its English Wikipedia article when one exists, otherwise to the Wikidata item. Dates are as recorded in Wikidata, which keeps pre-1582 dates in the Julian calendar. Regenerate with:
 
 ```
@@ -277,7 +279,7 @@ Choices the spec left open, as implemented:
 - Transitions animate over 250 ms with a cubic ease-out, interpolating `log(span)` and the center so that zooming looks uniform at every scale. A 350 ms safety timer lands the view if animation frames are starved. Animation is skipped under `prefers-reduced-motion`.
 - Mouse wheel zooms by `exp(deltaY × 0.002)` per event, clamped to [0.5, 2]; a trackpad pinch (a wheel event with `ctrlKey`) uses `0.01` because it reports much smaller deltas. Shift+wheel and horizontal wheel deltas pan. Line- and page-mode deltas are scaled to pixels.
 - Touch uses Pointer Events with `touch-action: none`; a press becomes a drag after 4 px of movement; a two-finger pinch keeps the date under each finger fixed by solving the linear pixel mapping; three or more fingers are ignored; when one finger of a pinch lifts, the other continues as a pan. Safari's `gesturestart`/`gesturechange` are suppressed. Touch pointers never show the tooltip or the cursor guide.
-- Keyboard: `Escape`, `-`/`_` (zoom out), `0` (home), `+`/`=` (zoom in at center), `1`–`6` (visual mode), `T` (cycle modes), `E` (Earth layer), `/` (search). Ignored while Ctrl, Alt or Meta is held or while focus is in a form field. There is no Home-key binding; Home is the button.
+- Keyboard: `Escape`, `-`/`_` (zoom out), `0` (home), `+`/`=` (zoom in at center), `1`–`6` (visual mode), `T` (cycle modes), `E` (Earth layer), `R` (reign swimlanes), `/` (search). Ignored while Ctrl, Alt or Meta is held or while focus is in a form field. There is no Home-key binding; Home is the button.
 - The stage is resized on `window.resize` and on a `ResizeObserver` for the stage (so opening the panel reflows without a window event), debounced 100 ms.
 
 **Appearance**
