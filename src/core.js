@@ -131,7 +131,7 @@
   ];
   const REGION_BOXES = {   // [latMin, latMax, lonMin, lonMax], drawn on the legend map
     africa: [[-36, 37.5, -19, 52]], europe: [[35, 72, -25, 45]], asia: [[-11, 78, 45, 180], [12, 42, 34, 63]],
-    namerica: [[7, 84, -170, -50]], samerica: [[-56, 13, -82, -34]], oceania: [[-50, 0, 110, 180], [-30, 25, -180, -130]]
+    namerica: [[7, 84, -170, -50]], samerica: [[-56, 13, -82, -34]], oceania: [[-50, 0, 110, 180], [-30, 25, -180, -130], [0, 21, 130, 180], [-28, -26, -110, -108]]
   };
   const OFFICE_REGION = [
     [/tlatoani/, 'namerica'],
@@ -149,6 +149,8 @@
     if (lon >= 110 && lat >= -50 && lat < -10) return 'oceania';
     if (lon >= 140 && lat >= -12 && lat < 0) return 'oceania';                            // New Guinea
     if (lon <= -130 && lat >= -30 && lat <= 25) return 'oceania';                         // Polynesia, Hawaii
+    if (lon >= -110 && lon <= -108 && lat >= -28 && lat <= -26) return 'oceania';         // Rapa Nui, far east of the rest
+    if (lon >= 130 && lat >= 0 && lat <= 21) return 'oceania';                            // Micronesia, before Asia claims it
     if (lon >= 45 && lat >= -11 && lat <= 78) return 'asia';
     if (lon >= -82 && lon <= -34 && lat >= -56 && lat < 12.5) return 'samerica';
     if (lon >= -170 && lon <= -50 && lat >= 7 && lat <= 84) return 'namerica';
@@ -300,9 +302,11 @@
   }
 
   // Indices of the events either side of list[index]. A reign gets the previous and next holder of its office.
-  // Anything else gets the two nearest before and the two nearest after of comparable weight
-  // (tier <= max(tier + 1, 4)), so a landmark's neighbours are not simply the nearest tremor.
-  function pickNearby(list, index, passes) {
+  // Anything else gets two before and two after of comparable weight (tier <= max(tier + 1, 4)), so a
+  // landmark's neighbours are not simply the nearest tremor. Hand-curated events are preferred to generated
+  // ones (a conflict's start date, a launch): `curated(ev, i)` marks them, and a generated event must be more
+  // than three times closer in time to displace one. Without `curated`, distance alone decides.
+  function pickNearby(list, index, passes, curated) {
     const ev = list[index];
     const near = [];
     if (!ev) return near;
@@ -323,13 +327,13 @@
     for (let i = 0; i < list.length; i++) {
       const o = list[i];
       if (i === index || o.group || o.otd || o.tier > cap || (passes && !passes(o, i))) continue;
-      (o.t < ev.t ? before : after).push(i);
+      const d = Math.abs(o.t - ev.t) * (curated && !curated(o, i) ? 3 : 1);
+      (o.t < ev.t ? before : after).push({ i: i, d: d });
     }
-    before.sort(function (x, y) { return list[y].t - list[x].t; });
-    after.sort(function (x, y) { return list[x].t - list[y].t; });
-    before.slice(0, 2).reverse().forEach(function (i) { near.push(i); });
-    after.slice(0, 2).forEach(function (i) { near.push(i); });
-    return near;
+    const byDistance = function (x, y) { return x.d - y.d || x.i - y.i; };
+    const byTime = function (x, y) { return list[x].t - list[y].t || x - y; };
+    const take = function (side) { return side.sort(byDistance).slice(0, 2).map(function (x) { return x.i; }).sort(byTime); };
+    return take(before).concat(take(after));
   }
 
   // Three nearest events of the same category, in time order; distance counts six-fold outside the event's region.

@@ -10,7 +10,7 @@
   <img src="docs/mode-paper.png" width="32%" alt="Paper mode: warm ink on paper">
 </p>
 
-A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 3,982 events in 16 color-coded categories, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, nothing to install, and no network requests unless you switch on the optional Wikimedia content (images, article summaries and day-by-day events).
+A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 4,059 events in 16 color-coded categories, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, nothing to install, and no network requests unless you switch on the optional Wikimedia content (images, article summaries and day-by-day events).
 
 ## Open it
 
@@ -104,16 +104,16 @@ Both are build-time imports; the page still makes no network requests. Nobel Pri
 
 ## Map, filters and search
 
-- **Where it happened.** The detail panel shows a small world map with a pin and crosshair for any event with known coordinates. Hazards, battles and launches carry coordinates from their sources; the hand-curated events get theirs from Wikidata through each event's Wikipedia link (`scripts/import-geo.mjs` writes `src/geo.js`). When the point comes from a related place, such as a location or birthplace, rather than the item itself, the caption says "approximate". Country-level places are never used: an event known only to a country, state, empire or continent shows no map rather than a pin at a centroid. The land outline is Natural Earth 110m (public domain), simplified to a single 17 KB path by `scripts/build-map.mjs`.
+- **Where it happened.** The detail panel shows a small world map with a pin and crosshair for any event with known coordinates. Hazards, battles and launches carry coordinates from their sources; the hand-curated events get theirs from Wikidata through each event's Wikipedia link (`scripts/import-geo.mjs` writes `src/geo.js`). A curated event can also carry its own `lat` and `lon`, which win: about 125 do, mostly in Africa, the Americas before 1500 and Oceania, where the linked article is often about a culture or a person rather than a place. These point at the site itself (a cave, a city, a battlefield) or, for a national political event, at the capital. When the point comes from a related place, such as a location or birthplace, rather than the item itself, the caption says "approximate". Country-level places are never used: an event known only to a country, state, empire or continent shows no map rather than a pin at a centroid. The land outline is Natural Earth 110m (public domain), simplified to a single 17 KB path by `scripts/build-map.mjs`.
 - **Category filters.** The legend's entries are toggles: click to hide or show a category, Shift+click to show only that one, and use All or None to reset. A dot on the Legend button marks an active filter, and the choice is remembered. Hidden categories are excluded before tier selection, so the remaining events fill the view.
-- **Region filter.** Below the categories, the legend has a row of regions and a small world map; pick Africa, Europe, Asia, N. America, S. America or Oceania (or click the map) and only events located there remain. Regions are coarse latitude/longitude boxes, with the Middle East counted as Asia; rulers, who carry no coordinates, are placed by their office. Events with no known location are hidden while a region is chosen, and the choice is remembered alongside the category filter.
+- **Region filter.** Below the categories, the legend has a row of regions and a small world map; pick Africa, Europe, Asia, N. America, S. America or Oceania (or click the map) and only events located there remain. Regions are coarse latitude/longitude boxes, with the Middle East counted as Asia and Micronesia, Hawaii and Rapa Nui as Oceania; rulers, who carry no coordinates, are placed by their office. Events with no known location are hidden while a region is chosen, and the choice is remembered alongside the category filter.
 - **Search.** Press `/` or the Search button, type at least two characters, and pick a result with the arrow keys and Enter or a click. Title-prefix matches rank first, then word starts, then substrings, with ties going to the more significant event. Choosing a result zooms to the event and opens its panel, un-hiding its category and lifting the region filter if they would hide it.
 
 ## More in the panel
 
 Every panel now ends with ways onward, none of which touch the network until followed:
 
-- **Around this time**: the two nearest events before and after of comparable significance (no more than one tier finer than the open event, never finer than tier 4 unless it is), each with its distance in time; for a ruler, the predecessor and successor in the same office instead.
+- **Around this time**: two events before and two after of comparable significance (no more than one tier finer than the open event, never finer than tier 4 unless it is), each with its distance in time. Hand-curated events are preferred to generated ones: an imported earthquake, launch or conflict start has to be more than three times closer in time to take the place of a curated neighbour, so Apollo 11 sits between the Civil Rights Act and the first ARPANET message rather than between two civil wars. For a ruler, the list is the predecessor and successor in the same office instead.
 - **More in <category>**: the three nearest events of the same category, preferring the same region of the world.
 - **Links**: the year's article on Wikipedia (back to 800 BCE), the calendar day's article for day-precise dates, the place on OpenStreetMap when the event is located, and the event's Wikidata item.
 
@@ -248,14 +248,14 @@ src/
                         overview scale, tier selection, on-this-day parsing, panel neighbours)
   app.js                HT.app: rendering, zoom/pan/pinch, history and URL state, panel
   data/
-    01-prehistory.js    44 events, 300,000 years ago – 10,000 BCE
-    02-ancient.js       56 events, 10,000 BCE – 500 BCE
-    03-classical.js     60 events, 500 BCE – 500 CE
-    04-medieval.js      59 events, 500 – 1500
-    05-early-modern.js  66 events, 1500 – 1800
-    06-modern.js        71 events, 1800 – 1945
-    07-postwar.js       72 events, 1945 – 1990
-    08-contemporary.js  62 events, 1990 – today
+    01-prehistory.js    95 events, 300,000 years ago – 10,000 BCE
+    02-ancient.js       105 events, 10,000 BCE – 500 BCE
+    03-classical.js     99 events, 500 BCE – 500 CE
+    04-medieval.js      126 events, 500 – 1500
+    05-early-modern.js  107 events, 1500 – 1800
+    06-modern.js        139 events, 1800 – 1945
+    07-postwar.js       128 events, 1945 – 1990
+    08-contemporary.js  112 events, 1990 – today
 test/
   time.test.js          calendar conversions, histYear, every formatter
   tiers.test.js         tierForSpan, tierSpan, palette contrast on both backgrounds

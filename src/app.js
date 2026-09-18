@@ -1637,7 +1637,8 @@
     if (!dom.panelNear) return;
     const list = events();
     const ev = list[index];
-    const near = C.pickNearby(list, index, passesFilters);
+    const curatedCount = HT.curatedCount || 0;         // set by the build where the hand-written data files end
+    const near = C.pickNearby(list, index, passesFilters, curatedCount ? function (o, i) { return i < curatedCount; } : null);
     dom.panelNear.hidden = near.length === 0;
     dom.panelNear.querySelector('h3').textContent = ev.group ? 'Before and after in this office' : 'Around this time';
     fillEventList(dom.panelNearList, near, ev);

@@ -83,6 +83,9 @@
       tier: 5, category: 'war',
       link: 'https://en.wikipedia.org/wiki/German_Peasants%27_War'
     },
+    { t: ce(1526), title: "Afonso I of Kongo writes to Portugal protesting the slave trade",
+      detail: "The Christian king complained to João III that Portuguese traders were seizing even nobles and depopulating his country, one of the earliest African protests against the trade; the trade only grew.",
+      tier: 6, category: 'politics', link: 'https://en.wikipedia.org/wiki/Afonso_I_of_Kongo', lat: -6.27, lon: 14.25 },
     {
       t: ce(1526, 4, 21),
       title: "Babur wins at Panipat and founds the Mughal Empire",
@@ -216,7 +219,7 @@
       title: "Moroccan army destroys the Songhai Empire at Tondibi",
       detail: "A Moroccan force of a few thousand musketeers under Judar Pasha crossed the Sahara and routed the far larger Songhai army near Gao; Timbuktu and Gao fell, ending the last of the great West African empires.",
       tier: 5, category: 'empire',
-      link: 'https://en.wikipedia.org/wiki/Battle_of_Tondibi'
+      link: 'https://en.wikipedia.org/wiki/Battle_of_Tondibi', lat: 16.67, lon: -0.2
     },
     {
       t: ce(1592, 5, 23), end: ce(1598, 12, 16),
@@ -255,6 +258,9 @@
       tier: 4, category: 'art',
       link: 'https://en.wikipedia.org/wiki/Don_Quixote'
     },
+    { t: ce(1606), title: "Willem Janszoon makes the first recorded European landing in Australia",
+      detail: "The Dutch ship Duyfken charted 300 km of the western side of Cape York, which its captain took for part of New Guinea; clashes ashore during the voyage cost some of his crew their lives.",
+      tier: 6, category: 'exploration', link: 'https://en.wikipedia.org/wiki/Janszoon_voyage_of_1605%E2%80%931606', lat: -12.22, lon: 141.73 },
     {
       t: ce(1607, 5, 14),
       title: "Jamestown founded, the first permanent English settlement in America",
@@ -290,6 +296,9 @@
       tier: 6, category: 'migration',
       link: 'https://en.wikipedia.org/wiki/Mayflower_Compact'
     },
+    { t: ce(1624), title: "Njinga becomes ruler of Ndongo and resists Portuguese conquest for four decades",
+      detail: "By diplomacy, shifting alliances with the Dutch and the Imbangala, and war from her new base in Matamba, Queen Njinga kept an independent kingdom in what is now Angola until her death in 1663.",
+      tier: 6, category: 'politics', link: 'https://en.wikipedia.org/wiki/Nzinga_of_Ndongo_and_Matamba', lat: -9.3, lon: 15.6 },
     {
       t: ce(1628),
       title: "William Harvey demonstrates the circulation of the blood",
@@ -311,6 +320,9 @@
       tier: 6, category: 'science',
       link: 'https://en.wikipedia.org/wiki/Galileo_affair'
     },
+    { t: ce(1636), title: "Emperor Fasilides founds Gondar as Ethiopia's capital",
+      detail: "Ending centuries of roving royal camps, Fasilides built a stone castle compound north of Lake Tana; Gondar remained the seat of the Ethiopian emperors and a centre of church painting and scholarship for two hundred years.",
+      tier: 6, category: 'civilization', link: 'https://en.wikipedia.org/wiki/Gondar', lat: 12.61, lon: 37.47 },
     {
       t: ce(1637, 6, 8),
       title: "Descartes publishes the Discourse on the Method",
@@ -453,7 +465,7 @@
       title: "Osei Tutu founds the Ashanti Empire",
       detail: "Uniting the Akan states around Kumasi under the sacred Golden Stool and defeating their overlord Denkyira, Osei Tutu created a gold-rich empire that dominated the forests of present-day Ghana for two centuries.",
       tier: 6, category: 'empire',
-      link: 'https://en.wikipedia.org/wiki/Ashanti_Empire'
+      link: 'https://en.wikipedia.org/wiki/Ashanti_Empire', lat: 6.69, lon: -1.62
     },
     {
       t: ce(1707, 3, 3),
@@ -665,7 +677,7 @@
       title: "First Fleet lands at Sydney Cove, founding British Australia",
       detail: "Eleven ships carrying about 750 convicts with their guards established the penal colony of New South Wales, beginning European settlement and the dispossession of Aboriginal peoples.",
       tier: 5, category: 'migration',
-      link: 'https://en.wikipedia.org/wiki/First_Fleet'
+      link: 'https://en.wikipedia.org/wiki/First_Fleet', lat: -33.86, lon: 151.21
     },
     {
       t: ce(1789),

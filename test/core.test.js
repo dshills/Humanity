@@ -184,6 +184,8 @@ test('regionOf places well-known cities', () => {
     ['New York', 40.7, -74.0, 'namerica'], ['Tenochtitlan', 19.4, -99.1, 'namerica'],
     ['Cusco', -13.5, -72.0, 'samerica'], ['Rio', -22.9, -43.2, 'samerica'],
     ['Sydney', -33.9, 151.2, 'oceania'], ['Honolulu', 21.3, -157.9, 'oceania'], ['Port Moresby', -9.4, 147.2, 'oceania'],
+    ['Rapa Nui', -27.12, -109.37, 'oceania'], ['Pohnpei', 6.84, 158.33, 'oceania'], ['Guam', 13.45, 144.78, 'oceania'],
+    ['Bikini Atoll', 11.7, 165.27, 'oceania'], ['Manila', 14.6, 121.0, 'asia'], ['Cabo San Lucas', 22.9, -109.9, 'namerica'],
   ];
   for (const [name, lat, lon, want] of cases) assert.equal(C.regionOf(lat, lon), want, name);
   assert.equal(C.regionOf(-75, 0), '', 'Antarctica has no region');
@@ -406,6 +408,24 @@ test('pickNearby honours the filter and widens the tier cap for fine-grained eve
   assert.ok(C.pickNearby(LIST, 1, null).length === 4);
   const fine = [{ t: 1, tier: 7 }, { t: 2, tier: 7 }, { t: 3, tier: 7 }];
   assert.deepEqual(C.pickNearby(fine, 1, null), [0, 2], 'a tier-7 event may have tier-7 neighbours');
+});
+
+test('pickNearby prefers curated events unless a generated one is more than three times closer', () => {
+  const list = [
+    { t: 1960, tier: 3 },        // 0 curated, 9 years before
+    { t: 1965, tier: 4 },        // 1 generated, 4 years before: 4 * 3 = 12 > 9, so the curated one wins a slot first
+    { t: 1968.9, tier: 4 },      // 2 generated, 0.1 years before: 0.3, clearly closest
+    { t: 1969, tier: 2 },        // 3 the open event
+    { t: 1969.5, tier: 4 },      // 4 generated, 0.5 after: 1.5
+    { t: 1972, tier: 3 },        // 5 curated, 3 after
+    { t: 1973, tier: 4 },        // 6 generated, 4 after: 12
+    { t: 1980, tier: 3 },        // 7 curated, 11 after
+  ];
+  const curated = (o, i) => [0, 3, 5, 7].includes(i);
+  assert.deepEqual(C.pickNearby(list, 3, null, null), [1, 2, 4, 5], 'without the marker, nearest in time');
+  assert.deepEqual(C.pickNearby(list, 3, null, curated), [0, 2, 4, 5], 'with it, 1960 displaces the 1965 generated event');
+  const far = list.slice(); far[5] = { t: 1995, tier: 3 }; far[7] = { t: 1990, tier: 3 };   // 26 and 21 years: both lose to 4 * 3 = 12
+  assert.deepEqual(C.pickNearby(far, 3, null, curated), [0, 2, 4, 6], 'but a curated event too far away does not');
 });
 
 test('pickNearby gives a ruler the previous and next holder of the same office', () => {
