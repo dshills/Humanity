@@ -105,9 +105,16 @@
       <svg id="panel-map-svg" role="img" aria-label="Location on a world map"></svg>
       <figcaption id="panel-map-cap"></figcaption>
     </figure>
+    <figure id="panel-image" hidden>
+      <a id="panel-img-link" target="_blank" rel="noopener noreferrer"><img id="panel-img" alt="" decoding="async" referrerpolicy="no-referrer"></a>
+      <figcaption id="panel-img-credit"></figcaption>
+    </figure>
     <p id="panel-detail"></p>
     <a id="panel-link" target="_blank" rel="noopener noreferrer" hidden>Read more ↗</a>
     <button id="panel-zoom" type="button">Zoom to this event</button>
+    <label id="panel-online" title="Off by default. When on, opening an event requests one thumbnail and its credit from Wikipedia and Wikimedia Commons. Nothing is requested while this is off.">
+      <input id="opt-images" type="checkbox"> <span>Load images from Wikimedia</span>
+    </label>
   </aside>
 </div>
 <script>

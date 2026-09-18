@@ -942,6 +942,38 @@ html[data-theme="paper"] #panel-title { font-size: 24px; }
   color: var(--accent);
 }
 
+#panel-image { margin: 14px 0 0; }
+#panel-img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  background: var(--bg-deep);
+}
+#panel-img-credit {
+  margin-top: 6px;
+  font: 500 10px/1.4 var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+#panel-online {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  min-height: 28px;
+  font: 600 10px/1.3 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+}
+#panel-online input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; cursor: pointer; }
+#panel-online:hover { color: var(--fg); }
+
 #panel-detail {
   margin: 16px 0 0;
   padding-top: 14px;

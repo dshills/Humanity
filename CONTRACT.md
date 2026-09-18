@@ -186,6 +186,7 @@ Rules (enforced by test/data.test.js):
 - `t` in [ROOT_START, now()]; `end` (optional) > t and ≤ now(); tier integer 0..7; category ∈ CATEGORIES
 - `lat`, `lon` (optional, generated files only): decimal degrees for the panel map; curated events get coordinates from `HT.geo` via their link.
 - `group` (optional, generated rulers only): the office a reign belongs to; grouped events render as swimlane bars (`.g-reigns`, `g.event.reign`) instead of lane events while `HT.app.setReigns(true)` (key R, persisted as `ht-reigns`) and the stage is at least 640 px wide.
+- Network: none by default. `HT.app.setImages(true)` (the panel's checkbox, persisted as `ht-images`, default off) allows two CORS GETs per opened event: Wikipedia `page/summary/{title}` and Commons `imageinfo|extmetadata`; results are cached under `ht-image-cache`; only `/wikipedia/commons/` files are shown.
 - `link` (optional): an `https://` URL for further reading (normally the English Wikipedia article); shown in the panel as "Read more", opened in a new tab. The page itself never fetches it.
 - title: 1–80 chars, no trailing period; detail: 1–2 sentences, 20–300 chars
 - no duplicate titles across all files; `id` is NOT authored (app derives it from index)

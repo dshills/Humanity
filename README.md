@@ -10,7 +10,7 @@
   <img src="docs/mode-paper.png" width="32%" alt="Paper mode: warm ink on paper">
 </p>
 
-A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 3,813 events in 16 color-coded categories, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, no network requests and nothing to install to view it.
+A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 3,813 events in 16 color-coded categories, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, nothing to install, and no network requests unless you switch on the optional Wikimedia images.
 
 ## Open it
 
@@ -103,6 +103,10 @@ Both are build-time imports; the page still makes no network requests. Nobel Pri
 - **Where it happened.** The detail panel shows a small world map with a pin and crosshair for any event with known coordinates. Hazards, battles and launches carry coordinates from their sources; the hand-curated events get theirs from Wikidata through each event's Wikipedia link (`scripts/import-geo.mjs` writes `src/geo.js`). When the point comes from a related place, such as a location, birthplace or country, rather than the item itself, the caption says "approximate". The land outline is Natural Earth 110m (public domain), simplified to a single 17 KB path by `scripts/build-map.mjs`.
 - **Category filters.** The legend's entries are toggles: click to hide or show a category, Shift+click to show only that one, and use All or None to reset. A dot on the Legend button marks an active filter, and the choice is remembered. Hidden categories are excluded before tier selection, so the remaining events fill the view.
 - **Search.** Press `/` or the Search button, type at least two characters, and pick a result with the arrow keys and Enter or a click. Title-prefix matches rank first, then word starts, then substrings, with ties going to the more significant event. Choosing a result zooms to the event and opens its panel, un-hiding its category if needed.
+
+## Opt-in images
+
+The page makes no network requests on its own. The detail panel has one checkbox, **Load images from Wikimedia**, which is off by default. While it is on, opening an event that links to Wikipedia requests that article's thumbnail from the Wikipedia summary API and the file's author and licence from Wikimedia Commons, shows them with a credit line linking to the file page, and caches the result locally (up to 200 events) so each article is asked for once. Images hosted on English Wikipedia itself are fair-use files, not freely licensed, and are never shown. Requests carry no cookies or referrer, a slow response can never land on a different event, and if the network is unavailable the panel simply has no image. Untick the box and the page goes back to making no requests.
 
 ## Significance scores
 

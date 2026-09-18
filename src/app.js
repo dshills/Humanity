@@ -29,6 +29,10 @@
   const EARTH_KEY = 'ht-earth';
   const HIDDEN_KEY = 'ht-hidden-cats';
   const REIGNS_KEY = 'ht-reigns';
+  const IMAGES_KEY = 'ht-images';
+  const IMAGE_CACHE_KEY = 'ht-image-cache';
+  const IMAGE_CACHE_MAX = 200;
+  const API_UA = 'HumanityTimeline/1.0 (https://github.com/dshills/Humanity)';
   const REIGN_ROW_H = 17;                 // px per swimlane row
   const REIGN_TOP = 22;                   // px from the top of the stage to the first row (clears the corner bracket)
   const REIGN_MAX_ROWS = 12;
@@ -83,6 +87,9 @@
   let earthOn = true;                     // climate sparklines visible
   const hiddenCats = new Set();           // categories filtered out via the legend
   let reignsOn = true;                    // ruler swimlanes visible
+  let imagesOn = false;                   // opt-in: fetch a thumbnail from Wikimedia for the open event
+  let imageSeq = 0;                     // guards against a slow response landing on a different event
+  let imageCache = null;                  // { title: { src, page, credit } | 0 }  (0 = nothing usable)
   let reignReserve = 0;                   // px at the top of the stage reserved for swimlanes this frame
   let reignRows = [];                     // [{ group, items: [event index] }] chosen for this frame
   let groupOrder = null;                  // stable row order: first appearance in the data
@@ -1260,6 +1267,90 @@
     }
   }
 
+  // --- Opt-in Wikimedia image (the only network access the page ever makes, and only when switched on) ---
+  function loadImageCache() {
+    if (imageCache) return imageCache;
+    imageCache = {};
+    try { const raw = JSON.parse(root.localStorage.getItem(IMAGE_CACHE_KEY) || '{}'); if (raw && typeof raw === 'object') imageCache = raw; } catch (err) { /* ignore */ }
+    return imageCache;
+  }
+
+  function saveImageCache() {
+    try {
+      const keys = Object.keys(imageCache);
+      if (keys.length > IMAGE_CACHE_MAX) keys.slice(0, keys.length - IMAGE_CACHE_MAX).forEach(function (k) { delete imageCache[k]; });
+      root.localStorage.setItem(IMAGE_CACHE_KEY, JSON.stringify(imageCache));
+    } catch (err) { /* storage full or unavailable */ }
+  }
+
+  function stripTags(html) {
+    return String(html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  async function fetchEventImage(title) {
+    const res = await root.fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(title), {
+      headers: { 'Api-User-Agent': API_UA }, credentials: 'omit', referrerPolicy: 'no-referrer'
+    });
+    if (!res.ok) return 0;
+    const sum = await res.json();
+    const thumb = sum && sum.thumbnail && sum.thumbnail.source;
+    const orig = sum && sum.originalimage && sum.originalimage.source;
+    // Only freely licensed files live on Commons; images under /wikipedia/en/ are fair-use and are not shown.
+    // The file name sits after the two hash directories; "originalimage" may itself be a thumb URL with a query.
+    const m = /\/wikipedia\/commons\/(?:thumb\/)?[0-9a-f]\/[0-9a-f]{2}\/([^\/?#]+)/.exec(orig || '');
+    if (!thumb || !m) return 0;
+    let file = m[1];
+    try { file = decodeURIComponent(file); } catch (err) { /* keep raw */ }
+    const out = { src: thumb, page: 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(file), credit: 'Wikimedia Commons' };
+    try {
+      const meta = await root.fetch('https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=extmetadata&format=json&origin=*&titles=' +
+        encodeURIComponent('File:' + file), { credentials: 'omit', referrerPolicy: 'no-referrer' });
+      if (meta.ok) {
+        const pages = ((await meta.json()).query || {}).pages || {};
+        const info = pages[Object.keys(pages)[0]];
+        const em = info && info.imageinfo && info.imageinfo[0] && info.imageinfo[0].extmetadata;
+        if (em) {
+          const artist = stripTags(em.Artist && em.Artist.value).slice(0, 60);
+          const lic = stripTags(em.LicenseShortName && em.LicenseShortName.value).slice(0, 30);
+          out.credit = [artist, lic].filter(Boolean).join(' · ') + ' · Wikimedia Commons';
+        }
+      }
+    } catch (err) { /* keep the generic credit */ }
+    return out;
+  }
+
+  function showPanelImage(img, ev) {
+    if (!img) { dom.panelImage.hidden = true; dom.panelImg.removeAttribute('src'); return; }
+    dom.panelImg.src = img.src;
+    dom.panelImg.alt = ev.title;
+    dom.panelImgLink.href = img.page;
+    dom.panelImgCredit.textContent = img.credit;
+    dom.panelImage.hidden = false;
+  }
+
+  function updatePanelImage(ev) {
+    if (!dom.panelImage) return;
+    const seq = ++imageSeq;
+    showPanelImage(null, ev);
+    if (!imagesOn || typeof root.fetch !== 'function' || typeof ev.link !== 'string' || ev.link.indexOf(WIKI_PREFIX) !== 0) return;
+    let title = ev.link.slice(WIKI_PREFIX.length);
+    try { title = decodeURIComponent(title); } catch (err) { /* keep raw */ }
+    const cache = loadImageCache();
+    if (Object.prototype.hasOwnProperty.call(cache, title)) { showPanelImage(cache[title] || null, ev); return; }
+    fetchEventImage(title).then(function (img) {
+      cache[title] = img || 0;
+      saveImageCache();
+      if (seq === imageSeq && imagesOn) showPanelImage(img || null, ev);
+    }).catch(function () { /* offline or blocked: the panel simply has no image */ });
+  }
+
+  function setImages(on) {
+    imagesOn = !!on;
+    try { root.localStorage.setItem(IMAGES_KEY, imagesOn ? '1' : '0'); } catch (err) { /* ignore */ }
+    if (dom && dom.optImages) dom.optImages.checked = imagesOn;
+    if (dom && !dom.panel.hidden && selected >= 0) updatePanelImage(events()[selected]);
+  }
+
   // --- Panel map ---
   function eventCoords(ev) {
     if (Number.isFinite(ev.lat) && Number.isFinite(ev.lon)) return [ev.lat, ev.lon, 0];
@@ -1367,6 +1458,7 @@
     dom.panelDate.textContent = eventDateLabel(ev);
     dom.panelDetail.textContent = ev.detail || '';
     updatePanelMap(ev);
+    updatePanelImage(ev);
     if (typeof ev.link === 'string' && /^https:\/\//.test(ev.link)) {
       dom.panelLink.href = ev.link;
       dom.panelLink.textContent = /^https:\/\/[a-z-]+\.wikipedia\.org\//.test(ev.link) ? 'Read more on Wikipedia ↗' : 'Read more ↗';
@@ -1777,7 +1869,9 @@
       hudMode: $('hud-mode'), hudClock: $('hud-clock'), hudNow: $('hud-now'),
       hudEarth: $('hud-earth'), hudCity: $('hud-city'), btnEarth: $('btn-earth'), hud: $('hud'),
       btnReigns: $('btn-reigns'), btnSearch: $('btn-search'), search: $('search'), searchInput: $('search-input'), searchResults: $('search-results'),
-      panelMap: $('panel-map'), panelMapSvg: $('panel-map-svg'), panelMapCap: $('panel-map-cap')
+      panelMap: $('panel-map'), panelMapSvg: $('panel-map-svg'), panelMapCap: $('panel-map-cap'),
+      panelImage: $('panel-image'), panelImg: $('panel-img'), panelImgLink: $('panel-img-link'), panelImgCredit: $('panel-img-credit'),
+      optImages: $('opt-images')
     };
     NOW = HT.time.now();
     // Theme: URL param (read in parseHash below) > stored choice > auto.
@@ -1799,6 +1893,11 @@
     clockTimer = setInterval(tickClock, 1000);
     try { earthOn = root.localStorage.getItem(EARTH_KEY) !== '0'; } catch (err) { /* ignore */ }
     try { reignsOn = root.localStorage.getItem(REIGNS_KEY) !== '0'; } catch (err) { /* ignore */ }
+    try { imagesOn = root.localStorage.getItem(IMAGES_KEY) === '1'; } catch (err) { /* ignore */ }
+    if (dom.optImages) {
+      dom.optImages.checked = imagesOn;
+      dom.optImages.addEventListener('change', function () { setImages(dom.optImages.checked); });
+    }
     if (dom.btnReigns) {
       dom.btnReigns.setAttribute('aria-pressed', String(reignsOn));
       dom.btnReigns.addEventListener('click', function () { setReigns(!reignsOn); });
@@ -1843,6 +1942,7 @@
     getTheme: getTheme,
     setEarth: setEarth,
     setReigns: setReigns,
+    setImages: setImages,
     THEMES: THEMES.slice()
   };
 })(typeof window !== 'undefined' ? window : globalThis);
