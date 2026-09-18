@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The years 1955 to 1972 in NVG mode with the detail panel open on the building of the Berlin Wall: a location map pinned at 52.5°N 13.4°E, an opt-in Wikimedia image with its credit line, and the "Load images from Wikimedia" checkbox; swimlanes of heads of state run across the top, with events, the Earth layer and the largest-city ribbon below](docs/screenshot.png)
+![The years 1440 to 1560 in NVG mode with the detail panel open on Michelangelo painting the Sistine Chapel ceiling: a location map pinned at Rome, an opt-in Wikimedia photograph of the ceiling with its credit, and the paired museum object, Michelangelo's studies for the Libyan Sibyl from The Met; swimlanes of rulers run across the top, with events, the Earth layer and the largest-city ribbon below](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
