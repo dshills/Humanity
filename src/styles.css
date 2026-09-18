@@ -731,6 +731,20 @@ html[data-theme="paper"] .earth-line.sea { fill: none; }
 /* Now marker on the axis: today's position when it is in view. */
 .now-marker { stroke: var(--accent); stroke-width: 1.5; stroke-opacity: 0.8; }
 .g-now { pointer-events: none; }
+
+/* Recorded-history bracket on wide views: names the sliver at the right edge and jumps to it. */
+.era-jump { cursor: pointer; outline: none; }
+.era-zone { fill: rgba(var(--accent-rgb), 0.06); pointer-events: none; }
+.era-guide { stroke: var(--accent); stroke-opacity: 0.35; stroke-width: 1; stroke-dasharray: 2 4; pointer-events: none; }
+.era-bracket { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; }
+.era-label {
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  fill: var(--accent); paint-order: stroke fill; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round;
+}
+.era-hit { fill: transparent; stroke: transparent; stroke-width: 1; transition: fill 120ms var(--ease), stroke 120ms var(--ease); }
+.era-jump:hover .era-hit { fill: rgba(var(--accent-rgb), 0.1); stroke: rgba(var(--accent-rgb), 0.45); }
+.era-jump:focus-visible .era-hit { stroke: var(--accent); stroke-width: 2; }
+.era-jump:hover .era-zone, .era-jump:focus-visible .era-zone { fill: rgba(var(--accent-rgb), 0.12); }
 .now-line { stroke: var(--accent); stroke-width: 1; stroke-opacity: 0.35; stroke-dasharray: 2 4; }
 .future-zone { fill: rgba(var(--accent-rgb), 0.045); }
 .now-label {

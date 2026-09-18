@@ -36,6 +36,7 @@ Node 18 or newer, zero dependencies. The build concatenates `time.js, tiers.js, 
 | Mouse wheel / trackpad pinch | Zoom around the cursor; Shift+wheel or horizontal scroll pans |
 | Touch pinch | Zoom, keeping the date under each finger fixed |
 | Drag | Pan (nothing to pan at the root view) |
+| **Recorded history** bracket | On views wider than 20,000 years, everything since the first writing (c. 3300 BCE) is a sliver at the right edge; a labelled bracket marks it, and clicking it (or Enter while it has focus) zooms to 3500 BCE – today |
 | **Today** line | A view can run 3.5% past the present, so today is a marked line with a little empty room after it rather than the clipped right edge; nothing is ticked or plotted beyond it |
 | Breadcrumbs | The chain of views from `All of humanity` to the current one; click any crumb to return to it |
 | Browser back / forward | Steps through zoom history; the URL hash (`#s=<start>&e=<end>`, plus `&ev=<event>` while a panel is open) is shareable and reloads to the same view |

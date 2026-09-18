@@ -36,6 +36,9 @@
   const FUTURE_FRAC = 0.035;          // share of a view that may lie past today
   const REIGN_MAX_SPAN = 20000;       // wider than this, five millennia of reigns are a smear at the edge
   const CITY_MAX_SPAN = 40000;
+  const RECORDED_START = -3299;       // c. 3300 BCE, the first writing: where "recorded history" begins
+  const ERA_TOP = 30;                 // y of the recorded-history bracket
+  const ERA_RESERVE = 52;             // px kept clear of lanes beneath the top of the stage while it shows
   const IMAGE_CACHE_KEY = 'ht-image-cache';
   const IMAGE_CACHE_MAX = 200;
   const API_UA = 'HumanityTimeline/1.0 (https://github.com/dshills/Humanity)';
@@ -210,6 +213,10 @@
     if (className) el.className = className;
     if (text !== undefined) el.textContent = text;
     return el;
+  }
+
+  function closestEra(target) {
+    return target && typeof target.closest === 'function' ? target.closest('.era-jump') : null;
   }
 
   function closestEvent(target) {
@@ -592,11 +599,14 @@
     const axisY = Math.round(h * (earthOn && h < 760 ? Math.min(AXIS_FRACTION, 0.52) : AXIS_FRACTION));
     lastAxisY = axisY;
     planReigns(shown, axisY);                           // decides rows and reserves their height before lanes are packed
+    const era = planEra(shown);
+    if (era && reignReserve < ERA_RESERVE) reignReserve = ERA_RESERVE;
     renderTicks(shown, axisY);
     renderEvents(shown, axisY);
     renderReigns(shown);
     renderEarth(shown, axisY);
     renderNowMarker(shown, axisY);
+    renderEra(era, axisY);
     dom.cursorLine.setAttribute('y1', 0);
     dom.cursorLine.setAttribute('y2', h);
     if (lastMouseX !== null) updateCursor(lastMouseX);  // the date under a resting pointer changes with the view
@@ -861,10 +871,51 @@
     parts.push(svgEl('circle', { class: 'now-dot', cx: x, cy: axisY, r: 3.5, fill: 'var(--accent)' }));
     // The flag sits left of the line unless there is no room for it there.
     // The flag reads up the line, in the empty strip past it when there is one.
-    const lx = w - x >= 14 ? x + 11 : x - 5;
-    const ly = axisY - 22;
+    const roomy = w - x >= 14;
+    const lx = roomy ? x + 11 : x - 5;
+    const ly = roomy ? axisY - 22 : Math.min(axisY - 22, ERA_RESERVE + 66);   // on a phone, up above the lanes
     parts.push(svgEl('text', { class: 'now-label', x: lx, y: ly, transform: 'rotate(-90 ' + lx + ' ' + ly + ')', 'text-anchor': 'start' }, 'Today'));
     dom.gNow.replaceChildren.apply(dom.gNow, parts);
+  }
+
+  // --- Recorded-history bracket: on wide views everything since writing is a sliver at the right edge, so
+  // name it and make it a one-click jump. Shown on spans too wide for swimlanes while the sliver is at least 6 px. ---
+  function planEra(v) {
+    const now = nowT();
+    if (now > v.end || RECORDED_START < v.start) return null;
+    const x0 = tToPx(RECORDED_START, v);
+    const x1 = tToPx(now, v);
+    if (x1 - x0 < 6 || v.end - v.start <= REIGN_MAX_SPAN) return null;    // closer in, the swimlanes take over the top
+    return { x0: x0, x1: x1 };
+  }
+
+  function renderEra(era, axisY) {
+    if (!era) { if (dom.gEra.firstChild) dom.gEra.replaceChildren(); dom.gEra.dataset.key = ''; return; }
+    const x0 = crisp(era.x0);
+    const x1 = crisp(era.x1);
+    const key = x0 + '|' + x1 + '|' + axisY;             // unchanged geometry: keep the node, and its focus
+    if (dom.gEra.dataset.key === key) return;
+    dom.gEra.dataset.key = key;
+    const y = ERA_TOP + 0.5;
+    const years = Math.round((nowT() - RECORDED_START) / 100) * 100;
+    const long = 'Recorded history \u00b7 last ' + years.toLocaleString('en-US') + ' years \u00b7 zoom \u25b8';
+    const text = x0 - 12 >= long.length * 7.4 ? long : 'Recorded history \u25b8';
+    const labelW = text.length * 7.4;
+    const g = svgEl('g', {
+      class: 'era-jump', tabindex: 0, role: 'button',
+      'aria-label': 'Zoom to recorded history, the last ' + years.toLocaleString('en-US') + ' years'
+    });
+    g.appendChild(svgEl('rect', { class: 'era-zone', x: x0, y: y, width: Math.max(1, x1 - x0), height: Math.max(1, axisY - y) }));
+    g.appendChild(svgEl('line', { class: 'era-guide', x1: x0, x2: x0, y1: y, y2: axisY }));
+    g.appendChild(svgEl('path', { class: 'era-bracket', d: 'M' + x0 + ' ' + (y + 7) + ' V' + y + ' H' + x1 + ' V' + (y + 7) }));
+    g.appendChild(svgEl('text', { class: 'era-label', x: x0 - 9, y: y + 4, 'text-anchor': 'end' }, text));
+    g.appendChild(svgEl('rect', { class: 'era-hit', x: x0 - 14 - labelW, y: y - 13, width: x1 - x0 + 18 + labelW, height: 26, rx: 3 }));
+    dom.gEra.replaceChildren(g);
+  }
+
+  function zoomToRecorded() {
+    const start = RECORDED_START - 200;
+    commit({ start: start, end: endAtNow(start) }, { animate: true, url: 'push', stack: 'push', discrete: true });
   }
 
   // --- HUD telemetry ---
@@ -1880,6 +1931,7 @@
   }
 
   function handleTap(g, e) {
+    if (closestEra(g.target)) { zoomToRecorded(); return; }
     const evG = closestEvent(g.target);
     if (evG) {                                          // event tap opens the panel and never zooms
       openPanel(Number(evG.dataset.index));
@@ -1894,7 +1946,7 @@
   // resolved in pointerup so that pointer capture cannot change the target.
   function onClick(e) {
     if (root.performance.now() < suppressClickUntil) { e.preventDefault(); e.stopPropagation(); return; }
-    if (closestEvent(e.target)) e.stopPropagation();
+    if (closestEvent(e.target) || closestEra(e.target)) e.stopPropagation();
   }
 
   function startPinch() {
@@ -2017,6 +2069,7 @@
       case ' ': {
         const evG = closestEvent(e.target);             // a focused event marker opens its panel
         if (evG) { openPanel(Number(evG.dataset.index)); e.preventDefault(); }
+        else if (closestEra(e.target)) { zoomToRecorded(); e.preventDefault(); }
         break;
       }
       case '+':
@@ -2162,6 +2215,7 @@
     dom.gEarth = svgEl('g', { class: 'g-earth', 'pointer-events': 'none' });
     dom.gReigns = svgEl('g', { class: 'g-reigns' });
     dom.gNow = svgEl('g', { class: 'g-now', 'pointer-events': 'none' });
+    dom.gEra = svgEl('g', { class: 'g-era' });
     dom.gCursor = svgEl('g', { class: 'g-cursor', 'pointer-events': 'none' });
     dom.cursorLine = svgEl('line', { class: 'cursor-line', x1: 0, x2: 0, y1: 0, y2: 0, visibility: 'hidden' });
     dom.gCursor.appendChild(dom.cursorLine);
@@ -2172,7 +2226,7 @@
     measureEvent.appendChild(measureLabelEl);
     gMeasure.appendChild(measureTickEl);
     gMeasure.appendChild(measureEvent);
-    svg.replaceChildren(dom.gMinor, dom.gMajor, dom.gEarth, dom.gLabels, dom.gAxis, dom.gNow, dom.gReigns, dom.gEvents, dom.gCursor, gMeasure);
+    svg.replaceChildren(dom.gMinor, dom.gMajor, dom.gEarth, dom.gLabels, dom.gAxis, dom.gNow, dom.gReigns, dom.gEvents, dom.gEra, dom.gCursor, gMeasure);
 
     // The tooltip is positioned in stage coordinates; make sure the stage is its containing block.
     dom.tooltip.style.position = 'absolute';
