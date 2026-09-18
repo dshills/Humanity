@@ -959,6 +959,44 @@ html[data-theme="paper"] #panel-title { font-size: 24px; }
   color: var(--muted);
   overflow-wrap: anywhere;
 }
+#panel-object {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--panel-border);
+}
+#panel-object-head {
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+#panel-object-img {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  margin-bottom: 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  background: var(--bg-deep);
+}
+#panel-object-link {
+  display: block;
+  font: 14px/1.4 var(--font-read);
+  color: var(--fg);
+  text-decoration: underline;
+  text-decoration-color: rgba(var(--accent-rgb), 0.6);
+  text-underline-offset: 3px;
+}
+#panel-object-link:hover { color: var(--accent); }
+#panel-object-credit {
+  margin-top: 5px;
+  font: 500 10px/1.4 var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
 #panel-online {
   display: flex;
   align-items: center;

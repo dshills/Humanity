@@ -328,3 +328,16 @@ describe('group (optional)', () => {
     }
   });
 });
+
+describe('museum objects', () => {
+  test('every key names an existing event and every record is complete', () => {
+    require('../src/objects.js');
+    const objects = globalThis.HT.objects || {};
+    const titles = new Set(globalThis.HT.events.map((e) => e.title));
+    for (const [key, o] of Object.entries(objects)) {
+      assert.ok(titles.has(key), `object keyed to a missing event: ${key}`);
+      for (const f of ['museum', 'title', 'url', 'img', 'credit']) assert.ok(typeof o[f] === 'string' && o[f].length > 0, `${key}: missing ${f}`);
+      assert.match(o.url, /^https:\/\//); assert.match(o.img, /^https:\/\//);
+    }
+  });
+});

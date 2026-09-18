@@ -1344,11 +1344,33 @@
     }).catch(function () { /* offline or blocked: the panel simply has no image */ });
   }
 
+  // --- Museum object: a text link always (no network); its image only with the opt-in ---
+  function updatePanelObject(ev) {
+    if (!dom.panelObject) return;
+    const found = HT.objects && HT.objects[ev.title];
+    const isHttps = function (u) { return typeof u === 'string' && /^https:\/\//.test(u); };
+    const obj = found && isHttps(found.url) ? found : null;   // same rule as the Read more link: https only
+    if (!obj) { dom.panelObject.hidden = true; dom.panelObjectImg.removeAttribute('src'); return; }
+    dom.panelObjectLink.textContent = obj.title + (obj.maker ? ', ' + obj.maker : '') + (obj.date ? ' (' + obj.date + ')' : '') + ' \u2197';
+    dom.panelObjectLink.href = obj.url;
+    dom.panelObjectCredit.textContent = obj.credit;
+    if (imagesOn && isHttps(obj.img)) {
+      dom.panelObjectImg.src = obj.img;
+      dom.panelObjectImg.alt = obj.title;
+      dom.panelObjectImgLink.href = obj.url;
+      dom.panelObjectImgLink.hidden = false;
+    } else {
+      dom.panelObjectImg.removeAttribute('src');
+      dom.panelObjectImgLink.hidden = true;
+    }
+    dom.panelObject.hidden = false;
+  }
+
   function setImages(on) {
     imagesOn = !!on;
     try { root.localStorage.setItem(IMAGES_KEY, imagesOn ? '1' : '0'); } catch (err) { /* ignore */ }
     if (dom && dom.optImages) dom.optImages.checked = imagesOn;
-    if (dom && !dom.panel.hidden && selected >= 0) updatePanelImage(events()[selected]);
+    if (dom && !dom.panel.hidden && selected >= 0) { updatePanelImage(events()[selected]); updatePanelObject(events()[selected]); }
   }
 
   // --- Panel map ---
@@ -1459,6 +1481,7 @@
     dom.panelDetail.textContent = ev.detail || '';
     updatePanelMap(ev);
     updatePanelImage(ev);
+    updatePanelObject(ev);
     if (typeof ev.link === 'string' && /^https:\/\//.test(ev.link)) {
       dom.panelLink.href = ev.link;
       dom.panelLink.textContent = /^https:\/\/[a-z-]+\.wikipedia\.org\//.test(ev.link) ? 'Read more on Wikipedia ↗' : 'Read more ↗';
@@ -1871,7 +1894,9 @@
       btnReigns: $('btn-reigns'), btnSearch: $('btn-search'), search: $('search'), searchInput: $('search-input'), searchResults: $('search-results'),
       panelMap: $('panel-map'), panelMapSvg: $('panel-map-svg'), panelMapCap: $('panel-map-cap'),
       panelImage: $('panel-image'), panelImg: $('panel-img'), panelImgLink: $('panel-img-link'), panelImgCredit: $('panel-img-credit'),
-      optImages: $('opt-images')
+      optImages: $('opt-images'),
+      panelObject: $('panel-object'), panelObjectImg: $('panel-object-img'), panelObjectImgLink: $('panel-object-imglink'),
+      panelObjectLink: $('panel-object-link'), panelObjectCredit: $('panel-object-credit')
     };
     NOW = HT.time.now();
     // Theme: URL param (read in parseHash below) > stored choice > auto.

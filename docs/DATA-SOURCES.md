@@ -10,7 +10,7 @@ Research notes, verified 2026-09-17, on open data that could add richness to the
 
 ## Status
 
-Implemented so far: Wikidata battles and rulers, coordinates for the panel map (Wikidata + Natural Earth), the pageviews and sitelinks significance score, NOAA climate series and hazards, Nobel Prizes, GCAT launch milestones, the world population and largest-city context series, and opt-in Wikimedia images in the panel. Not implemented: UCDP conflicts, museum objects.
+Implemented so far: Wikidata battles and rulers, coordinates for the panel map (Wikidata + Natural Earth), the pageviews and sitelinks significance score, NOAA climate series and hazards, Nobel Prizes, GCAT launch milestones, the world population and largest-city context series, opt-in Wikimedia images in the panel, UCDP wars since 1946, and curated museum objects (The Met, Cleveland). Not implemented: Rijksmuseum objects (no curated event currently calls for one).
 
 ## Ranked recommendation
 

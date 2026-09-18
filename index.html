@@ -970,6 +970,44 @@ html[data-theme="paper"] #panel-title { font-size: 24px; }
   color: var(--muted);
   overflow-wrap: anywhere;
 }
+#panel-object {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--panel-border);
+}
+#panel-object-head {
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+#panel-object-img {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  margin-bottom: 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  background: var(--bg-deep);
+}
+#panel-object-link {
+  display: block;
+  font: 14px/1.4 var(--font-read);
+  color: var(--fg);
+  text-decoration: underline;
+  text-decoration-color: rgba(var(--accent-rgb), 0.6);
+  text-underline-offset: 3px;
+}
+#panel-object-link:hover { color: var(--accent); }
+#panel-object-credit {
+  margin-top: 5px;
+  font: 500 10px/1.4 var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
 #panel-online {
   display: flex;
   align-items: center;
@@ -1351,9 +1389,15 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
     </figure>
     <p id="panel-detail"></p>
     <a id="panel-link" target="_blank" rel="noopener noreferrer" hidden>Read more ↗</a>
+    <figure id="panel-object" hidden>
+      <figcaption id="panel-object-head">Object</figcaption>
+      <a id="panel-object-imglink" target="_blank" rel="noopener noreferrer" hidden><img id="panel-object-img" alt="" decoding="async" referrerpolicy="no-referrer"></a>
+      <a id="panel-object-link" target="_blank" rel="noopener noreferrer"></a>
+      <div id="panel-object-credit"></div>
+    </figure>
     <button id="panel-zoom" type="button">Zoom to this event</button>
-    <label id="panel-online" title="Off by default. When on, opening an event requests one thumbnail and its credit from Wikipedia and Wikimedia Commons. Nothing is requested while this is off.">
-      <input id="opt-images" type="checkbox"> <span>Load images from Wikimedia</span>
+    <label id="panel-online" title="Off by default. When on, opening an event requests one thumbnail and its credit from Wikipedia and Wikimedia Commons, and the image of its museum object when it has one. Nothing is requested while this is off.">
+      <input id="opt-images" type="checkbox"> <span>Load images from Wikimedia and museums</span>
     </label>
   </aside>
 </div>
@@ -2096,6 +2140,314 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
   // English Wikipedia article title of the event's link. [lat, lon, approx] — approx = 1 when taken from a
   // related place (location, birthplace, country) rather than the item itself.
   HT.geo = {"Jebel_Irhoud":[31.9,-8.9,0],"Schöningen_spears":[52.1,11,0],"Florisbad_Skull":[-28.8,26.1,0],"Homo_naledi":[-25.9,27.8,0],"Omo_remains":[4.8,36,0],"Apidima_Cave":[36.7,22.4,0],"Border_Cave":[-27,32,0],"Denisova_Cave":[51.4,84.7,0],"Misliya_Cave":[32.7,35,0],"Bruniquel_Cave":[44.1,1.7,0],"Pinnacle_Point":[-34.2,22.1,0],"Krapina_Neanderthal_site":[46.2,15.9,0],"Jebel_Faya":[25.1,55.8,0],"Klasies_River_Caves":[-34.1,24.4,0],"Skhul_and_Qafzeh_hominins":[32.7,35.3,0],"Fuyan_Cave":[25.7,111.5,0],"Denny_(hybrid_hominin)":[51.4,84.7,0],"Panga_ya_Saidi":[-3.7,39.7,0],"Jwalapuram":[15.8,78,0],"Blombos_Cave":[-34.4,21.2,0],"Youngest_Toba_eruption":[2.6,98.9,0],"Shanidar_Cave":[36.8,44.2,0],"Madjedbebe":[-12.5,132.9,0],"Sibudu_Cave":[-29.5,31.1,0],"Diepkloof_Rock_Shelter":[-32.4,18.5,0],"Tam_Pa_Ling_Cave":[20.2,103.4,0],"Caves_in_the_Maros-Pangkep_karst":[-4.9,119.7,0],"Fa_Hien_Cave":[6.6,80.2,0],"Cave_of_El_Castillo":[43.3,-4,0],"Japanese_Paleolithic":[36,138,1],"Chauvet_Cave":[44.4,4.4,0],"Sungir":[56.2,40.5,0],"Yana_Rhinoceros_Horn_Site":[70.7,135.4,0],"Bhimbetka_rock_shelters":[22.9,77.6,0],"Venus_of_Willendorf":[48.3,15.4,0],"Venus_of_Dolní_Věstonice":[49.2,16.6,1],"Gabarnmung":[-12.2,133.8,0],"Apollo_11_Cave":[-27.7,17.1,0],"Mal'ta–Buret'_culture":[52.9,103.5,0],"Bluefish_Caves":[64.1,-140.5,0],"Ohalo_II":[32.7,35.6,0],"Xianren_Cave":[28.7,117.2,0],"Lascaux":[45.1,1.2,0],"Monte_Verde":[-41.5,-73.2,0],"Cave_of_Altamira":[43.4,-4.1,0],"Paisley_Caves":[42.8,-120.6,0],"Bonn–Oberkassel_dog":[50.7,7.1,0],"Jebel_Sahaba":[22,31.3,0],"Tell_Abu_Hureyra":[35.9,38.4,0],"Shigir_Idol":[57.4,60.1,0],"Göbekli_Tepe":[37.2,38.9,0],"Ounjougou":[14.6,-3.2,0],"Tell_es-Sultan":[31.9,35.4,0],"Nataruk":[2.7,36.1,0],"Çatalhöyük":[37.7,32.8,0],"Kuk_Swamp":[-5.8,144.3,0],"Jiahu":[33.6,113.7,0],"Mehrgarh":[29.2,67.7,0],"Chalcolithic":[28,45,1],"Yangshao_culture":[36.3,109.1,0],"Nabta_Playa":[22.5,30.7,0],"Varna_Necropolis":[43.2,27.9,0],"Uruk_period":[31.3,45.6,0],"Botai_culture":[53.3,67.6,0],"Ötzi":[46.7,11.6,1],"Cuneiform":[32.8,35.6,1],"Newgrange":[53.7,-6.5,0],"Narmer":[26.2,31.9,1],"Pyramid_of_Djoser":[29.9,31.2,0],"Indus_Valley_Civilisation":[27.3,68.1,0],"Great_Pyramid_of_Giza":[30,31.1,0],"Stonehenge":[51.2,-1.8,0],"Kerma_culture":[19.6,30.4,0],"Domestication_of_the_horse":[48.7,70.5,1],"Epic_of_Gilgamesh":[33.7,43.5,1],"Code_of_Ur-Nammu":[31,46.1,0],"Bantu_expansion":[-25.9,23.1,0],"Sintashta_culture":[54,58.5,1],"Minoan_civilization":[35.3,24.9,0],"Poverty_Point":[32.6,-91.4,0],"Venus_tablet_of_Ammisaduqa":[51.5,-0.1,1],"Shang_dynasty":[36.1,114.3,0],"Minoan_eruption":[36.4,25.4,0],"Hatshepsut":[25.7,32.6,1],"Akhenaten":[25.7,32.6,1],"Battle_of_Kadesh":[34.6,36.5,0],"Egyptian–Hittite_peace_treaty":[40,34.6,1],"Iron_Age":[28,45,1],"Olmecs":[17.8,-94.6,1],"Zoroaster":[35.6,51.4,1],"Lapita_culture":[-21.1,164.8,0],"Neo-Assyrian_Empire":[35.5,43.3,0],"Chavín_culture":[-9.6,-77.2,0],"Ancient_Carthage":[36.8,10.3,0],"Ancient_Olympic_Games":[37.6,21.6,1],"Founding_of_Rome":[41.9,12.5,1],"Library_of_Ashurbanipal":[36.4,43.2,0],"Sappho":[39.2,25.9,1],"Lydia":[40,30,0],"Mahavira":[26,85.1,1],"Siege_of_Jerusalem_(587_BC)":[31.8,35.2,0],"Eclipse_of_Thales":[38,-45,0],"The_Buddha":[27.5,83.3,1],"Confucius":[35.6,117,1],"Cyrus_the_Great":[30,52.4,1],"Fall_of_Babylon":[32.5,44.4,0],"Pythagoras":[37.7,26.9,1],"Cleisthenes":[38,23.7,1],"Nok_culture":[9.5,8,0],"Greco-Persian_Wars":[38.5,23,1],"Parthenon":[38,23.7,0],"Peloponnesian_War":[38.5,23,1],"Democritus":[40.9,25,1],"Hippocrates":[36.8,27.1,1],"Pāṇini":[34,72.4,1],"Platonic_Academy":[38,23.7,0],"Lyceum_(classical)":[38,23.7,0],"Wars_of_Alexander_the_Great":[38.5,23,1],"Chandragupta_Maurya":[25.6,85.1,1],"Library_of_Alexandria":[31.2,29.9,0],"Aristarchus_of_Samos":[37.8,26.8,1],"Ashoka":[25.6,85.1,1],"Dujiangyan":[31,103.6,0],"Djenné-Djenno":[13.9,-4.5,0],"Eratosthenes":[32.8,21.9,1],"Qin_Shi_Huang":[36.6,114.5,1],"Hannibal's_crossing_of_the_Alps":[45.7,6.9,0],"Great_Wall_of_China":[40.4,116.6,0],"Archimedes":[37.1,15.3,1],"Terracotta_Army":[34.4,109.3,0],"Han_dynasty":[34.3,108.9,0],"Ajanta_Caves":[20.6,75.7,0],"Emperor_Wu_of_Han":[34.3,108.9,1],"Antikythera_mechanism":[35.9,23.3,0],"Sima_Qian":[35.6,110.7,1],"Third_Servile_War":[41.1,14.2,0],"Gallic_Wars":[46.5,2.9,1],"Assassination_of_Julius_Caesar":[41.9,12.5,0],"Battle_of_Actium":[38.9,20.7,0],"Augustus":[41.9,12.5,1],"Jesus":[31.7,35.2,1],"Battle_of_the_Teutoburg_Forest":[52.4,8.1,0],"Crucifixion_of_Jesus":[31.8,35.2,0],"Kushan_Empire":[35,69.3,0],"Roman_conquest_of_Britain":[54,-4,1],"Siege_of_Jerusalem_(70_CE)":[31.8,35.2,0],"Eruption_of_Mount_Vesuvius_in_79_AD":[40.8,14.4,0],"Colosseum":[41.9,12.5,0],"Teotihuacan":[19.7,-98.8,0],"Kingdom_of_Aksum":[14.1,38.7,0],"Cai_Lun":[26.4,112.8,1],"Trajan":[37.4,-6,1],"Zhang_Heng":[33,112.5,1],"Galen":[39.1,27.2,1],"Ardashir_I":[30,52.9,1],"Diocletian":[42.5,19.3,1],"First_Council_of_Nicaea":[40.4,29.7,0],"Ezana_of_Axum":[14.1,38.7,1],"Constantinople":[41,29,0],"Battle_of_Adrianople":[41.8,26.6,0],"Faxian":[36.5,113,1],"Sack_of_Rome_(410)":[41.9,12.5,0],"Hypatia":[31.2,29.9,1],"Battle_of_the_Catalaunian_Plains":[49,4.5,0],"Benedict_of_Nursia":[42.8,13.1,1],"Hagia_Sophia":[41,29,0],"Brahmagupta":[25,72.3,1],"Xuanzang":[34.7,112.8,1],"Early_Muslim_conquests":[34,36,0],"Battle_of_Karbala":[32.6,44,0],"Ghana_Empire":[15.7,-8,0],"Battle_of_Tours":[47,0.5,0],"Du_Fu":[34.8,113,1],"Battle_of_Talas":[42.5,72.2,0],"Classic_Maya_collapse":[19.6,-89.3,1],"Borobudur":[-7.6,110.2,0],"Kievan_Rus'":[50.5,30.5,0],"Abu_Bakr_al-Razi":[35.6,51.4,1],"Caliphate_of_Córdoba":[37.9,-4.8,0],"Kilwa_Kisiwani":[-9,39.5,0],"Chola_invasion_of_Srivijaya":[-3,104.8,1],"Bi_Sheng":[30.7,115.7,1],"Cahokia":[38.7,-90.1,0],"Battle_of_Hastings":[50.9,0.5,0],"University_of_Bologna":[44.5,11.3,0],"Great_Zimbabwe":[-20.3,30.9,0],"Angkor_Wat":[13.4,103.9,0],"Notre-Dame_de_Paris":[48.9,2.3,0],"Kamakura_shogunate":[35.3,139.6,0],"Siege_of_Jerusalem_(1187)":[31.8,35.2,0],"Lalibela":[12,39,0],"Easter_Island":[-27.1,-109.3,0],"Mongol_Empire":[47.1,109.2,0],"Sundiata_Keita":[11.4,-8.4,1],"Ibn_al-Nafis":[33.5,36.3,1],"Siege_of_Baghdad":[33.3,44.3,0],"Marco_Polo":[45.4,12.3,1],"Osman_I":[40,30.2,1],"Tenochtitlan":[19.4,-99.1,0],"Ibn_Battuta":[35.8,-5.8,1],"Ming_dynasty":[32.8,103.1,0],"Timur":[39.1,66.8,1],"Joseon":[37.6,127,0],"Siege_of_Orléans_(1428–1429)":[47.9,1.9,0],"Inca_Empire":[-13.5,-72,0],"Machu_Picchu":[-13.2,-72.5,0],"Fall_of_Constantinople":[41,28.9,0],"Songhai_Empire":[16.3,0,0],"Voyages_of_Christopher_Columbus":[15,-75,1],"Treaty_of_Tordesillas":[41.5,-5,1],"Vasco_da_Gama":[38,-8.9,1],"Pedro_Álvares_Cabral":[40.4,-7.3,1],"Ismail_I":[38.3,48.3,1],"Mona_Lisa":[48.9,2.3,1],"Sistine_Chapel_ceiling":[41.9,12.5,0],"Capture_of_Malacca_(1511)":[2.2,102.3,0],"Suleiman_the_Magnificent":[41,39.7,1],"Fall_of_Tenochtitlan":[19.4,-99.1,0],"First_Battle_of_Panipat":[29.4,77,0],"Battle_of_Cajamarca":[-7.2,-78.5,0],"Potosí":[-19.6,-65.8,0],"Council_of_Trent":[46.1,11.1,1],"1556_Shaanxi_earthquake":[34.5,109.7,0],"Akbar":[25.4,69.7,1],"Elizabeth_I":[51.5,0,1],"Spanish_Armada":[50.2,-4.3,0],"William_Shakespeare":[52.2,-1.7,1],"East_India_Company":[51.5,-0.1,1],"Dutch_East_India_Company":[52.4,4.9,1],"Tokugawa_Ieyasu":[35,137.2,1],"William_Harvey":[51.1,1.2,1],"Taj_Mahal":[27.2,78,0],"Abel_Tasman":[53.2,6.3,1],"Dutch_Cape_Colony":[-33.9,18.4,0],"Royal_Society":[51.5,-0.1,0],"Kangxi_Emperor":[39.9,116.4,1],"Louis_XIV":[48.9,2.1,1],"Siege_of_Fort_Zeelandia":[23,120.2,0],"Shivaji":[19.2,73.9,1],"Antonie_van_Leeuwenhoek":[52,4.4,1],"Peter_the_Great":[55.8,37.6,1],"Battle_of_Vienna":[48.2,16.3,0],"Glorious_Revolution":[54,-4,1],"Aurangzeb":[22.5,74.2,1],"Lady_Mary_Wortley_Montagu":[53,-1.1,1],"Qianlong_Emperor":[39.9,116.4,1],"1755_Lisbon_earthquake":[36,-11,0],"Battle_of_Plassey":[23.8,88.3,0],"John_Harrison":[53.7,-1.4,1],"Catherine_the_Great":[53.4,14.6,1],"James_Cook":[54.5,-1.2,1],"American_Revolutionary_War":[38,-82,1],"United_States_Declaration_of_Independence":[39.9,-75.1,0],"Rebellion_of_Túpac_Amaru_II":[-12.1,-77,1],"William_Herschel":[52.4,9.7,1],"Rama_I":[14.4,100.6,1],"Laki":[64.1,-18.2,0],"Storming_of_the_Bastille":[48.9,2.4,0],"Haitian_Revolution":[19.1,-72.3,1],"Kamehameha_I":[20.3,-155.9,1],"Qajar_Iran":[35.7,51.4,0],"Edward_Jenner":[51.7,-2.5,1],"Rosetta_Stone":[51.5,-0.1,1],"Coup_of_18_Brumaire":[48.9,2.4,0],"Haitian_Declaration_of_Independence":[19.4,-72.7,1],"Spanish_American_wars_of_independence":[19,-99,1],"1815_eruption_of_Mount_Tambora":[-8.2,118,0],"Battle_of_Waterloo":[50.7,4.4,0],"Liverpool_and_Manchester_Railway":[53.8,-2.6,1],"Queen_Victoria":[51.5,-0.2,1],"Treaty_of_Waitangi":[-35.3,174.1,0],"Ada_Lovelace":[51.5,-0.1,1],"Samuel_Morse":[42.4,-71.1,1],"Great_Famine_(Ireland)":[53.4,-7.9,0],"William_T._G._Morton":[42.1,-72,1],"Ignaz_Semmelweis":[47.5,19,1],"Seneca_Falls_Convention":[42.9,-76.8,1],"Crimean_War":[45,34,1],"Louis_Pasteur":[47.1,5.5,1],"American_Civil_War":[33.9,-89.5,1],"Gregor_Mendel":[49.6,17.8,1],"Joseph_Lister":[51.5,0,1],"Dmitri_Mendeleev":[58.2,68.3,1],"Suez_Canal":[30.7,32.3,0],"Proclamation_of_the_German_Empire":[48.8,2.1,0],"Alexander_Graham_Bell":[56,-3.2,1],"Robert_Koch":[51.8,10.3,1],"1883_eruption_of_Krakatoa":[-6.1,105.4,0],"Berlin_Conference":[52.5,13.4,0],"Benz_Patent-Motorwagen":[49.5,8.5,1],"Ellis_Island":[40.7,-74,0],"Wilhelm_Röntgen":[51.2,7.3,1],"Battle_of_Adwa":[14,39,0],"1896_Summer_Olympics":[38,23.7,1],"First_Zionist_Congress":[47.6,7.6,1],"Marie_Curie":[52.3,21,1],"Max_Planck":[54.3,10.1,1],"Guglielmo_Marconi":[44.5,11.3,1],"Russo-Japanese_War":[45,125,1],"Bloody_Sunday_(1905)":[60,30.3,1],"Robert_Peary":[40.5,-78.6,1],"Triangle_Shirtwaist_Factory_fire":[40.7,-74,0],"Amundsen's_South_Pole_expedition":[-90,0,1],"Sinking_of_the_Titanic":[41.7,-49.9,0],"Assassination_of_Archduke_Franz_Ferdinand":[43.9,18.4,0],"Panama_Canal":[9.1,-79.7,0],"October_Revolution":[60,30.3,1],"Jallianwala_Bagh_massacre":[31.6,74.9,0],"Treaty_of_Versailles":[48.8,2.1,1],"Chinese_Communist_Party":[39.9,116.4,1],"Frederick_Banting":[44.1,-79.9,1],"March_on_Rome":[41.9,12.5,1],"Tomb_of_Tutankhamun":[25.7,32.6,0],"Mustafa_Kemal_Atatürk":[40.6,22.9,1],"John_Logie_Baird":[56,-4.7,1],"Robert_H._Goddard":[42.3,-71.8,1],"Alexander_Fleming":[55.6,-4.3,1],"Wall_Street_crash_of_1929":[40.7,-74,0],"Holodomor":[49,32,0],"Spanish_Civil_War":[40.2,-4.2,1],"Hindenburg_disaster":[40,-74.3,0],"Nanjing_Massacre":[32,118.7,0],"Discovery_of_nuclear_fission":[52.4,13.3,0],"Z3_(computer)":[52.5,13.4,1],"Attack_on_Pearl_Harbor":[21.4,-157.9,0],"Battle_of_Stalingrad":[48.7,44.5,0],"Bengal_famine_of_1943":[24,88.7,0],"Normandy_landings":[49.3,-0.6,0],"Bretton_Woods_Conference":[44.3,-71.4,1],"Charter_of_the_United_Nations":[37.8,-122.4,0],"Trinity_(nuclear_test)":[33.7,-106.5,0],"Atomic_bombings_of_Hiroshima_and_Nagasaki":[34.4,132.5,0],"Japanese_Instrument_of_Surrender":[35.4,139.8,0],"Nuremberg_trials":[49.5,11,0],"ENIAC":[40,-75.2,0],"Cold_War":[-1.1,-68.1,1],"Assassination_of_Mahatma_Gandhi":[28.6,77.2,0],"Israeli_Declaration_of_Independence":[31.6,35.1,0],"Berlin_Blockade":[52.5,13.3,0],"North_Atlantic_Treaty":[38.9,-77,1],"RDS-1":[50.4,77.8,0],"Proclamation_of_the_People's_Republic_of_China":[39.9,116.4,1],"Korean_War":[34.6,129.8,1],"Ivy_Mike":[11.7,162.2,0],"Death_and_state_funeral_of_Joseph_Stalin":[55.8,37.6,1],"Battle_of_Dien_Bien_Phu":[21.4,103,0],"Bandung_Conference":[-6.9,107.6,0],"Montgomery_bus_boycott":[32.4,-86.3,0],"Suez_Crisis":[29.5,34,1],"Treaty_of_Rome":[41.9,12.5,1],"1958_FIFA_World_Cup_final":[59.4,18,1],"Jack_Kilby":[38.6,-92.2,1],"1959_Tibetan_uprising":[29.7,91.1,1],"Sharpeville_massacre":[-26.7,27.9,0],"Theodore_Maiman":[34.1,-118.2,1],"1960_Valdivia_earthquake":[-38.1,-73.4,0],"Berlin_Wall":[52.5,13.4,0],"Cuban_Missile_Crisis":[23.1,-82.4,0],"March_on_Washington":[38.9,-77.1,0],"Assassination_of_John_F._Kennedy":[32.8,-96.8,0],"Tokaido_Shinkansen":[35.7,139.7,1],"Six-Day_War":[28,45,1],"Christiaan_Barnard":[-32.3,22.6,1],"Assassination_of_Martin_Luther_King_Jr.":[35.1,-90.1,0],"Tlatelolco_massacre":[19.5,-99.1,0],"Stonewall_riots":[40.7,-74,0],"Woodstock":[41.7,-74.9,0],"Norman_Borlaug":[43.4,-92.1,1],"Bangladesh_Liberation_War":[23.8,90.4,1],"Sydney_Opera_House":[-33.9,151.2,0],"Carnation_Revolution":[39,-9,0],"Microsoft":[47.7,-122.1,1],"Cambodian_genocide":[12.3,105.6,0],"Soweto_uprising":[-26.3,27.9,1],"1976_Tangshan_earthquake":[39.7,118.4,0],"Death_and_state_funeral_of_Mao_Zedong":[39.9,116.4,1],"Louise_Brown":[53.5,-2.1,1],"Camp_David_Accords":[39.6,-77.5,1],"Pope_John_Paul_II":[49.9,19.5,1],"Margaret_Thatcher":[52.9,-0.6,1],"Falklands_War":[-51.7,-59,0],"Assassination_of_Indira_Gandhi":[28.6,77.2,0],"Bhopal_disaster":[23.3,77.4,0],"Mikhail_Gorbachev":[45.9,41.3,1],"Live_Aid":[51.6,-0.3,0],"1985_Mexico_City_earthquake":[18.2,-102.5,0],"Space_Shuttle_Challenger_disaster":[28.6,-80.3,0],"Chernobyl_disaster":[51.4,30.1,0],"Montreal_Protocol":[45.5,-73.6,1],"Benazir_Bhutto":[24.9,67,1],"1989_Tiananmen_Square_protests_and_massacre":[39.9,116.4,0],"Fall_of_the_Berlin_Wall":[52.5,13.4,0],"Nelson_Mandela":[-31.9,28.5,1],"1991_eruption_of_Mount_Pinatubo":[15.1,120.4,0],"Dissolution_of_the_Soviet_Union":[65,90,0],"Maastricht_Treaty":[50.9,5.7,1],"Earth_Summit":[-22.9,-43.2,0],"Oslo_Accords":[59.9,10.7,1],"Schengen_Area":[54.3,25.6,0],"Srebrenica_massacre":[44.1,19.3,0],"World_Conference_on_Women,_1995":[39.9,116.4,1],"Dolly_(sheep)":[55.9,-3.2,1],"Handover_of_Hong_Kong":[22.3,114.2,1],"Pokhran-II":[27.1,71.7,0],"Google":[37.4,-122,1],"Wikipedia":[39,-77.5,1],"September_11_attacks":[38.9,-77.1,1],"International_Criminal_Court":[52.1,4.3,0],"2004_Indian_Ocean_earthquake_and_tsunami":[3.3,96,0],"YouTube":[37.6,-122.4,1],"Ellen_Johnson_Sirleaf":[6.3,-10.8,1],"2008_Sichuan_earthquake":[31,103.4,0],"2008_Summer_Olympics":[39.9,116.4,1],"2010_Haiti_earthquake":[18.5,-72.4,0],"Deepwater_Horizon_oil_spill":[28.7,-88.4,0],"Arab_Spring":[10.5,15.5,1],"2011_Tōhoku_earthquake_and_tsunami":[38.3,142.4,0],"Syrian_civil_war":[35,38,0],"South_Sudan":[7,30,0],"Malala_Yousafzai":[34.8,72.4,1],"Pope_Francis":[-34.6,-58.5,1],"2014_Russian_annexation_of_Crimea":[45,34,1],"Islamic_State":[36,39,1],"Paris_Agreement":[48.9,2.4,0],"AlphaGo_versus_Lee_Sedol":[37.6,127,0],"Rohingya_genocide":[19.5,94,0],"Greta_Thunberg":[59.3,18.1,1],"COVID-19_pandemic":[30.6,114.3,1],"Murder_of_George_Floyd":[44.9,-93.3,0],"January_6_United_States_Capitol_attack":[38.9,-77,0],"Fall_of_Kabul_(2021)":[34.5,69.2,0],"Death_and_state_funeral_of_Elizabeth_II":[57,-3.2,1],"Mahsa_Amini_protests":[35.7,51.4,1],"2023_Turkey–Syria_earthquakes":[37.2,37,0],"Sudanese_civil_war_(2023–present)":[15.6,32.5,1],"October_7_attacks":[31.4,34.5,0],"Pope_Leo_XIV":[41.9,-87.6,1]};
+})(typeof window !== 'undefined' ? window : globalThis);
+
+/* ======== src/objects.js ======== */
+(function (root) {
+  'use strict';
+  const HT = root.HT || (root.HT = {});
+  // Generated by scripts/import-objects.mjs: one museum object per selected event, keyed by event title. Objects and
+  // their images are CC0 / public domain (The Metropolitan Museum of Art Open Access; The Cleveland Museum of Art Open
+  // Access). Images are only ever requested when the panel's Wikimedia/museum image option is switched on.
+  HT.objects = {
+ "Sumerians invent cuneiform writing at Uruk": {
+  "museum": "The Met",
+  "title": "Proto-Cuneiform tablet with seal impressions: administrative account of barley distribution with cylinder seal impression of a male figure, ",
+  "maker": "Sumerian",
+  "date": "ca. 3100–2900 BCE",
+  "url": "https://www.metmuseum.org/art/collection/search/329081",
+  "img": "https://images.metmuseum.org/CRDImages/an/web-large/DP293243.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Hatshepsut sends a trading expedition to the Land of Punt": {
+  "museum": "The Met",
+  "title": "Seated Statue of Hatshepsut",
+  "maker": "",
+  "date": "ca. 1473–1458 BCE",
+  "url": "https://www.metmuseum.org/art/collection/search/544450",
+  "img": "https://images.metmuseum.org/CRDImages/eg/web-large/DP-24215-002.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Howard Carter finds the tomb of Tutankhamun": {
+  "museum": "The Met",
+  "title": "Head of Tutankhamun",
+  "maker": "",
+  "date": "ca. 1328–1318 BCE",
+  "url": "https://www.metmuseum.org/art/collection/search/544690",
+  "img": "https://images.metmuseum.org/CRDImages/eg/web-large/DT546.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Lydia strikes the first coins in electrum": {
+  "museum": "The Met",
+  "title": "Gold stater",
+  "maker": "Lydian",
+  "date": "ca. 560–546 BCE",
+  "url": "https://www.metmuseum.org/art/collection/search/252456",
+  "img": "https://images.metmuseum.org/CRDImages/gr/web-large/DP-17995-001.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Kofun period begins in Japan with giant keyhole-shaped tombs (c. 250 CE)": {
+  "museum": "The Met",
+  "title": "Head of a Clay Tomb Sculpture (Haniwa)",
+  "maker": "Japan",
+  "date": "5th–early 6th century",
+  "url": "https://www.metmuseum.org/art/collection/search/44832",
+  "img": "https://images.metmuseum.org/CRDImages/as/web-large/DT10526.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Socrates is tried and executed in Athens": {
+  "museum": "The Met",
+  "title": "The Death of Socrates",
+  "maker": "Jacques Louis David",
+  "date": "1787",
+  "url": "https://www.metmuseum.org/art/collection/search/436105",
+  "img": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-13139-001.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Aristotle founds the Lyceum": {
+  "museum": "The Met",
+  "title": "Aristotle with a Bust of Homer",
+  "maker": "Rembrandt (Rembrandt van Rijn)",
+  "date": "1653",
+  "url": "https://www.metmuseum.org/art/collection/search/437394",
+  "img": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-30758-001.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Alexander the Great conquers the Persian Empire": {
+  "museum": "The Met",
+  "title": "Alexander the Great (?)",
+  "maker": "",
+  "date": "ring: mid-16th century; cameo: early Hellenistic 4th century BCE",
+  "url": "https://www.metmuseum.org/art/collection/search/191486",
+  "img": "https://images.metmuseum.org/CRDImages/es/web-large/DP150917.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Siddhartha Gautama, the Buddha, is born in Lumbini": {
+  "museum": "The Met",
+  "title": "Buddha",
+  "maker": "Pakistan, Khyber-Pakhtunkhwa province, possibly Takht-i-bahi monastery, ancient region of Gandhara",
+  "date": "3rd century",
+  "url": "https://www.metmuseum.org/art/collection/search/646117",
+  "img": "https://images.metmuseum.org/CRDImages/as/web-large/DP328363.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Octavian becomes Augustus, the first Roman emperor": {
+  "museum": "The Met",
+  "title": "Sardonyx cameo portrait of the Emperor Augustus",
+  "maker": "Roman",
+  "date": "ca. 41–54 CE",
+  "url": "https://www.metmuseum.org/art/collection/search/254473",
+  "img": "https://images.metmuseum.org/CRDImages/gr/web-large/DP155547.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Moche culture flourishes on the north coast of Peru (c. 100 CE)": {
+  "museum": "The Met",
+  "title": "Portrait Head Bottle",
+  "maker": "Moche",
+  "date": "5th–6th century",
+  "url": "https://www.metmuseum.org/art/collection/search/308527",
+  "img": "https://images.metmuseum.org/CRDImages/ao/web-large/DP-23630-001.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Maya Classic period begins (c. 250 CE)": {
+  "museum": "The Met",
+  "title": "Whistling vessel",
+  "maker": "Maya artist(s)",
+  "date": "400–500 CE",
+  "url": "https://www.metmuseum.org/art/collection/search/310542",
+  "img": "https://images.metmuseum.org/CRDImages/ao/web-large/DP-23468-001.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Chandragupta I founds the Gupta Empire": {
+  "museum": "The Met",
+  "title": "Standing Buddha Offering Protection",
+  "maker": "India (Uttar Pradesh, Mathura)",
+  "date": "late 5th century",
+  "url": "https://www.metmuseum.org/art/collection/search/38198",
+  "img": "https://images.metmuseum.org/CRDImages/as/web-large/DT237.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Hagia Sophia consecrated in Constantinople": {
+  "museum": "The Met",
+  "title": "Processional Cross",
+  "maker": "Byzantine",
+  "date": "ca. 1000–1050",
+  "url": "https://www.metmuseum.org/art/collection/search/466251",
+  "img": "https://images.metmuseum.org/CRDImages/md/web-large/DT121.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Tang dynasty rules a cosmopolitan China": {
+  "museum": "Cleveland Museum of Art",
+  "title": "Horse",
+  "maker": "China, probably Henan province, Tang dynasty (618–907)",
+  "date": "late 600s–800",
+  "url": "https://clevelandart.org/art/1955.295",
+  "img": "https://openaccess-cdn.clevelandart.org/1955.295/1955.295_web.jpg",
+  "credit": "The Cleveland Museum of Art, Open Access (CC0)"
+ },
+ "Viking Age, from the sack of Lindisfarne to Stamford Bridge": {
+  "museum": "The Met",
+  "title": "Viking Sword",
+  "maker": "European, probably Scandinavia",
+  "date": "10th century",
+  "url": "https://www.metmuseum.org/art/collection/search/24832",
+  "img": "https://images.metmuseum.org/CRDImages/aa/web-large/DT758.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Song dynasty leads the world in trade and technology": {
+  "museum": "The Met",
+  "title": "Finches and bamboo",
+  "maker": "Emperor Huizong",
+  "date": "early 12th century",
+  "url": "https://www.metmuseum.org/art/collection/search/39936",
+  "img": "https://images.metmuseum.org/CRDImages/as/web-large/DP151504_CRD.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Murasaki Shikibu completes The Tale of Genji": {
+  "museum": "The Met",
+  "title": "The Tale of Genji",
+  "maker": "Iwasa school",
+  "date": "late 17th–early 18th century",
+  "url": "https://www.metmuseum.org/art/collection/search/897120",
+  "img": "https://images.metmuseum.org/CRDImages/as/web-large/DP-31555-001.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Ferdowsi completes the Shahnameh, the Persian national epic": {
+  "museum": "The Met",
+  "title": "\"The Feast of Sada\", Folio 22v from the Shahnama (Book of Kings) of Shah Tahmasp",
+  "maker": "Abu'l Qasim Firdausi",
+  "date": "ca. 1525",
+  "url": "https://www.metmuseum.org/art/collection/search/452111",
+  "img": "https://images.metmuseum.org/CRDImages/is/web-large/DP107689.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Angkor Wat built by Suryavarman II as a temple to Vishnu": {
+  "museum": "Cleveland Museum of Art",
+  "title": "Head of a Follower of Shiva",
+  "maker": "Cambodia, Angkor, 10th century",
+  "date": "900s",
+  "url": "https://clevelandart.org/art/2012.294",
+  "img": "https://openaccess-cdn.clevelandart.org/2012.294/2012.294_web.jpg",
+  "credit": "The Cleveland Museum of Art, Open Access (CC0)"
+ },
+ "Aztecs found Tenochtitlan on an island in Lake Texcoco": {
+  "museum": "The Met",
+  "title": "Chalchiuhtlicue",
+  "maker": "Mexica artist(s)",
+  "date": "1325–1521 CE",
+  "url": "https://www.metmuseum.org/art/collection/search/307651",
+  "img": "https://images.metmuseum.org/CRDImages/ao/web-large/DP-23817-001.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Inca Empire expands under Pachacuti to rule the Andes": {
+  "museum": "The Met",
+  "title": "Tunic",
+  "maker": "Inca artist(s)",
+  "date": "1400–1535 CE",
+  "url": "https://www.metmuseum.org/art/collection/search/751901",
+  "img": "https://images.metmuseum.org/CRDImages/ao/web-large/DP-14281-001.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Ming dynasty rules China after expelling the Mongols": {
+  "museum": "The Met",
+  "title": "Jar with dragon",
+  "maker": "China",
+  "date": "early 15th century",
+  "url": "https://www.metmuseum.org/art/collection/search/39666",
+  "img": "https://images.metmuseum.org/CRDImages/as/web-large/DP-32251-001.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Columbus reaches the Americas": {
+  "museum": "The Met",
+  "title": "Portrait of a Man, Said to be Christopher Columbus (born about 1446, died 1506)",
+  "maker": "Sebastiano del Piombo (Sebastiano Luciani)",
+  "date": "1519",
+  "url": "https://www.metmuseum.org/art/collection/search/437645",
+  "img": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-17778-001.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Leonardo da Vinci begins the Mona Lisa": {
+  "museum": "The Met",
+  "title": "A Bear Walking",
+  "maker": "Leonardo da Vinci",
+  "date": "ca. 1482–85",
+  "url": "https://www.metmuseum.org/art/collection/search/459184",
+  "img": "https://images.metmuseum.org/CRDImages/rl/web-large/DP324213.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Michelangelo paints the Sistine Chapel ceiling": {
+  "museum": "The Met",
+  "title": "Studies for the Libyan Sibyl (recto); Studies for the Libyan Sibyl and a small Sketch for a Seated Figure (verso)",
+  "maker": "Michelangelo Buonarroti",
+  "date": "ca. 1510–11",
+  "url": "https://www.metmuseum.org/art/collection/search/337497",
+  "img": "https://images.metmuseum.org/CRDImages/dp/web-large/DP826907.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Martin Luther posts the Ninety-five Theses": {
+  "museum": "The Met",
+  "title": "Portrait of Martin Luther",
+  "maker": "Daniel Hopfer",
+  "date": "1523",
+  "url": "https://www.metmuseum.org/art/collection/search/373105",
+  "img": "https://images.metmuseum.org/CRDImages/dp/web-large/DP-20888-001.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Akbar the Great consolidates the Mughal Empire": {
+  "museum": "Cleveland Museum of Art",
+  "title": "Circumcision ceremony for Akbar’s sons, painting 126 from an Akbar-nama (Book of Akbar) of Abu’l Fazl (Indian, 1551–1602)",
+  "maker": "Dharam Das (Indian, active c. 1580–1605)",
+  "date": "c. 1602–3",
+  "url": "https://clevelandart.org/art/1971.76",
+  "img": "https://openaccess-cdn.clevelandart.org/1971.76/1971.76_web.jpg",
+  "credit": "The Cleveland Museum of Art, Open Access (CC0)"
+ },
+ "Tokugawa Ieyasu becomes shogun, unifying Japan under Tokugawa rule": {
+  "museum": "The Met",
+  "title": "Armor (Gusoku) with Box",
+  "maker": "Neo Masanobu 根尾正信",
+  "date": "19th century; helmet bowl, early 18th century",
+  "url": "https://www.metmuseum.org/art/collection/search/894753",
+  "img": "https://images.metmuseum.org/CRDImages/aa/web-large/LC-TR_360_4a_l_2022-020-2-Edit.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Shah Jahan builds the Taj Mahal at Agra": {
+  "museum": "The Met",
+  "title": "Portrait of Shah Jahan on Horseback",
+  "maker": "",
+  "date": "19th century",
+  "url": "https://www.metmuseum.org/art/collection/search/446577",
+  "img": "https://images.metmuseum.org/CRDImages/is/web-large/DT5434.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "United States Declaration of Independence adopted": {
+  "museum": "The Met",
+  "title": "Washington Crossing the Delaware",
+  "maker": "Emanuel Leutze",
+  "date": "1851",
+  "url": "https://www.metmuseum.org/art/collection/search/11417",
+  "img": "https://images.metmuseum.org/CRDImages/ad/web-large/DP215410.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "American Civil War": {
+  "museum": "The Met",
+  "title": "Prisoners from the Front",
+  "maker": "Winslow Homer",
+  "date": "1866",
+  "url": "https://www.metmuseum.org/art/collection/search/11133",
+  "img": "https://images.metmuseum.org/CRDImages/ad/web-large/DT83.jpg",
+  "credit": "The Metropolitan Museum of Art, Open Access (CC0)"
+ },
+ "Meiji Restoration returns power to the emperor of Japan": {
+  "museum": "Cleveland Museum of Art",
+  "title": "Gathering of Otsu-e Subjects",
+  "maker": "Shibata Zeshin (Japanese, 1807–1891)",
+  "date": "late 1800s",
+  "url": "https://clevelandart.org/art/1982.9",
+  "img": "https://openaccess-cdn.clevelandart.org/1982.9/1982.9_web.jpg",
+  "credit": "The Cleveland Museum of Art, Open Access (CC0)"
+ }
+};
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* ======== src/data/01-prehistory.js ======== */
@@ -8775,6 +9127,135 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
   );
 })(typeof window !== 'undefined' ? window : globalThis);
 
+/* ======== src/data/13-conflicts.js ======== */
+(function (root) {
+  'use strict';
+  const HT = root.HT || (root.HT = {});
+  const { bce, ce, ymd, ya } = HT.time;
+  HT.events = HT.events || [];
+  // Generated by scripts/import-ucdp.mjs from the UCDP/PRIO Armed Conflict Dataset v26.1 (CC BY 4.0; Davies,
+  // Pettersson & Öberg 2026; Gleditsch et al. 2002): conflicts since 1946 that reached war intensity, merged into
+  // one ranged event each; those a curated war already covers are skipped.
+  HT.events.push(
+    { t: ymd(1941, 12, 31), end: ymd(1950, 12, 31), title: 'Russia (Soviet Union): Ukraine conflict', tier: 5, category: 'war', detail: 'Government of Russia (Soviet Union) against UPA over Ukraine. UCDP records 3 years at war intensity (1,000 or more battle-related deaths) between 1946 and 1950.', link: 'https://ucdp.uu.se/conflict/213' },
+    { t: ymd(1945, 8, 30), end: ymd(1996, 9, 30), title: 'Iraq: Kurdistan conflict', tier: 4, category: 'war', detail: 'Government of Iraq against KDP, PUK, KDP-QM over Kurdistan. UCDP records 10 years at war intensity (1,000 or more battle-related deaths) between 1961 and 1996.', link: 'https://ucdp.uu.se/conflict/271' },
+    { t: ymd(1946, 3, 31), end: ymd(1949, 10, 16), title: 'Greece: civil war', tier: 5, category: 'war', detail: 'Government of Greece against DSE over control of the government. UCDP records 4 years at war intensity (1,000 or more battle-related deaths) between 1946 and 1949.', link: 'https://ucdp.uu.se/conflict/203' },
+    { t: ymd(1946, 5, 31), end: ymd(2018, 10, 12), title: 'Iran: Kurdistan conflict', tier: 5, category: 'war', detail: 'Government of Iran against KDPI over Kurdistan. UCDP records 3 years at war intensity (1,000 or more battle-related deaths) between 1946 and 2018.', link: 'https://ucdp.uu.se/conflict/205' },
+    { t: ymd(1946, 6, 30), end: ymd(1948, 12, 31), title: 'Russia (Soviet Union): Lithuania conflict', tier: 6, category: 'war', detail: 'Government of Russia (Soviet Union) against BDPS over Lithuania. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1946 and 1948.', link: 'https://ucdp.uu.se/conflict/212' },
+    { t: ymd(1946, 7, 18), end: ymd(1967, 10, 16), title: 'Bolivia: civil war', tier: 6, category: 'war', detail: 'Government of Bolivia against Popular Revolutionary Movement, MNR, ELN over control of the government. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1946 and 1967.', link: 'https://ucdp.uu.se/conflict/200' },
+    { t: ymd(1946, 7, 31), end: ymd(2025, 12, 31), title: 'Philippines: civil war', tier: 4, category: 'war', detail: 'Government of Philippines against Huk, CPP, Military faction (forces of Honasan and others over control of the government. UCDP records 17 years at war intensity (1,000 or more battle-related deaths) between 1946 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/209' },
+    { t: ymd(1946, 11, 20), end: ymd(1954, 7, 20), title: 'Vietnam: war of independence against France', tier: 5, category: 'war', detail: 'Government of France against Viet minh over Vietnam. UCDP records 9 years at war intensity (1,000 or more battle-related deaths) between 1946 and 1954.', link: 'https://ucdp.uu.se/conflict/216' },
+    { t: ymd(1946, 12, 31), end: ymd(1949, 12, 8), title: 'China: civil war', tier: 5, category: 'war', detail: 'Government of China against PLA over control of the government. UCDP records 4 years at war intensity (1,000 or more battle-related deaths) between 1946 and 1949.', link: 'https://ucdp.uu.se/conflict/202' },
+    { t: ymd(1947, 2, 28), end: ymd(1947, 3, 24), title: 'China: Taiwan conflict', tier: 6, category: 'war', detail: 'Government of China against Taiwanese insurgents over Taiwan. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1947 and 1947.', link: 'https://ucdp.uu.se/conflict/217' },
+    { t: ymd(1947, 3, 7), end: ymd(1989, 2, 3), title: 'Paraguay: civil war', tier: 6, category: 'war', detail: 'Government of Paraguay against Opposition coalition (Febreristas, Liberals and Communists), Military faction (forces of Alfredo Stroessner) and others over control of the government. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1947 and 1989.', link: 'https://ucdp.uu.se/conflict/220' },
+    { t: ymd(1947, 3, 29), end: ymd(1947, 12, 31), title: 'Malagasy: war of independence against France', tier: 6, category: 'war', detail: 'Government of France against MDRM over Malagasy. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1947 and 1947.', link: 'https://ucdp.uu.se/conflict/219' },
+    { t: ymd(1947, 6, 30), end: ymd(1948, 9, 18), title: 'Hyderabad: civil war', tier: 6, category: 'war', detail: 'Government of Hyderabad against CPI over control of the government. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1947 and 1948.', link: 'https://ucdp.uu.se/conflict/11884' },
+    { t: ymd(1948, 2, 29), end: ymd(2025, 12, 31), title: 'Myanmar (Burma): civil war', tier: 4, category: 'war', detail: 'Government of Myanmar (Burma) against CPB, CPB-RF, PVO - "White Band" faction and others over control of the government. UCDP records 26 years at war intensity (1,000 or more battle-related deaths) between 1948 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/222' },
+    { t: ymd(1948, 3, 3), end: ymd(1948, 4, 20), title: 'Costa Rica: civil war', tier: 6, category: 'war', detail: 'Government of Costa Rica against National Liberation Army over control of the government. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1948 and 1948.', link: 'https://ucdp.uu.se/conflict/225' },
+    { t: ymd(1948, 3, 15), end: ymd(2025, 12, 31), title: 'Yemen (North Yemen): civil war', tier: 4, category: 'war', detail: 'Government of Yemen (North Yemen) against Opposition coalition, Royalists, NDF and others over control of the government. UCDP records 18 years at war intensity (1,000 or more battle-related deaths) between 1948 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/230' },
+    { t: ymd(1948, 4, 15), end: ymd(1949, 1, 7), title: 'Egypt, Government of Iraq, Government of Jordan, Government of Lebanon,…', tier: 6, category: 'war', detail: 'Government of Egypt, Government of Iraq, Government of Jordan, Government of Lebanon, Government of Syria against Government of Israel over Palestine. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1948 and 1949.', link: 'https://ucdp.uu.se/conflict/228' },
+    { t: ymd(1948, 5, 1), end: ymd(2025, 12, 31), title: 'India: civil war', tier: 5, category: 'war', detail: 'Government of India against CPI, CPI-ML, PWG and others over control of the government. UCDP records 4 years at war intensity (1,000 or more battle-related deaths) between 1948 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/227' },
+    { t: ymd(1948, 5, 15), end: ymd(2025, 12, 31), title: 'Israel: Palestine conflict', tier: 5, category: 'war', detail: 'Government of Israel against Palestinian insurgents, Non PLO groups, PLO and others over Palestine. UCDP records 5 years at war intensity (1,000 or more battle-related deaths) between 1949 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/234' },
+    { t: ymd(1948, 6, 19), end: ymd(1957, 8, 31), title: 'Malaya: war of independence against United Kingdom', tier: 5, category: 'war', detail: 'Government of United Kingdom against CPM over Malaya. UCDP records 4 years at war intensity (1,000 or more battle-related deaths) between 1948 and 1957.', link: 'https://ucdp.uu.se/conflict/229' },
+    { t: ymd(1948, 9, 13), end: ymd(1948, 9, 18), title: 'Hyderabad – India war', tier: 6, category: 'war', detail: 'Government of Hyderabad against Government of India over Hyderabad. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1948 and 1948.', link: 'https://ucdp.uu.se/conflict/226' },
+    { t: ymd(1948, 12, 31), end: ymd(2025, 12, 31), title: 'India – Pakistan war', tier: 5, category: 'war', detail: 'Government of India against Government of Pakistan over Kashmir. UCDP records 3 years at war intensity (1,000 or more battle-related deaths) between 1948 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/218' },
+    { t: ymd(1948, 12, 31), end: ymd(2025, 12, 31), title: 'Myanmar (Burma): Karen conflict', tier: 5, category: 'war', detail: 'Government of Myanmar (Burma) against KNUP, KNU, God\'s Army and others over Karen. UCDP records 8 years at war intensity (1,000 or more battle-related deaths) between 1949 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/221' },
+    { t: ymd(1949, 10, 31), end: ymd(1958, 12, 31), title: 'China – Taiwan war', tier: 5, category: 'war', detail: 'Government of China against Government of Taiwan over Taiwan strait. UCDP records 3 years at war intensity (1,000 or more battle-related deaths) between 1949 and 1958.', link: 'https://ucdp.uu.se/conflict/232' },
+    { t: ymd(1949, 12, 31), end: ymd(2025, 12, 31), title: 'Myanmar (Burma): Kachin conflict', tier: 4, category: 'war', detail: 'Government of Myanmar (Burma) against PNDF, KIO over Kachin. UCDP records 12 years at war intensity (1,000 or more battle-related deaths) between 1949 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/231' },
+    { t: ymd(1950, 8, 5), end: ymd(1950, 11, 15), title: 'Indonesia: South Moluccas conflict', tier: 6, category: 'war', detail: 'Government of Indonesia against Republic of South Moluccas over South Moluccas. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1950 and 1950.', link: 'https://ucdp.uu.se/conflict/237' },
+    { t: ymd(1950, 10, 7), end: ymd(1959, 4, 23), title: 'China: Tibet conflict', tier: 6, category: 'war', detail: 'Government of China against Tibet over Tibet. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1950 and 1959.', link: 'https://ucdp.uu.se/conflict/236' },
+    { t: ymd(1952, 10, 22), end: ymd(1956, 12, 31), title: 'Kenya: war of independence against United Kingdom', tier: 5, category: 'war', detail: 'Government of United Kingdom against Mau Mau over Kenya. UCDP records 4 years at war intensity (1,000 or more battle-related deaths) between 1952 and 1956.', link: 'https://ucdp.uu.se/conflict/241' },
+    { t: ymd(1953, 7, 26), end: ymd(1961, 4, 20), title: 'Cuba: civil war', tier: 6, category: 'war', detail: 'Government of Cuba against M-26-7, Cuban Revolutionary Council over control of the government. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1953 and 1961.', link: 'https://ucdp.uu.se/conflict/242' },
+    { t: ymd(1953, 12, 31), end: ymd(1961, 12, 31), title: 'Indonesia: civil war', tier: 5, category: 'war', detail: 'Government of Indonesia against Darul Islam, Permesta Movement, PRRI over control of the government. UCDP records 4 years at war intensity (1,000 or more battle-related deaths) between 1953 and 1961.', link: 'https://ucdp.uu.se/conflict/243' },
+    { t: ymd(1956, 10, 23), end: ymd(1956, 11, 14), title: 'Hungary – Russia (Soviet Union) war', tier: 6, category: 'war', detail: 'Government of Hungary against Government of Russia (Soviet Union). UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1956 and 1956.', link: 'https://ucdp.uu.se/conflict/250' },
+    { t: ymd(1956, 10, 31), end: ymd(1956, 11, 6), title: 'Egypt – France, Israel war', tier: 6, category: 'war', detail: 'Government of Egypt against Government of France, Government of Israel, Government of United Kingdom over Suez. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1956 and 1956.', link: 'https://ucdp.uu.se/conflict/252' },
+    { t: ymd(1958, 5, 15), end: ymd(1990, 10, 13), title: 'Lebanon: civil war', tier: 5, category: 'war', detail: 'Government of Lebanon against Independent Nasserite Movement, NSF, LAA and others over control of the government. UCDP records 3 years at war intensity (1,000 or more battle-related deaths) between 1958 and 1990.', link: 'https://ucdp.uu.se/conflict/260' },
+    { t: ymd(1958, 7, 14), end: ymd(2025, 12, 31), title: 'Iraq: civil war', tier: 4, category: 'war', detail: 'Government of Iraq against Military faction (free Officers Movement), Military faction (forces of Abdul Wahab al-Shawaf), Military faction (forces of Abd as-Salam Arif) and others over control of the government. UCDP records 12 years at war intensity (1,000 or more battle-related deaths) between…', link: 'https://ucdp.uu.se/conflict/259' },
+    { t: ymd(1959, 8, 31), end: ymd(2020, 8, 30), title: 'China – India war', tier: 6, category: 'war', detail: 'Government of China against Government of India over Aksai Chin, Arunachal Pradesh. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1962 and 2020.', link: 'https://ucdp.uu.se/conflict/274' },
+    { t: ymd(1959, 11, 12), end: ymd(1990, 4, 10), title: 'Laos: civil war', tier: 4, category: 'war', detail: 'Government of Laos against Pathet Lao, Neutralists, LRM over control of the government. UCDP records 14 years at war intensity (1,000 or more battle-related deaths) between 1959 and 1990.', link: 'https://ucdp.uu.se/conflict/262' },
+    { t: ymd(1959, 11, 22), end: ymd(2015, 11, 30), title: 'Myanmar (Burma): Shan conflict', tier: 5, category: 'war', detail: 'Government of Myanmar (Burma) against NSH, SSIA, SNUF and others over Shan. UCDP records 7 years at war intensity (1,000 or more battle-related deaths) between 1959 and 2015.', link: 'https://ucdp.uu.se/conflict/264' },
+    { t: ymd(1960, 1, 31), end: ymd(2025, 12, 31), title: 'Cameroon: civil war', tier: 6, category: 'war', detail: 'Government of Cameroon against UPC, Military faction (forces of Ibrahim Saleh), JAS over control of the government. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1960 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/353' },
+    { t: ymd(1960, 2, 29), end: ymd(2006, 9, 21), title: 'Nepal: civil war', tier: 5, category: 'war', detail: 'Government of Nepal against NC, CPN-M over control of the government. UCDP records 4 years at war intensity (1,000 or more battle-related deaths) between 1960 and 2006.', link: 'https://ucdp.uu.se/conflict/269' },
+    { t: ymd(1960, 12, 17), end: ymd(2022, 11, 27), title: 'Ethiopia: civil war', tier: 4, category: 'war', detail: 'Government of Ethiopia against Military faction (forces of Mengistu Neway), EPRP, TPLF and others over control of the government. UCDP records 15 years at war intensity (1,000 or more battle-related deaths) between 1960 and 2022.', link: 'https://ucdp.uu.se/conflict/267' },
+    { t: ymd(1961, 2, 4), end: ymd(1974, 10, 21), title: 'Angola: war of independence against Portugal', tier: 6, category: 'war', detail: 'Government of Portugal against FNLA, MPLA, UNITA over Angola. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1961 and 1974.', link: 'https://ucdp.uu.se/conflict/263' },
+    { t: ymd(1961, 4, 22), end: ymd(1962, 6, 30), title: 'France: civil war', tier: 6, category: 'war', detail: 'Government of France against OAS over control of the government. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1961 and 1962.', link: 'https://ucdp.uu.se/conflict/270' },
+    { t: ymd(1961, 7, 20), end: ymd(1961, 7, 22), title: 'France – Tunisia war', tier: 6, category: 'war', detail: 'Government of France against Government of Tunisia over Bizerte. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1961 and 1961.', link: 'https://ucdp.uu.se/conflict/272' },
+    { t: ymd(1961, 9, 30), end: ymd(1991, 5, 31), title: 'Ethiopia: Eritrea conflict', tier: 4, category: 'war', detail: 'Government of Ethiopia against ELF, EPLF over Eritrea. UCDP records 14 years at war intensity (1,000 or more battle-related deaths) between 1964 and 1991.', link: 'https://ucdp.uu.se/conflict/275' },
+    { t: ymd(1963, 5, 15), end: ymd(2010, 12, 30), title: 'Peru: civil war', tier: 5, category: 'war', detail: 'Government of Peru against ELN, MIR, Sendero Luminoso and others over control of the government. UCDP records 8 years at war intensity (1,000 or more battle-related deaths) between 1965 and 2010.', link: 'https://ucdp.uu.se/conflict/292' },
+    { t: ymd(1963, 12, 31), end: ymd(1972, 1, 31), title: 'Sudan: Southern Sudan conflict', tier: 4, category: 'war', detail: 'Government of Sudan against SSLM over Southern Sudan. UCDP records 10 years at war intensity (1,000 or more battle-related deaths) between 1963 and 1972.', link: 'https://ucdp.uu.se/conflict/282' },
+    { t: ymd(1964, 1, 3), end: ymd(2025, 12, 31), title: 'DR Congo (Zaire): civil war', tier: 4, category: 'war', detail: 'Government of DR Congo (Zaire) against CNL, Military Faction (Forces of Jean Schramme), FLNC and others over control of the government. UCDP records 10 years at war intensity (1,000 or more battle-related deaths) between 1964 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/283' },
+    { t: ymd(1964, 1, 11), end: ymd(2016, 12, 31), title: 'Ethiopia: Ogaden conflict', tier: 6, category: 'war', detail: 'Government of Ethiopia against Ogaden Liberation Front, WSLF, AIAI and others over Ogaden. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1964 and 2016.', link: 'https://ucdp.uu.se/conflict/329' },
+    { t: ymd(1964, 2, 10), end: ymd(1980, 12, 3), title: 'Ethiopia – Somalia war', tier: 6, category: 'war', detail: 'Government of Ethiopia against Government of Somalia over Ogaden. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1964 and 1980.', link: 'https://ucdp.uu.se/conflict/268' },
+    { t: ymd(1964, 11, 19), end: ymd(1974, 9, 7), title: 'Mozambique: war of independence against Portugal', tier: 6, category: 'war', detail: 'Government of Portugal against Frelimo over Mozambique. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1964 and 1974.', link: 'https://ucdp.uu.se/conflict/285' },
+    { t: ymd(1964, 12, 31), end: ymd(2025, 12, 31), title: 'Colombia: civil war', tier: 4, category: 'war', detail: 'Government of Colombia against FARC, ELN, M-19 and others over control of the government. UCDP records 11 years at war intensity (1,000 or more battle-related deaths) between 1964 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/289' },
+    { t: ymd(1965, 10, 18), end: ymd(2024, 12, 11), title: 'Burundi: civil war', tier: 5, category: 'war', detail: 'Government of Burundi against Military faction (forces loyal to Gervais Nyangoma), Palipehutu, CNDD and others over control of the government. UCDP records 4 years at war intensity (1,000 or more battle-related deaths) between 1965 and 2024.', link: 'https://ucdp.uu.se/conflict/287' },
+    { t: ymd(1965, 12, 31), end: ymd(1975, 4, 30), title: 'South Vietnam – Vietnam (North Vietnam) war', tier: 4, category: 'war', detail: 'Government of South Vietnam against Government of Vietnam (North Vietnam) over South Vietnam. UCDP records 11 years at war intensity (1,000 or more battle-related deaths) between 1965 and 1975.', link: 'https://ucdp.uu.se/conflict/293' },
+    { t: ymd(1966, 2, 23), end: ymd(2025, 12, 31), title: 'Syria: civil war', tier: 4, category: 'war', detail: 'Government of Syria against Military faction (forces loyal to Nureddin Atassi and Youssef Zeayen), Muslim Brotherhood, Syrian insurgents and others over control of the government. UCDP records 13 years at war intensity (1,000 or more battle-related deaths) between 1966 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/299' },
+    { t: ymd(1966, 4, 29), end: ymd(1979, 12, 21), title: 'Zimbabwe (Rhodesia): civil war', tier: 5, category: 'war', detail: 'Government of Zimbabwe (Rhodesia) against ZAPU, ZANU, PF over control of the government. UCDP records 4 years at war intensity (1,000 or more battle-related deaths) between 1967 and 1979.', link: 'https://ucdp.uu.se/conflict/318' },
+    { t: ymd(1966, 7, 31), end: ymd(2023, 9, 9), title: 'Chad: civil war', tier: 5, category: 'war', detail: 'Government of Chad against Frolinat, First Liberation Army, Second Liberation Army and others over control of the government. UCDP records 7 years at war intensity (1,000 or more battle-related deaths) between 1966 and 2023.', link: 'https://ucdp.uu.se/conflict/288' },
+    { t: ymd(1966, 8, 26), end: ymd(1989, 5, 5), title: 'South Africa: Namibia conflict', tier: 5, category: 'war', detail: 'Government of South Africa against SWAPO over Namibia. UCDP records 8 years at war intensity (1,000 or more battle-related deaths) between 1966 and 1989.', link: 'https://ucdp.uu.se/conflict/298' },
+    { t: ymd(1967, 4, 30), end: ymd(1998, 10, 3), title: 'Cambodia (Kampuchea): civil war', tier: 5, category: 'war', detail: 'Government of Cambodia (Kampuchea) against KR, KNUFNS, KPNLF and others over control of the government. UCDP records 8 years at war intensity (1,000 or more battle-related deaths) between 1967 and 1998.', link: 'https://ucdp.uu.se/conflict/300' },
+    { t: ymd(1967, 6, 5), end: ymd(1967, 6, 10), title: 'Israel – Jordan war', tier: 6, category: 'war', detail: 'Government of Israel against Government of Jordan over West Bank. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1967 and 1967.', link: 'https://ucdp.uu.se/conflict/301' },
+    { t: ymd(1967, 6, 5), end: ymd(2025, 12, 31), title: 'Israel – Syria war', tier: 6, category: 'war', detail: 'Government of Israel against Government of Syria over Golan Heights. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1967 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/302' },
+    { t: ymd(1967, 6, 5), end: ymd(1973, 10, 24), title: 'Egypt – Israel war', tier: 6, category: 'war', detail: 'Government of Egypt against Government of Israel over Suez/Sinai. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1967 and 1973.', link: 'https://ucdp.uu.se/conflict/11343' },
+    { t: ymd(1969, 7, 3), end: ymd(1969, 7, 18), title: 'El Salvador – Honduras war', tier: 6, category: 'war', detail: 'Government of El Salvador against Government of Honduras over Common Border. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1969 and 1969.', link: 'https://ucdp.uu.se/conflict/306' },
+    { t: ymd(1970, 8, 20), end: ymd(2020, 12, 9), title: 'Philippines: Mindanao conflict', tier: 5, category: 'war', detail: 'Government of Philippines against MIM, MNLF, MILF and others over Mindanao. UCDP records 3 years at war intensity (1,000 or more battle-related deaths) between 1970 and 2020.', link: 'https://ucdp.uu.se/conflict/308' },
+    { t: ymd(1971, 1, 25), end: ymd(2017, 12, 22), title: 'Uganda: civil war', tier: 4, category: 'war', detail: 'Government of Uganda against Military faction (forces of Idi Amin), Kikosi Maalum, Military faction (forces of Charles Arube) and others over control of the government. UCDP records 12 years at war intensity (1,000 or more battle-related deaths) between 1971 and 2017.', link: 'https://ucdp.uu.se/conflict/314' },
+    { t: ymd(1971, 3, 26), end: ymd(1971, 12, 16), title: 'Pakistan: East Pakistan conflict', tier: 6, category: 'war', detail: 'Government of Pakistan against Mukti Bahini over East Pakistan. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1971 and 1971.', link: 'https://ucdp.uu.se/conflict/312' },
+    { t: ymd(1971, 4, 5), end: ymd(1990, 2, 23), title: 'Sri Lanka: civil war', tier: 6, category: 'war', detail: 'Government of Sri Lanka against JVP over control of the government. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1971 and 1990.', link: 'https://ucdp.uu.se/conflict/313' },
+    { t: ymd(1971, 7, 22), end: ymd(2025, 12, 31), title: 'Sudan: civil war', tier: 4, category: 'war', detail: 'Government of Sudan against Sudanese Communist Party, National Front, SPLM/A and others over control of the government. UCDP records 29 years at war intensity (1,000 or more battle-related deaths) between 1971 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/309' },
+    { t: ymd(1972, 3, 25), end: ymd(1991, 11, 18), title: 'El Salvador: civil war', tier: 5, category: 'war', detail: 'Government of El Salvador against Military faction (forces of Benjamin Mejia), ERP, FPL and others over control of the government. UCDP records 9 years at war intensity (1,000 or more battle-related deaths) between 1972 and 1991.', link: 'https://ucdp.uu.se/conflict/316' },
+    { t: ymd(1972, 4, 11), end: ymd(1988, 8, 20), title: 'Iran – Iraq war', tier: 5, category: 'war', detail: 'Government of Iran against Government of Iraq over Various. UCDP records 9 years at war intensity (1,000 or more battle-related deaths) between 1974 and 1988.', link: 'https://ucdp.uu.se/conflict/324' },
+    { t: ymd(1972, 8, 13), end: ymd(2025, 12, 31), title: 'Iran: civil war', tier: 6, category: 'war', detail: 'Government of Iran against MEK, PJAK, Jondullah and others over control of the government. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1979 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/338' },
+    { t: ymd(1973, 5, 18), end: ymd(2025, 12, 31), title: 'Pakistan: Balochistan conflict', tier: 6, category: 'war', detail: 'Government of Pakistan against BLF, BLA, Baloch Ittehad and others over Balochistan. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1974 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/325' },
+    { t: ymd(1974, 1, 19), end: ymd(1988, 12, 31), title: 'China – Vietnam (North Vietnam) war', tier: 6, category: 'war', detail: 'Government of China against Government of Vietnam (North Vietnam) over Various. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1974 and 1988.', link: 'https://ucdp.uu.se/conflict/334' },
+    { t: ymd(1974, 6, 20), end: ymd(1974, 8, 16), title: 'Cyprus – Turkey war', tier: 6, category: 'war', detail: 'Government of Cyprus against Government of Turkey over Northern Cyprus. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1974 and 1974.', link: 'https://ucdp.uu.se/conflict/323' },
+    { t: ymd(1974, 8, 31), end: ymd(2025, 12, 31), title: 'Ethiopia: Oromiya conflict', tier: 6, category: 'war', detail: 'Government of Ethiopia against OLF, OLA over Oromiya. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1977 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/413' },
+    { t: ymd(1974, 12, 27), end: ymd(1990, 4, 15), title: 'Nicaragua: civil war', tier: 5, category: 'war', detail: 'Government of Nicaragua against FSLN, Contras over control of the government. UCDP records 8 years at war intensity (1,000 or more battle-related deaths) between 1977 and 1990.', link: 'https://ucdp.uu.se/conflict/336' },
+    { t: ymd(1975, 7, 2), end: ymd(2025, 12, 31), title: 'Afghanistan: civil war', tier: 4, category: 'war', detail: 'Government of Afghanistan against PDPA, Jam\'iyyat-i Islami-yi Afghanistan, Hizb-i Islami-yi Afghanistan and others over control of the government. UCDP records 41 years at war intensity (1,000 or more battle-related deaths) between 1978 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/333' },
+    { t: ymd(1975, 7, 27), end: ymd(2009, 7, 4), title: 'Sri Lanka: Eelam conflict', tier: 4, category: 'war', detail: 'Government of Sri Lanka against LTTE, TELO, EPRLF over Eelam. UCDP records 16 years at war intensity (1,000 or more battle-related deaths) between 1984 and 2009.', link: 'https://ucdp.uu.se/conflict/352' },
+    { t: ymd(1975, 9, 1), end: ymd(1989, 11, 16), title: 'Morocco: Sahrawi Arab Democratic Republic (Western Sahara) conflict', tier: 6, category: 'war', detail: 'Government of Morocco against POLISARIO over Sahrawi Arab Democratic Republic (Western Sahara). UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1975 and 1989.', link: 'https://ucdp.uu.se/conflict/331' },
+    { t: ymd(1975, 11, 11), end: ymd(2002, 4, 1), title: 'Angola: civil war', tier: 4, category: 'war', detail: 'Government of Angola against FNLA, UNITA over control of the government. UCDP records 23 years at war intensity (1,000 or more battle-related deaths) between 1975 and 2002.', link: 'https://ucdp.uu.se/conflict/327' },
+    { t: ymd(1975, 12, 7), end: ymd(1999, 9, 22), title: 'Indonesia: East Timor conflict', tier: 5, category: 'war', detail: 'Government of Indonesia against CNRT over East Timor. UCDP records 4 years at war intensity (1,000 or more battle-related deaths) between 1975 and 1999.', link: 'https://ucdp.uu.se/conflict/330' },
+    { t: ymd(1977, 12, 31), end: ymd(2025, 12, 31), title: 'Mozambique: civil war', tier: 4, category: 'war', detail: 'Government of Mozambique against Renamo, ASWJ, Naparama over control of the government. UCDP records 11 years at war intensity (1,000 or more battle-related deaths) between 1977 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/332' },
+    { t: ymd(1980, 4, 12), end: ymd(2003, 11, 21), title: 'Liberia: civil war', tier: 6, category: 'war', detail: 'Government of Liberia against Military faction (forces of Samuel Doe), NPFL, INPFL and others over control of the government. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1980 and 2003.', link: 'https://ucdp.uu.se/conflict/341' },
+    { t: ymd(1981, 3, 21), end: ymd(1983, 12, 31), title: 'Ethiopia: Sidamaland conflict', tier: 6, category: 'war', detail: 'Government of Ethiopia against SLM over Sidamaland. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1981 and 1983.', link: 'https://ucdp.uu.se/conflict/437' },
+    { t: ymd(1981, 9, 20), end: ymd(1993, 12, 24), title: 'India: Punjab/Khalistan conflict', tier: 5, category: 'war', detail: 'Government of India against Sikh insurgents over Punjab/Khalistan. UCDP records 4 years at war intensity (1,000 or more battle-related deaths) between 1983 and 1993.', link: 'https://ucdp.uu.se/conflict/351' },
+    { t: ymd(1982, 1, 18), end: ymd(2025, 12, 31), title: 'Somalia: civil war', tier: 4, category: 'war', detail: 'Government of Somalia against SSDF, SNM, SPM and others over control of the government. UCDP records 22 years at war intensity (1,000 or more battle-related deaths) between 1982 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/337' },
+    { t: ymd(1983, 5, 1), end: ymd(2025, 12, 31), title: 'Turkey: Kurdistan conflict', tier: 5, category: 'war', detail: 'Government of Turkey against PKK over Kurdistan. UCDP records 9 years at war intensity (1,000 or more battle-related deaths) between 1984 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/354' },
+    { t: ymd(1984, 2, 6), end: ymd(2025, 12, 31), title: 'India: Kashmir conflict', tier: 5, category: 'war', detail: 'Government of India against Kashmir insurgents over Kashmir. UCDP records 5 years at war intensity (1,000 or more battle-related deaths) between 1990 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/364' },
+    { t: ymd(1985, 8, 27), end: ymd(2020, 12, 2), title: 'Algeria: civil war', tier: 5, category: 'war', detail: 'Government of Algeria against Takfir wa\'l Hijra, AIS, GIA and others over control of the government. UCDP records 6 years at war intensity (1,000 or more battle-related deaths) between 1991 and 2020.', link: 'https://ucdp.uu.se/conflict/386' },
+    { t: ymd(1986, 1, 13), end: ymd(1986, 1, 20), title: 'South Yemen: civil war', tier: 6, category: 'war', detail: 'Government of South Yemen against YSP - AFI over control of the government. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1986 and 1986.', link: 'https://ucdp.uu.se/conflict/359' },
+    { t: ymd(1986, 9, 30), end: ymd(2025, 12, 31), title: 'Israel: Southern Lebanon conflict', tier: 6, category: 'war', detail: 'Government of Israel against Hezbollah over Southern Lebanon. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1990 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/426' },
+    { t: ymd(1987, 8, 8), end: ymd(1987, 9, 12), title: 'Chad – Libya war', tier: 6, category: 'war', detail: 'Government of Chad against Government of Libya over Aozou strip. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1987 and 1987.', link: 'https://ucdp.uu.se/conflict/361' },
+    { t: ymd(1987, 10, 15), end: ymd(2025, 12, 31), title: 'Burkina Faso: civil war', tier: 5, category: 'war', detail: 'Government of Burkina Faso against Popular Front, JNIM over control of the government. UCDP records 4 years at war intensity (1,000 or more battle-related deaths) between 1987 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/360' },
+    { t: ymd(1989, 4, 3), end: ymd(2025, 12, 31), title: 'Haiti: civil war', tier: 6, category: 'war', detail: 'Government of Haiti against Military faction (forces of Himmler Rebu and Guy Francois), Military faction (forces of Raoul Cédras), FLRN and others over control of the government. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1989 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/381' },
+    { t: ymd(1990, 2, 11), end: ymd(2025, 12, 31), title: 'Pakistan: civil war', tier: 4, category: 'war', detail: 'Government of Pakistan against MQM, TTP, Lashkar-e-Islam and others over control of the government. UCDP records 10 years at war intensity (1,000 or more battle-related deaths) between 1990 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/404' },
+    { t: ymd(1990, 8, 2), end: ymd(1991, 3, 1), title: 'Iraq – Kuwait war', tier: 6, category: 'war', detail: 'Government of Iraq against Government of Kuwait over Kuwait. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1990 and 1991.', link: 'https://ucdp.uu.se/conflict/371' },
+    { t: ymd(1990, 10, 1), end: ymd(2025, 12, 31), title: 'Rwanda: civil war', tier: 5, category: 'war', detail: 'Government of Rwanda against FPR, ALiR, FDLR-FOCA and others over control of the government. UCDP records 6 years at war intensity (1,000 or more battle-related deaths) between 1990 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/374' },
+    { t: ymd(1991, 3, 23), end: ymd(2001, 12, 20), title: 'Sierra Leone: civil war', tier: 5, category: 'war', detail: 'Government of Sierra Leone against RUF, AFRC, Kamajors and others over control of the government. UCDP records 3 years at war intensity (1,000 or more battle-related deaths) between 1991 and 2001.', link: 'https://ucdp.uu.se/conflict/382' },
+    { t: ymd(1991, 7, 9), end: ymd(1992, 4, 6), title: 'Serbia (Yugoslavia): Croatia conflict', tier: 6, category: 'war', detail: 'Government of Serbia (Yugoslavia) against Croatian irregulars, Republic of Croatia over Croatia. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1991 and 1992.', link: 'https://ucdp.uu.se/conflict/385' },
+    { t: ymd(1991, 12, 29), end: ymd(2023, 12, 4), title: 'Azerbaijan: Artsakh (Nagorno-Karabakh) conflict', tier: 5, category: 'war', detail: 'Government of Azerbaijan against Republic of Artsakh over Artsakh (Nagorno-Karabakh). UCDP records 4 years at war intensity (1,000 or more battle-related deaths) between 1991 and 2023.', link: 'https://ucdp.uu.se/conflict/388' },
+    { t: ymd(1992, 4, 23), end: ymd(1995, 9, 13), title: 'Croatia: Serb conflict', tier: 6, category: 'war', detail: 'Government of Croatia against Serbian Republic of Krajina, Serbian irregulars over Serb. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1992 and 1995.', link: 'https://ucdp.uu.se/conflict/390' },
+    { t: ymd(1992, 5, 5), end: ymd(2011, 7, 25), title: 'Tajikistan: civil war', tier: 5, category: 'war', detail: 'Government of Tajikistan against PFT, UTO, Forces of Khudoberdiyev and others over control of the government. UCDP records 3 years at war intensity (1,000 or more battle-related deaths) between 1992 and 2011.', link: 'https://ucdp.uu.se/conflict/395' },
+    { t: ymd(1992, 8, 14), end: ymd(1993, 11, 29), title: 'Georgia: Abkhazia conflict', tier: 6, category: 'war', detail: 'Government of Georgia against Republic of Abkhazia over Abkhazia. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1992 and 1993.', link: 'https://ucdp.uu.se/conflict/392' },
+    { t: ymd(1993, 11, 3), end: ymd(2016, 12, 10), title: 'Congo: civil war', tier: 6, category: 'war', detail: 'Government of Congo against Ninjas, Cobras, Cocoyes and others over control of the government. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1993 and 2016.', link: 'https://ucdp.uu.se/conflict/408' },
+    { t: ymd(1994, 2, 21), end: ymd(2025, 12, 31), title: 'Yemen (North Yemen): South Yemen conflict', tier: 6, category: 'war', detail: 'Government of Yemen (North Yemen) against Democratic Republic of Yemen, STC over South Yemen. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 1994 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/402' },
+    { t: ymd(1994, 5, 27), end: ymd(2007, 10, 6), title: 'Russia (Soviet Union): Chechnya conflict', tier: 5, category: 'war', detail: 'Government of Russia (Soviet Union) against Chechen Republic of Ichkeria over Chechnya. UCDP records 6 years at war intensity (1,000 or more battle-related deaths) between 1994 and 2007.', link: 'https://ucdp.uu.se/conflict/401' },
+    { t: ymd(1996, 4, 22), end: ymd(1999, 11, 21), title: 'Serbia (Yugoslavia): Kosovo conflict', tier: 6, category: 'war', detail: 'Government of Serbia (Yugoslavia) against UCK over Kosovo. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 1998 and 1999.', link: 'https://ucdp.uu.se/conflict/412' },
+    { t: ymd(1998, 5, 6), end: ymd(2016, 6, 13), title: 'Eritrea – Ethiopia war', tier: 5, category: 'war', detail: 'Government of Eritrea against Government of Ethiopia over Common border. UCDP records 3 years at war intensity (1,000 or more battle-related deaths) between 1998 and 2016.', link: 'https://ucdp.uu.se/conflict/409' },
+    { t: ymd(2001, 9, 11), end: ymd(2019, 9, 7), title: 'United States of America: civil war', tier: 6, category: 'war', detail: 'Government of United States of America against al-Qaida over control of the government. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 2001 and 2019.', link: 'https://ucdp.uu.se/conflict/418' },
+    { t: ymd(2009, 6, 10), end: ymd(2025, 12, 31), title: 'Mali: civil war', tier: 6, category: 'war', detail: 'Government of Mali against AQIM, Ansar Dine, Military faction (Red Berets) and others over control of the government. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 2009 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/11347' },
+    { t: ymd(2011, 2, 28), end: ymd(2020, 10, 31), title: 'Libya: civil war', tier: 6, category: 'war', detail: 'Government of Libya against Forces of Muammar Gaddafi, NTC, ASL and others over control of the government. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 2011 and 2020.', link: 'https://ucdp.uu.se/conflict/11346' },
+    { t: ymd(2011, 8, 20), end: ymd(2025, 12, 31), title: 'South Sudan: civil war', tier: 6, category: 'war', detail: 'Government of South Sudan against SSDM/A, SSLM/A, SPLM/A - IO and others over control of the government. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 2011 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/11345' },
+    { t: ymd(2014, 4, 8), end: ymd(2014, 9, 15), title: 'Ukraine: Donetsk conflict', tier: 6, category: 'war', detail: 'Government of Ukraine against DPR over Donetsk. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 2014 and 2014.', link: 'https://ucdp.uu.se/conflict/13246' },
+    { t: ymd(2014, 5, 4), end: ymd(2014, 9, 17), title: 'Ukraine: Lugansk conflict', tier: 6, category: 'war', detail: 'Government of Ukraine against LPR over Lugansk. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 2014 and 2014.', link: 'https://ucdp.uu.se/conflict/13247' },
+    { t: ymd(2014, 9, 16), end: ymd(2022, 2, 25), title: 'Ukraine: Novorossiya conflict', tier: 6, category: 'war', detail: 'Government of Ukraine against United Armed Forces of Novorossiya, DPR, LPR over Novorossiya. UCDP records 2 years at war intensity (1,000 or more battle-related deaths) between 2014 and 2022.', link: 'https://ucdp.uu.se/conflict/13306' },
+    { t: ymd(2017, 3, 19), end: ymd(2025, 12, 31), title: 'Iran – Israel war', tier: 6, category: 'war', detail: 'Government of Iran against Government of Israel. UCDP records 1 year at war intensity (1,000 or more battle-related deaths) between 2018 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/14609' },
+    { t: ymd(2023, 5, 25), end: ymd(2025, 12, 31), title: 'Ethiopia: Amhara conflict', tier: 5, category: 'war', detail: 'Government of Ethiopia against Fano over Amhara. UCDP records 3 years at war intensity (1,000 or more battle-related deaths) between 2023 and 2025; ongoing.', link: 'https://ucdp.uu.se/conflict/16069' }
+  );
+})(typeof window !== 'undefined' ? window : globalThis);
+
 /* ======== src/app.js ======== */
 /* HT.app — rendering, interaction and URL state (CONTRACT.md §7, PROMPT.md)
  *
@@ -10122,11 +10603,33 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
     }).catch(function () { /* offline or blocked: the panel simply has no image */ });
   }
 
+  // --- Museum object: a text link always (no network); its image only with the opt-in ---
+  function updatePanelObject(ev) {
+    if (!dom.panelObject) return;
+    const found = HT.objects && HT.objects[ev.title];
+    const isHttps = function (u) { return typeof u === 'string' && /^https:\/\//.test(u); };
+    const obj = found && isHttps(found.url) ? found : null;   // same rule as the Read more link: https only
+    if (!obj) { dom.panelObject.hidden = true; dom.panelObjectImg.removeAttribute('src'); return; }
+    dom.panelObjectLink.textContent = obj.title + (obj.maker ? ', ' + obj.maker : '') + (obj.date ? ' (' + obj.date + ')' : '') + ' \u2197';
+    dom.panelObjectLink.href = obj.url;
+    dom.panelObjectCredit.textContent = obj.credit;
+    if (imagesOn && isHttps(obj.img)) {
+      dom.panelObjectImg.src = obj.img;
+      dom.panelObjectImg.alt = obj.title;
+      dom.panelObjectImgLink.href = obj.url;
+      dom.panelObjectImgLink.hidden = false;
+    } else {
+      dom.panelObjectImg.removeAttribute('src');
+      dom.panelObjectImgLink.hidden = true;
+    }
+    dom.panelObject.hidden = false;
+  }
+
   function setImages(on) {
     imagesOn = !!on;
     try { root.localStorage.setItem(IMAGES_KEY, imagesOn ? '1' : '0'); } catch (err) { /* ignore */ }
     if (dom && dom.optImages) dom.optImages.checked = imagesOn;
-    if (dom && !dom.panel.hidden && selected >= 0) updatePanelImage(events()[selected]);
+    if (dom && !dom.panel.hidden && selected >= 0) { updatePanelImage(events()[selected]); updatePanelObject(events()[selected]); }
   }
 
   // --- Panel map ---
@@ -10237,6 +10740,7 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
     dom.panelDetail.textContent = ev.detail || '';
     updatePanelMap(ev);
     updatePanelImage(ev);
+    updatePanelObject(ev);
     if (typeof ev.link === 'string' && /^https:\/\//.test(ev.link)) {
       dom.panelLink.href = ev.link;
       dom.panelLink.textContent = /^https:\/\/[a-z-]+\.wikipedia\.org\//.test(ev.link) ? 'Read more on Wikipedia ↗' : 'Read more ↗';
@@ -10649,7 +11153,9 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
       btnReigns: $('btn-reigns'), btnSearch: $('btn-search'), search: $('search'), searchInput: $('search-input'), searchResults: $('search-results'),
       panelMap: $('panel-map'), panelMapSvg: $('panel-map-svg'), panelMapCap: $('panel-map-cap'),
       panelImage: $('panel-image'), panelImg: $('panel-img'), panelImgLink: $('panel-img-link'), panelImgCredit: $('panel-img-credit'),
-      optImages: $('opt-images')
+      optImages: $('opt-images'),
+      panelObject: $('panel-object'), panelObjectImg: $('panel-object-img'), panelObjectImgLink: $('panel-object-imglink'),
+      panelObjectLink: $('panel-object-link'), panelObjectCredit: $('panel-object-credit')
     };
     NOW = HT.time.now();
     // Theme: URL param (read in parseHash below) > stored choice > auto.
