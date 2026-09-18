@@ -23,7 +23,7 @@ const { ROOT_START, bce, ce, now } = HT.time;
 const { CATEGORIES, tierForSpan } = HT.tiers;
 
 const DATA_DIR = path.join(__dirname, '..', 'src', 'data');
-const ALLOWED_KEYS = ['t', 'end', 'title', 'detail', 'tier', 'category', 'link', 'lat', 'lon', 'group'];
+const ALLOWED_KEYS = ['t', 'end', 'title', 'detail', 'tier', 'category', 'link', 'lat', 'lon', 'group', 'ongoing'];
 const MAX_TIER = 7;
 const TITLE_MAX = 80;
 const DETAIL_MIN = 20;
@@ -326,6 +326,28 @@ describe('group (optional)', () => {
       if (e.group === undefined) continue;
       assert.ok(typeof e.group === 'string' && e.group.length > 0 && e.group.length <= 60, `bad group: ${e.title}`);
     }
+  });
+});
+
+describe('ongoing (optional)', () => {
+  test('marks only sitting office-holders: grouped, started, without an end, one per lane', () => {
+    const now = globalThis.HT.time.now();
+    const perGroup = new Map();
+    for (const e of globalThis.HT.events) {
+      if (e.ongoing === undefined) continue;
+      assert.strictEqual(e.ongoing, true, `ongoing must be true when present: ${e.title}`);
+      assert.ok(typeof e.group === 'string', `ongoing without a group: ${e.title}`);
+      assert.strictEqual(e.end, undefined, `ongoing with an end: ${e.title}`);
+      assert.ok(e.t < now, `ongoing starts in the future: ${e.title}`);
+      perGroup.set(e.group, (perGroup.get(e.group) || 0) + 1);
+    }
+    for (const [g, n] of perGroup) assert.strictEqual(n, 1, `more than one sitting holder in ${g}`);
+  });
+
+  test('the sitting holder is the latest start in the lane', () => {
+    const latest = new Map();
+    for (const e of globalThis.HT.events) if (e.group && (!latest.has(e.group) || e.t > latest.get(e.group).t)) latest.set(e.group, e);
+    for (const e of globalThis.HT.events) if (e.ongoing) assert.strictEqual(latest.get(e.group), e, `a later holder follows ${e.title}`);
   });
 });
 

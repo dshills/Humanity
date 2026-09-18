@@ -245,7 +245,11 @@
   // that pre-1900 events dated exactly Jan 1 (year precision by the data rules) show just the year.
   function eventDateLabel(ev) {
     const T = HT.time;
-    if (hasEnd(ev)) return T.formatRange(ev.t, ev.end);
+    if (hasEnd(ev)) {
+      const range = T.formatRange(ev.t, ev.end);
+      const cut = range.lastIndexOf(' \u2013 ');
+      return ev.ongoing === true && cut > 0 ? range.slice(0, cut) + ' \u2013 present' : range;
+    }
     if (ev.t < T.bce(10000) && (T.PRESENT - ev.t) % 100 === 0) return 'c. ' + T.formatAgo(ev.t);
     if (ev.t < 1900 && ev.t >= T.bce(20000)) {
       const p = T.toParts(ev.t);
@@ -2263,6 +2267,9 @@
       panelObjectLink: $('panel-object-link'), panelObjectCredit: $('panel-object-credit')
     };
     NOW = HT.time.now();
+    // Sitting office-holders are generated without an end: their reign runs to the moment the page opened.
+    const all = events();
+    for (let i = 0; i < all.length; i++) if (all[i].ongoing === true && !hasEnd(all[i]) && all[i].t < NOW) all[i].end = NOW;
     // Theme: URL param (read in parseHash below) > stored choice > auto.
     try { const stored = root.localStorage.getItem(THEME_KEY); if (stored && THEMES.indexOf(stored) >= 0) theme = stored; } catch (err) { /* ignore */ }
     applyTheme();

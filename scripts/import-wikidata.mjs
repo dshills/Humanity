@@ -15,7 +15,9 @@ const ENDPOINT = 'https://query.wikidata.org/sparql';
 const BATTLE_MIN_SITELINKS = 20;
 const RULER_MIN_SITELINKS = 35;
 
-// Office item, short title used after the holder's name, event category.
+// Office item(s), short title used after the holder's name, event category, and optionally the swimlane the
+// holders share. An office that was renamed or refounded lists every item that continues it, so its lane runs
+// on to the present instead of stopping at the rename (Reich and Federal chancellors; England, Great Britain, UK).
 const OFFICES = [
   ['Q37110', 'pharaoh', 'empire'],
   ['Q28124026', 'king of Assyria', 'empire'],
@@ -28,7 +30,9 @@ const OFFICES = [
   ['Q28541943', 'Abbasid caliph', 'religion'],
   ['Q181765', 'Holy Roman Emperor', 'empire'],
   ['Q18384454', 'king of France', 'empire'],
-  ['Q18810062', 'monarch of England', 'empire'],
+  ['Q18810062', 'monarch of England', 'empire', 'English and British monarch'],
+  ['Q110324075', 'monarch of Great Britain', 'empire', 'English and British monarch'],
+  [['Q111722535', 'Q9134365'], 'monarch of the United Kingdom', 'empire', 'English and British monarch'],
   ['Q187878', 'khagan', 'empire'],
   ['Q4115925', 'sultan of Egypt', 'empire'],
   ['Q15315411', 'Ottoman sultan', 'empire'],
@@ -44,9 +48,11 @@ const OFFICES = [
   ['Q11696', 'president of the United States', 'politics'],
   ['Q14211', 'prime minister of the United Kingdom', 'politics'],
   ['Q191954', 'president of France', 'politics'],
-  ['Q56022', 'chancellor of Germany', 'politics'],
+  [['Q56022', 'Q4970706'], 'chancellor of Germany', 'politics'],
   ['Q1048744', 'general secretary of the CPSU', 'politics'],
   ['Q2708520', 'chairman of the Chinese Communist Party', 'politics'],
+  ['Q849418', 'general secretary of the Chinese Communist Party', 'politics'],
+  ['Q218295', 'president of Russia', 'politics'],
   ['Q192711', 'prime minister of India', 'politics'],
 ];
 
@@ -190,47 +196,80 @@ async function battles(existing) {
 
 async function rulers(existing) {
   const out = [];
-  for (const [qid, office, category] of OFFICES) {
-    const q = `SELECT ?p ?pLabel ?pDescription ?start ?sprec ?end ?s ?article WHERE {
-  ?p p:P39 ?st . ?st ps:P39 wd:${qid} ; pq:P580 ?start ; pqv:P580 [ wikibase:timePrecision ?sprec ] .
+  for (const [qids, office, category, lane] of OFFICES) {
+    // The label service sometimes hands back a bare item id (it did for Donald Trump, Emmanuel Macron and four
+    // recent British prime ministers), which used to drop the row. Ask for the English label directly and fall
+    // back to the article title, so a holder is only skipped when there is truly no English name.
+    const q = `SELECT ?p ?lab ?pLabel ?pDescription ?start ?sprec ?end ?dod ?s ?article ?office WHERE {
+  VALUES ?office { ${[].concat(qids).map((id) => 'wd:' + id).join(' ')} }
+  ?p p:P39 ?st . ?st ps:P39 ?office ; pq:P580 ?start ; pqv:P580 [ wikibase:timePrecision ?sprec ] .
   OPTIONAL { ?st pq:P582 ?end . }
+  OPTIONAL { ?p wdt:P570 ?dod . }
+  OPTIONAL { ?p rdfs:label ?lab . FILTER(LANG(?lab) = "en") }
   ?p wdt:P31 wd:Q5 ; wikibase:sitelinks ?s . FILTER(?s >= ${RULER_MIN_SITELINKS})
   OPTIONAL { ?article schema:about ?p ; schema:isPartOf <https://en.wikipedia.org/> . }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
 }`;
     let rows;
     try { rows = await sparql(q); } catch (e) { console.error(`office ${office}: ${e.message}`); continue; }
-    let n = 0;
+    const found = [];
     for (const r of rows) {
       const t = parseTime(val(r, 'start'), val(r, 'sprec'));
       if (!t) continue;
-      const label = val(r, 'pLabel') || '';
+      let label = val(r, 'lab') || val(r, 'pLabel') || '';
+      if ((!label || /^Q\d+$/.test(label)) && val(r, 'article')) {
+        try { label = decodeURIComponent(val(r, 'article').split('/wiki/')[1] || '').replace(/_/g, ' ').replace(/ \([^)]*\)$/, ''); } catch (e) { label = ''; }
+      }
       if (!label || /^Q\d+$/.test(label)) continue;
       const y = astro(t);
       if (y > NOW_ASTRO) continue;
       const endT = val(r, 'end') ? parseTime(val(r, 'end'), 11) : null;
+      found.push({ r, t, y, label, endT: endT && astro(endT) > y ? endT : null });
+    }
+    // The sitting holder: the latest start in the office, with no end date and no date of death. Historical
+    // statements that merely lack an end (Puyi, Lady Jane Grey, one-month popes) stay point events.
+    const latest = found.reduce((m, f) => Math.max(m, f.y), -Infinity);
+    let n = 0;
+    for (const f of found) {
+      const { r, t, y, label, endT } = f;
+      const ongoing = !endT && !val(r, 'end') && !val(r, 'dod') && y === latest;
       const s = Number(val(r, 's'));
       const tier = blendedTier(val(r, 'article'), s >= 250 ? 3 : s >= 140 ? 4 : s >= 70 ? 5 : s >= 40 ? 6 : 7, 3, y);
       const desc = val(r, 'pDescription');
-      const span = `${dateText(t)}${endT && astro(endT) > y ? ` to ${dateText(endT)}` : ''}`;
+      const span = ongoing ? `since ${dateText(t)}` : `${dateText(t)}${endT ? ` to ${dateText(endT)}` : ''}`;
       // Wikidata descriptions often already say the office ("President of the United States from 1861 to 1865");
       // then only the precise dates are added, otherwise the office sentence is.
       const officeWord = office.replace(/^(king|monarch|emperor|president|prime minister|chancellor|sultan|general secretary|chairman) of (the )?/i, '').split(' ')[0];
-      let detail = desc ? `${cap(desc).replace(/\.$/, '')}. ` : '';
-      detail += desc && new RegExp(officeWord, 'i').test(desc) ? `In office ${span}.` : `${cap(office)} ${span}.`;
+      let detail = desc && !/^Q\d+$/.test(desc) ? `${cap(desc).replace(/\.$/, '')}. ` : '';
+      detail += detail && new RegExp(officeWord, 'i').test(desc) ? `In office ${span}.` : `${cap(office)} ${span}.`;
       const title = clip(`${label}, ${office}`, 80);
       if (existing.some((e) => e.title.toLowerCase() === title.toLowerCase())) continue;
-      out.push({ t: dateExpr(t), y, end: endT && astro(endT) > y ? dateExpr(endT) : null, title, detail: clip(detail, 300),
-        tier, category, group: office, link: val(r, 'article') || `https://www.wikidata.org/wiki/${val(r, 'p').split('/').pop()}`, key: val(r, 'p') + '|' + qid + '|' + Math.floor(y) });
+      out.push({ t: dateExpr(t), y, end: endT ? dateExpr(endT) : null, endY: endT ? astro(endT) : null, ongoing, title, detail: clip(detail, 300),
+        tier, category, group: lane || office, link: val(r, 'article') || `https://www.wikidata.org/wiki/${val(r, 'p').split('/').pop()}`, key: val(r, 'p') + '|' + office + '|' + Math.floor(y) });
       n++;
     }
-    console.log(`${office}: ${n}`);
+    console.log(`${office}: ${n}${found.some((f) => !f.endT && !val(f.r, 'dod') && f.y === latest) ? ' (sitting holder found)' : ''}`);
     await sleep(600);
   }
   // One entry per person/office/start (duplicate statements happen); then distinct titles.
   const seenKey = new Set();
   const dedup = out.filter((e) => (seenKey.has(e.key) ? false : (seenKey.add(e.key), true)));
-  return dedup;
+  // An office split across items (the UK crown before and after 1927) yields back-to-back statements for one
+  // person under one title: join them into a single reign.
+  dedup.sort((a, b) => a.y - b.y);
+  const joined = [];
+  for (const e of dedup) {
+    const person = (x) => x.key.split('|')[0];
+    const prev = joined.filter((p) => person(p) === person(e) && p.title === e.title && p.endY !== null && Math.abs(p.endY - e.y) < 0.2).pop();
+    if (prev) {
+      const tail = / to ([^.]*)\.$/.exec(e.detail);
+      prev.detail = prev.detail.replace(/ to [^.]*\.$/, e.ongoing ? ' to the present.' : tail ? ` to ${tail[1]}.` : '.');
+      prev.end = e.end; prev.endY = e.endY; prev.ongoing = e.ongoing;
+      continue;
+    }
+    joined.push(e);
+  }
+  return joined;
 }
 
 const existing = curated();
@@ -251,7 +290,7 @@ for (const e of all) {
   }
   used.add(e.title.toLowerCase());
 }
-const lines = all.map((e) => `    { t: ${e.t},${e.end ? ` end: ${e.end},` : ''} title: '${esc(e.title)}', tier: ${e.tier}, category: '${e.category}', detail: '${esc(e.detail)}', link: '${e.link}'${e.geo ? `, lat: ${e.geo[0]}, lon: ${e.geo[1]}` : ''}${e.group ? `, group: '${esc(e.group)}'` : ''} }`);
+const lines = all.map((e) => `    { t: ${e.t},${e.end ? ` end: ${e.end},` : ''} title: '${esc(e.title)}', tier: ${e.tier}, category: '${e.category}', detail: '${esc(e.detail)}', link: '${e.link}'${e.geo ? `, lat: ${e.geo[0]}, lon: ${e.geo[1]}` : ''}${e.group ? `, group: '${esc(e.group)}'` : ''}${e.ongoing ? ', ongoing: true' : ''} }`);
 const file = `(function (root) {
   'use strict';
   const HT = root.HT || (root.HT = {});
