@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The opening view in NVG mode, all 300,000 years on a logarithmic axis: ticks run from 300,000, 100,000, 50,000, 20,000 and 10,000 years ago to 3000 BCE, 1 CE, 1000, 1500 and 2000; fifteen landmark events are labelled, from the earliest Homo sapiens to Apollo 11; the recorded-history bracket spans the right quarter of the stage up to the Today line; the Scale toggle sits at the top left, the overview strip under the header, and the climate and population curves below the axis](docs/screenshot.png)
+![The Lives layer on the years 1440 to 1560 in Ops mode: twelve rows of lifespans coloured by field, among them Leonardo da Vinci, Michelangelo, Copernicus, Luther, Dürer, Machiavelli, Columbus, Magellan, Moctezuma, Pachacútec, Akbar and Zara Yaqob, under a caption reading 35 of 136 alive in this view; the panel is open on Leonardo da Vinci, 1452 to 1519, with his birthplace on the map, links, and an Alive at the same time list; events, the Earth layer and the largest-city ribbon sit below](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
