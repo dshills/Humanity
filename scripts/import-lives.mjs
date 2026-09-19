@@ -112,10 +112,12 @@ for (const e of ents) {
   if (!born || !died) continue;
   const a = astro(born); const b = astro(died);
   if (!(b > a) || b - a > 125 || b > NOW_ASTRO) continue;               // bad data guard
-  // Names shared by every language (Albert Einstein, Marie Curie) are stored once, under "mul", not under "en".
-  const label = e.labels && ((e.labels.en && e.labels.en.value) || (e.labels.mul && e.labels.mul.value));
+  // A person is named by the title of their English Wikipedia article, minus any "(disambiguation)": labels on
+  // Wikidata can be edited by anyone and sometimes are (Andy Warhol's once read "Andy Warhol TM by Campbell Soup
+  // Company"), while an article title only changes through a page move. It is also the common English name.
   const article = e.sitelinks && e.sitelinks.enwiki && e.sitelinks.enwiki.title;
-  if (!label || !article) continue;
+  if (!article) continue;
+  const label = article.replace(/ \([^)]*\)$/, '');
   const desc = (e.descriptions && e.descriptions.en && e.descriptions.en.value) || '';
   people.push({ id: e.id, label, article, desc, born, died, a, b, links: Object.keys(e.sitelinks).length, place: claimIds(e, 'P19')[0] || null });
 }
