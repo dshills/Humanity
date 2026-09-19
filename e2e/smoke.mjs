@@ -108,6 +108,25 @@ const STEPS = `<script>
     key('Escape'); await wait(200); key('Escape'); await wait(300);
     check('Escape closes the panel, then ends the tour', $('tour-bar').hidden && !/tour=/.test(location.hash), location.hash);
 
+    // Accessibility: overlays take and return focus, the arrows pan, jumps are announced, the skip button works.
+    $('btn-tours').focus(); $('btn-tours').click(); await wait(200);
+    check('an opened card takes the focus', $('tours').contains(document.activeElement), document.activeElement && document.activeElement.className);
+    key('Escape'); await wait(200);
+    check('Escape closes the card and returns focus to its button', $('tours').hidden && document.activeElement === $('btn-tours'), document.activeElement && document.activeElement.id);
+    $('btn-legend').focus(); $('btn-legend').click(); await wait(200);
+    var inLegend = $('legend').contains(document.activeElement);
+    key('Escape'); await wait(200);
+    check('the legend does the same', inLegend && $('legend').hidden && document.activeElement === $('btn-legend'), document.activeElement && document.activeElement.id);
+    HT.app.setView(1000, 1100, { animate: false }); await wait(300);
+    document.body.focus(); key('ArrowRight'); await wait(700);
+    var pv = HT.app.getView();
+    check('the right arrow pans a fifth of the view', Math.abs(pv.start - 1020) < 1e-6 && Math.abs(pv.end - 1120) < 1e-6, pv.start + '..' + pv.end);
+    key('ArrowLeft'); await wait(1300);
+    check('the live region announces where the view landed', /^Showing 1000\\W+1100\\. \\d+ events? in view\\.$/.test($('sr-status').textContent), $('sr-status').textContent);
+    $('skip').focus(); $('skip').click(); await wait(100);
+    check('the skip button lands on the first event', !!(document.activeElement && document.activeElement.closest && document.activeElement.closest('#timeline')), document.activeElement && document.activeElement.tagName);
+    check('the panel is named by its title', $('panel').getAttribute('aria-labelledby') === 'panel-title' && !$('panel').hasAttribute('aria-label'));
+
     HT.app.home(); await wait(700);
     var mm = $('minimap'); var r = mm.getBoundingClientRect();
     ['pointerdown', 'pointerup'].forEach(function (type) { mm.dispatchEvent(new PointerEvent(type, { clientX: r.left + r.width * 0.45, clientY: r.top + r.height / 2, bubbles: true, pointerId: 1, button: 0, isPrimary: true })); });
@@ -136,25 +155,55 @@ const STEPS = `<script>
 })();
 </script>`;
 
+// A second, shorter run with ?embed=1: the quiet page for iframes.
+const EMBED_STEPS = `<script>
+(async function () {
+  var R = []; var $ = function (id) { return document.getElementById(id); };
+  var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  var check = function (name, ok, info) { R.push({ name: name, ok: !!ok, info: info === undefined ? '' : String(info) }); };
+  var shown = function (el) { return !!el && getComputedStyle(el).display !== 'none' && !el.hidden; };
+  try {
+    await wait(400);
+    check('embed: the page knows it is embedded', document.body.classList.contains('embed'));
+    check('embed: no guide on a first visit', $('help').hidden || !shown($('help')));
+    var visible = [].slice.call(document.querySelectorAll('#controls button')).filter(shown).map(function (b) { return b.id; });
+    check('embed: only Zoom out and Home remain in the header', visible.join(',') === 'btn-out,btn-home', visible.join(','));
+    check('embed: HUD, mode dock and chip are gone', !shown($('hud')) && !shown($('dock')) && !shown($('otd-chip')));
+    var len = history.length;
+    HT.app.zoomIn(1500); await wait(700); HT.app.zoomIn(1500); await wait(700);
+    check('embed: zooming adds nothing to the host history', history.length === len, len + ' -> ' + history.length);
+    var href = $('embed-open').getAttribute('href') || '';
+    check('embed: the brand links to the same view on the full page', shown($('embed-open')) && href.indexOf('embed') < 0 && /\\?ref=blog#/.test(href) && href.indexOf(location.hash) > 0 && location.hash.length > 5, href.slice(-60));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true })); await wait(100);
+    check('embed: the ? key does not open a hidden guide', $('help').hidden);
+  } catch (err) { check('embed: the script ran to the end', false, err && err.stack ? err.stack : err); }
+  check('embed: no console errors or uncaught exceptions', window.__errors.length === 0, window.__errors.join(' | '));
+  var pre = document.createElement('pre'); pre.id = 'e2e-result'; pre.textContent = JSON.stringify(R); document.body.appendChild(pre);
+})();
+</script>`;
+
 const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
 if (!html.includes('<body>') || !html.includes('</body>')) { console.error('e2e: index.html has no <body>'); process.exit(1); }
-const dir = mkdtempSync(join(tmpdir(), 'humanity-e2e-'));
-const page = join(dir, 'index.html');
-writeFileSync(page, html.replace('<body>', '<body>' + HOOK).replace(/<\/body>(?![\s\S]*<\/body>)/, STEPS + '</body>'));
-
-const res = spawnSync(chrome, [
-  '--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars', '--no-first-run', '--no-default-browser-check',
-  '--window-size=1400,900', '--virtual-time-budget=60000', '--dump-dom', pathToFileURL(page).href,
-], { encoding: 'utf8', timeout: 180000, maxBuffer: 256 * 1024 * 1024 });
-rmSync(dir, { recursive: true, force: true });
-
-const m = /<pre id="e2e-result">([\s\S]*?)<\/pre>/.exec(res.stdout || '');
-if (!m) {
-  console.error('e2e: the page produced no result' + (res.error ? ` (${res.error.message})` : '') + `\n${(res.stderr || '').split('\n').slice(-5).join('\n')}`);
-  process.exit(1);
-}
 const decode = (s) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
-const results = JSON.parse(decode(m[1]));
+
+function run(steps, query) {
+  const dir = mkdtempSync(join(tmpdir(), 'humanity-e2e-'));
+  const page = join(dir, 'index.html');
+  writeFileSync(page, html.replace('<body>', '<body>' + HOOK).replace(/<\/body>(?![\s\S]*<\/body>)/, steps + '</body>'));
+  const res = spawnSync(chrome, [
+    '--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars', '--no-first-run', '--no-default-browser-check',
+    '--window-size=1400,900', '--virtual-time-budget=60000', '--dump-dom', pathToFileURL(page).href + query,
+  ], { encoding: 'utf8', timeout: 180000, maxBuffer: 256 * 1024 * 1024 });
+  rmSync(dir, { recursive: true, force: true });
+  const m = /<pre id="e2e-result">([\s\S]*?)<\/pre>/.exec(res.stdout || '');
+  if (!m) {
+    console.error('e2e: the page produced no result' + (res.error ? ` (${res.error.message})` : '') + `\n${(res.stderr || '').split('\n').slice(-5).join('\n')}`);
+    process.exit(1);
+  }
+  return JSON.parse(decode(m[1]));
+}
+
+const results = run(STEPS, '').concat(run(EMBED_STEPS, '?embed=1&ref=blog'));
 let failed = 0;
 for (const r of results) {
   if (!r.ok) failed++;

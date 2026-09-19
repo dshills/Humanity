@@ -33,6 +33,7 @@ Node 18 or newer, zero dependencies. The build concatenates `time.js, tiers.js, 
 | Shift+click, **Zoom out** button, `-` key | Zoom out: undoes the last click/button zoom, otherwise 4× around the view center |
 | **Home** button, `0` key | Back to the root view (300,000 years ago – today) |
 | `+` / `=` key | Zoom in 4× at the view center |
+| `←` / `→` keys | Pan a fifth of the view (Shift: four fifths); inside a guided tour they step through it |
 | Mouse wheel / trackpad pinch | Zoom around the cursor; Shift+wheel or horizontal scroll pans |
 | Touch pinch | Zoom, keeping the date under each finger fixed |
 | Drag | Pan (nothing to pan at the root view) |
@@ -117,6 +118,24 @@ Six hand-written paths through the events, for anyone who would rather be shown 
 The step is part of the URL (`tour=story-of-writing.4`), so the browser's Back and Forward buttons walk the tour, a reload resumes it, and a link shares a particular stop. On a phone the narration rides at the top of the event sheet, since the stage is too short to share.
 
 Tours live in `src/tours.js`: an id, a title, a blurb and a list of `{ ev, note }` steps, where `ev` is the exact title of a curated event. `test/tours.test.js` checks that every step names a real event, that no tour visits one twice, that notes stay between 20 and 240 characters, and that each tour runs forward in time, so renaming or removing an event cannot silently break one.
+
+## Embedding
+
+Add `?embed=1` before the hash and the page becomes a quiet version of itself for an iframe: the header keeps the path, **Zoom out** and **Home**, the brand line turns into an **Open the full timeline** link to the same view on the full page, and the HUD, mode dock, guide, tours, search, legend and online-content controls are gone. Everything in the hash still works, so an embed can open on a view, an event or a tour stop, in any mode:
+
+```html
+<iframe src="https://dshills.github.io/Humanity/?embed=1#s=1400&e=1600&m=paper&ev=gutenberg-prints-the-42-line-bible"
+        width="100%" height="520" style="border:0" loading="lazy" title="Timeline: 1400 to 1600"></iframe>
+```
+
+An embedded page never adds entries to its host's history (every URL update is a `replaceState`), shows no first-visit guide, and hides the overview strip when the frame is under 420 px tall.
+
+## Accessibility
+
+- **Keyboard.** Everything is reachable without a pointer: events and reign bars are focusable buttons, `+`/`-`/`0` zoom, `←`/`→` pan a fifth of the view (four fifths with Shift), `/` searches, and a **Skip to the timeline** button appears on the first Tab. Cards and dialogs (guide, tours, Today in history, legend, search) take the focus when they open and give it back to the control that opened them when they close; Escape closes them in turn.
+- **Screen readers.** A polite live region says where the view has landed after a jump or a pan ("Showing 1000 – 1100. 31 events in view."), what a region filter now holds and how long the Today list is; the tour narration is its own live region; the event panel is named by its title; the HUD is decorative and hidden from assistive technology.
+- **Contrast.** `test/contrast.test.js` reads the colour tokens of all six modes out of the stylesheet and holds them to WCAG AA (body text 7:1, muted and accent text 4.5:1, text on accent 4.5:1). NVG, Ironbow and Noir recolour the whole timeline through an SVG filter, so for those the tokens are pushed through the same filter before measuring; that caught Noir's tick labels at 3.4:1, now fixed.
+- **Motion.** `prefers-reduced-motion` turns off zoom animation, pulses, scanlines and transitions. Forced-colours mode is supported.
 
 ## Today in history
 
@@ -279,6 +298,7 @@ test/
   ticks.test.js         regimes, ladder selection, nice positions, minors, thinning
   layout.test.js        lane packing, priorities, gaps, drops, purity
   data.test.js          every rule listed under "Adding an event"
+  contrast.test.js      theme colour tokens against WCAG AA, including through the sensor filters
   tours.test.js         every tour step names a real event; tours run forward in time
   core.test.js          view clamping and the Today margin, hash round trips, slugs, regions, the overview
                         scale, tier selection, on-this-day parsing, the panel's neighbour lists

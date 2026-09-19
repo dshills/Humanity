@@ -122,6 +122,7 @@
   let otdInView = 0;                      // on-this-day events inside the current view
   let otdHint = true;                     // offer the layer on deep views while the opt-in is off
   let otdLinkIndex = null;                // article title -> [t] of bundled events, to skip what is already here
+  let embed = false;                      // ?embed=1: a quiet page for an iframe (no chrome, no history entries)
   let tour = null;                        // { def, step } while a guided tour is running
   let pendingTour = null;                 // { id, step } last parsed from the URL
   let titleIndex = null;                  // event title -> index, for tour steps
@@ -322,6 +323,7 @@
   function writeUrl(mode) {
     if (typeof root.history === 'undefined' || typeof root.location === 'undefined') return;
     const hash = encodeHash(view);
+    if (embed) { mode = 'replace'; updateEmbedLink(hash); }   // an iframe must not add entries to its host's history
     try {
       if (mode === 'push' && root.location.hash !== hash) root.history.pushState(historyState(), '', hash);
       else root.history.replaceState(historyState(), '', hash);
@@ -331,6 +333,17 @@
         try { root.location.hash = hash; } catch (err2) { /* ignore */ }
       }
     }
+  }
+
+  // Embedded, the brand line links to the same view on the full page.
+  function updateEmbedLink(hash) {
+    if (!dom || !dom.embedOpen) return;
+    try {
+      const u = new root.URL(String(root.location.href));
+      u.searchParams.delete('embed');                     // whatever else is in the query stays
+      u.hash = hash || root.location.hash || '';
+      dom.embedOpen.href = u.href;
+    } catch (err) { /* ignore */ }
   }
 
   // Stamp the current entry with our state without touching the visible URL.
@@ -422,6 +435,7 @@
       if (changed) { settleNext = !!opts.discrete; render(); }
     }
     renderCrumbs();
+    if (dom && (opts.discrete || opts.url === 'push')) announceView();
   }
 
   // ------------------------------------------------------------------
@@ -1302,7 +1316,10 @@
 
   function toggleSearch(force) {
     const open = force === undefined ? dom.search.hidden : !!force;
+    const was = !dom.search.hidden;
+    if (open && !was) rememberFocus('search');
     dom.search.hidden = !open;
+    if (!open && was) restoreFocus('search', dom.btnSearch);
     dom.btnSearch.setAttribute('aria-expanded', String(open));
     if (open) {
       if (!dom.legend.hidden) toggleLegend(false);
@@ -1755,12 +1772,58 @@
     if (dom.help && !dom.help.hidden) toggleHelp(false);
     if (!dom.legend.hidden) toggleLegend(false);
     if (!imagesOn) setImages(true);                       // the entry says so: this list comes from Wikipedia
+    rememberFocus('today');                               // by now the card it came from has handed focus back to its button
     dom.today.hidden = false;
     renderToday('loading');
-    loadOtdDay(todayKey().key).then(function (state) { if (!dom.today.hidden) renderToday(state); });
+    focusFirst(dom.today, '.today-close');
+    loadOtdDay(todayKey().key).then(function (state) {
+      if (dom.today.hidden) return;
+      renderToday(state);
+      focusFirst(dom.today, '.today-item, .today-close');
+      const n = dom.today.querySelectorAll('.today-item').length;
+      announce(state === 'error' ? 'Wikipedia could not be reached.' : n + ' events listed for today\u2019s date, most recent first.', 100);
+    });
   }
 
-  function closeToday() { if (dom.today) dom.today.hidden = true; }
+  function closeToday(opts) {
+    if (!dom.today || dom.today.hidden) return;
+    dom.today.hidden = true;
+    if (opts && opts.keepFocus) focusBack.delete('today'); else restoreFocus('today', dom.btnTours);
+  }
+
+  // --- Accessibility helpers ---
+  // Overlays take the focus when they open and hand it back to whatever had it when they close.
+  const focusBack = new Map();
+  function rememberFocus(key) {
+    const el = document.activeElement;
+    if (el && el !== document.body) focusBack.set(key, el);
+  }
+  function restoreFocus(key, fallback) {
+    const el = focusBack.get(key);
+    focusBack.delete(key);
+    const target = el && el.isConnected && !el.disabled && !(el.closest && el.closest('[hidden]')) ? el : fallback;
+    if (target && typeof target.focus === 'function') { try { target.focus({ preventScroll: true }); } catch (err) { /* ignore */ } }
+  }
+  function focusFirst(container, selector) {
+    const el = container && container.querySelector(selector || 'button, [href], input, [tabindex]:not([tabindex="-1"])');
+    if (el) { try { el.focus({ preventScroll: true }); } catch (err) { /* ignore */ } }
+  }
+
+  // A polite live region says where the view has landed after a jump, and what a filter or list now holds.
+  let announceTimer = 0;
+  function announce(text, delay) {
+    if (!dom || !dom.srStatus) return;
+    if (announceTimer) clearTimeout(announceTimer);
+    announceTimer = setTimeout(function () { announceTimer = 0; dom.srStatus.textContent = typeof text === 'function' ? text() : text; }, delay === undefined ? 500 : delay);
+  }
+  function announceView() {
+    if (tour) return;                                     // the tour bar narrates itself
+    announce(function () {
+      const v = view || shown;
+      const label = isRoot(v) ? 'All of humanity, 300,000 years ago to today' : HT.time.formatRange(v.start, capNow(v.end));
+      return 'Showing ' + label + '. ' + hudStats.inWindow + (hudStats.inWindow === 1 ? ' event' : ' events') + ' in view.';
+    }, 700);
+  }
 
   // --- Guided tours (HT.tours): a fixed path of events with a line of narration each. A step zooms to its
   // event and opens its panel; the step rides in the URL (tour=<id>.<n>), so Back, Forward and shared links work. ---
@@ -1894,8 +1957,12 @@
       closeToday();
       refreshTourLists();
     }
+    const was = !dom.tours.hidden;
+    if (open && !was) rememberFocus('tours');
     dom.tours.hidden = !open;
     if (dom.btnTours) dom.btnTours.setAttribute('aria-expanded', String(open));
+    if (open && !was) focusFirst(dom.tours);
+    if (!open && was && !tour) restoreFocus('tours', dom.btnTours);
   }
 
   // --- Permalinks: ev=<slug of the title>. Titles are unique, so slugs are stable while a title is. ---
@@ -1975,6 +2042,8 @@
     try { if (regionFilter) root.localStorage.setItem(REGION_KEY, regionFilter); else root.localStorage.removeItem(REGION_KEY); } catch (err) { /* ignore */ }
     renderLegend();
     if (shown) { settleNext = true; render(); }
+    const label = regionFilter ? (REGIONS.filter(function (r) { return r[0] === regionFilter; })[0] || ['', regionFilter])[1] : 'everywhere';
+    announce(function () { return 'Region: ' + label + '. ' + hudStats.inWindow + ' events in view.'; });
   }
 
   // --- Minimap: years before now on a log scale, so the last few thousand years get real width ---
@@ -1983,7 +2052,8 @@
 
   function renderMinimap() {
     if (!dom.minimap || !shown) return;
-    const w = Math.max(1, dom.minimap.clientWidth || size.width);
+    if (!dom.minimap.clientWidth) return;                 // hidden (a short embed): nothing to draw, nothing to cache
+    const w = dom.minimap.clientWidth;
     const h = Math.max(1, dom.minimap.clientHeight || 24);
     if (!mmDensity) {
       mmDensity = new Array(MM_BINS).fill(0);
@@ -2041,9 +2111,13 @@
 
   // --- Help overlay ---
   function toggleHelp(force) {
+    if (embed) return;                                  // no guide inside an iframe
     const open = force === undefined ? dom.help.hidden : !!force;
+    const was = !dom.help.hidden;
+    if (open && !was) rememberFocus('help');
     dom.help.hidden = !open;
     dom.btnHelp.setAttribute('aria-expanded', String(open));
+    if (!open && was) restoreFocus('help', dom.btnHelp);
     if (open) {
       if (!dom.legend.hidden) toggleLegend(false);
       if (!dom.search.hidden) toggleSearch(false);
@@ -2103,7 +2177,11 @@
   function toggleLegend(force) {
     const open = force === undefined ? dom.legend.hidden : !!force;
     if (open && dom.tours && !dom.tours.hidden) toggleTours(false);
+    const was = !dom.legend.hidden;
+    if (open && !was) rememberFocus('legend');
     dom.legend.hidden = !open;
+    if (open && !was) focusFirst(dom.legend);
+    if (!open && was) restoreFocus('legend', dom.btnLegend);
     dom.btnLegend.setAttribute('aria-expanded', String(open));
   }
 
@@ -2418,11 +2496,18 @@
         else hideTooltip();
         break;
       case 'ArrowRight':
-        if (tour) { tourStep(1); e.preventDefault(); }
+      case 'ArrowLeft': {
+        const dir = e.key === 'ArrowRight' ? 1 : -1;
+        if (tour) { tourStep(dir); e.preventDefault(); break; }
+        if (el && el.closest && el.closest('#legend, #tours, #today, #help, #panel, #search')) break;   // leave lists and cards alone
+        // Pan a fifth of the view (four fifths with Shift): the keyboard's answer to dragging.
+        const base = view || rootView();
+        const d = (base.end - base.start) * (e.shiftKey ? 0.8 : 0.2) * dir;
+        commit({ start: base.start + d, end: base.end + d }, { animate: true, url: 'replace', stack: 'replace', discrete: false });
+        announceView();
+        e.preventDefault();
         break;
-      case 'ArrowLeft':
-        if (tour) { tourStep(-1); e.preventDefault(); }
-        break;
+      }
       case '-':
       case '_':
         zoomOut();
@@ -2633,11 +2718,18 @@
       otdChip: $('otd-chip'), otdAction: $('otd-action'), otdDismiss: $('otd-dismiss'),
       btnTours: $('btn-tours'), tours: $('tours'), tourBar: $('tour-bar'), tourTitle: $('tour-title'), tourCount: $('tour-count'),
       tourNote: $('tour-note'), tourPrev: $('tour-prev'), tourNext: $('tour-next'), tourExit: $('tour-exit'),
+      embedOpen: $('embed-open'), srStatus: $('sr-status'), skip: $('skip'),
       helpTours: $('help-tours'), helpTourList: $('help-tour-list'), today: $('today'),
       minimap: $('minimap'), help: $('help'), helpClose: $('help-close'), helpOk: $('help-ok'), btnHelp: $('btn-help'), panelCopy: $('panel-copy'),
       panelObject: $('panel-object'), panelObjectImg: $('panel-object-img'), panelObjectImgLink: $('panel-object-imglink'),
       panelObjectLink: $('panel-object-link'), panelObjectCredit: $('panel-object-credit')
     };
+    // Embed mode changes the layout, so it is settled before anything is measured or drawn.
+    try { embed = /[?&]embed=(1|true)\b/.test(String(root.location.search || '')); } catch (err) { embed = false; }
+    if (embed) {
+      document.body.classList.add('embed');
+      if (dom.embedOpen) dom.embedOpen.hidden = false;
+    }
     NOW = HT.time.now();
     // Sitting office-holders are generated without an end: their reign runs to the moment the page opened.
     const all = events();
@@ -2681,13 +2773,19 @@
     } else if (dom.btnTours) {
       dom.btnTours.hidden = true;
     }
+    if (dom.skip) {
+      dom.skip.addEventListener('click', function () {
+        const first = dom.svg.querySelector('.event');
+        try { (first || dom.svg).focus({ preventScroll: true }); } catch (err) { /* ignore */ }
+      });
+    }
     if (dom.today) {
       dom.today.addEventListener('click', function (e) {
         const t = e.target && typeof e.target.closest === 'function' ? e.target : null;
         if (!t) return;
         if (t.closest('.today-close')) { closeToday(); return; }
         const b = t.closest('.today-item');
-        if (b) { closeToday(); jumpToEvent(Number(b.dataset.index)); }
+        if (b) { closeToday({ keepFocus: true }); jumpToEvent(Number(b.dataset.index)); }
       });
     }
     if (dom.otdChip) {
@@ -2743,7 +2841,8 @@
     // First visit without a shared link: show the guide once.
     let seen = true;
     try { seen = root.localStorage.getItem(HELP_KEY) === '1'; } catch (err) { /* ignore */ }
-    if (!seen && dom.help && (!root.location.hash || root.location.hash.length < 2)) toggleHelp(true);
+    if (!seen && !embed && dom.help && (!root.location.hash || root.location.hash.length < 2)) toggleHelp(true);
+    if (embed) updateEmbedLink();
   }
 
   HT.app = {
