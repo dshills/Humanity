@@ -169,6 +169,13 @@ const STEPS = `<script>
     check('searching for a person turns Lives on and selects their bar', /Albert Einstein/.test($('panel-title').textContent) && !!document.querySelector('#timeline .life.selected'), $('panel-title').textContent);
     $('panel-close').click(); await wait(200); key('r'); await wait(200);
 
+    // Works: an imported film is found by search and lands on a view that shows it.
+    $('btn-search').click(); await wait(200);
+    $('search-input').value = 'citizen kane'; $('search-input').dispatchEvent(new Event('input', { bubbles: true })); await wait(200);
+    key('Enter', $('search-input')); await wait(900);
+    check('a landmark film is on the timeline and opens from search', /Citizen Kane by Orson Welles/.test($('panel-title').textContent) && /1941/.test($('panel-date').textContent) && !!document.querySelector('#timeline .event.selected'), $('panel-title').textContent + ' ' + $('panel-date').textContent);
+    $('panel-close').click(); await wait(200);
+
     // Your lifetime: a year typed into the form marks the band and starts a generated tour; nothing reaches the URL.
     $('btn-tours').click(); await wait(200);
     document.querySelector('#tours .tour-pick[data-tour="@life"]').click(); await wait(200);

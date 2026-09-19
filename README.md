@@ -10,7 +10,7 @@
   <img src="docs/mode-paper.png" width="32%" alt="Paper mode: warm ink on paper">
 </p>
 
-A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 4,059 events in 16 color-coded categories and the lifespans of 1,729 notable people, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, nothing to install, and no network requests unless you switch on the optional Wikimedia content (images, article summaries and day-by-day events).
+A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 4,273 events in 16 color-coded categories, among them 214 landmark creative works, and the lifespans of 1,729 notable people, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, nothing to install, and no network requests unless you switch on the optional Wikimedia content (images, article summaries and day-by-day events).
 
 ## Open it
 
@@ -118,13 +118,19 @@ Press **Lives** (or `P`) and the ruler rows at the top of the stage give way to 
 
 Who counts as notable is not decided here. The 1,729 people are those of English Wikipedia's [Vital articles, level 4: People](https://en.wikipedia.org/wiki/Wikipedia:Vital_articles/Level_4/People), a list of about 1,900 biographies that its editors keep balanced across eras, regions and fields, who have a recorded birth and death; `scripts/import-lives.mjs` reads the list and takes dates, descriptions and birthplaces from Wikidata (CC0) through the entity API. The living are left out: this is a history layer. People are stored as ranged events flagged `life` in `src/data/14-lives.js`, never drawn in the ordinary event lanes, and their category is inferred from their description, so expect the odd philosopher filed under science.
 
+## Works: books, music, paintings, buildings and films
+
+`src/data/15-works.js` adds 214 landmark creative works as ordinary events: the *Iliad* and the *Analects*, the Book of Kells and the Bayeux Tapestry, *Hamlet*, *Las Meninas*, *The Well-Tempered Clavier*, *Dream of the Red Chamber*, Beethoven's Fifth, *The Great Wave off Kanagawa*, *War and Peace*, *Guernica*, *Things Fall Apart*, *Kind of Blue*, and twenty-nine films from *Battleship Potemkin*, *Metropolis* and *Citizen Kane* to *Seven Samurai*, *Breathless*, *Sholay* and *Spirited Away*. They sit at the finer tiers (works since 1800 one tier finer still), so they fill decade and year views, which were thin for the arts between 1500 and 1900, without crowding the wide ones. A seventh guided tour, **A century of cinema**, runs through the films.
+
+The selection again belongs to Wikipedia's editors: `scripts/import-works.mjs` reads [Vital articles, level 4: Arts](https://en.wikipedia.org/wiki/Wikipedia:Vital_articles/Level_4/Arts), keeps the third of its 700 articles that are individual works (genres, movements, instruments and techniques are dropped by their Wikidata type), and dates each by first performance, publication, official opening or inception, in that order, from Wikidata (CC0). A publication date more than 25 years after a work's inception is taken for a later edition; dates known only to the decade or century are placed mid-period and said to be approximate, and nothing since 1500 is accepted on a century alone. Works already on the timeline, by article or by name in a curated title, are skipped. Works and creators are named by the titles of their Wikipedia articles, not their Wikidata labels, which anyone can edit: on the day this was written Andy Warhol's label read "Andy Warhol TM by Campbell Soup Company".
+
 ## Your lifetime
 
 The second entry in the **Tours** list asks for the year you were born. Your years are then marked on the timeline as a tinted band, and a tour is made for you on the spot: it opens on the whole of your life with what has changed in it (the number of events on record, the world's population and the CO₂ in the air, then and now), and goes on through up to nine events spread evenly across your years, the most significant of each stretch, each with how old you were. **Change year** on the tour bar edits or forgets it. The year is kept in this browser (`ht-birth`) and nowhere else: it is never written into the URL, so a link you share from inside the tour opens the same view for someone else without your year.
 
 ## Guided tours
 
-Six hand-written paths through the events, for anyone who would rather be shown around than explore: **Peopling the world**, **The story of writing**, **Plagues and cures**, **Kingdoms and empires of Africa**, **Thinking machines** and **Leaving the planet**. Pick one from the **Tours** button (on a phone, from the guide under **?**, which also offers them on a first visit). Each of a tour's nine to eleven steps flies the view to an event, opens its panel and shows a sentence or two of narration that carries the thread from the step before. **Next** and **Back**, or the right and left arrow keys, move through it; **Finish**, **End tour** or Escape leaves you where you are, free to look around.
+Seven hand-written paths through the events, for anyone who would rather be shown around than explore: **Peopling the world**, **The story of writing**, **Plagues and cures**, **Kingdoms and empires of Africa**, **Thinking machines**, **A century of cinema** and **Leaving the planet**. Pick one from the **Tours** button (on a phone, from the guide under **?**, which also offers them on a first visit). Each of a tour's nine to eleven steps flies the view to an event, opens its panel and shows a sentence or two of narration that carries the thread from the step before. **Next** and **Back**, or the right and left arrow keys, move through it; **Finish**, **End tour** or Escape leaves you where you are, free to look around.
 
 The step is part of the URL (`tour=story-of-writing.4`), so the browser's Back and Forward buttons walk the tour, a reload resumes it, and a link shares a particular stop. On a phone the narration rides at the top of the event sheet, since the stage is too short to share.
 
@@ -323,6 +329,7 @@ test/
                         scale, tier selection, on-this-day parsing, the panel's neighbour lists
 scripts/
   import-*.mjs          build-time importers (network at import time only)
+  import-works.mjs      landmark creative works (Wikipedia's vital Arts list + Wikidata); not part of the refresh
   import-lives.mjs      notable people's lifespans (Wikipedia's vital-articles list + Wikidata); not part of the refresh
   refresh.mjs           runs the importers whose sources move, rolls back any that fail or shrink
 e2e/

@@ -94,6 +94,25 @@
       ]
     },
     {
+      id: 'century-of-cinema',
+      title: 'A century of cinema',
+      blurb: 'From fifty seconds of a train arriving to a Korean thriller taking Best Picture.',
+      steps: [
+        { ev: 'Lumière brothers hold the first public film screening', note: 'Thirty-three people pay a franc each to sit in the basement of a Paris café and watch ten films of under a minute. Within a year the Lumières have sent operators to every continent.' },
+        { ev: 'Metropolis by Fritz Lang', note: 'Thirty years on, film is an art of enormous ambition: a city of towers, a robot in the shape of a woman, tens of thousands of extras. It nearly bankrupts the studio, and shapes every screen future since.' },
+        { ev: 'The Jazz Singer by Alan Crosland', note: 'The same year, a few minutes of synchronised song and speech: "You ain\'t heard nothin\' yet." Within three years silent film, and many of its stars, are finished.' },
+        { ev: 'Snow White and the Seven Dwarfs by David Hand and William Cottrell', note: 'Hollywood calls it Disney\'s folly: a feature-length cartoon, drawn by hand, frame by frame. It becomes the most successful sound film yet made.' },
+        { ev: 'Citizen Kane by Orson Welles', note: 'A twenty-five-year-old from radio gets complete control of his first film and uses deep focus, broken chronology and ceilings on the sets. Critics\' polls will name it the best film ever made for fifty years.' },
+        { ev: 'Seven Samurai by Akira Kurosawa', note: 'Cinema\'s centre of gravity was never only American. Kurosawa\'s three-hour epic of villagers hiring swordsmen is remade as a western within six years and imitated ever after.' },
+        { ev: 'Breathless by Jean-Luc Godard', note: 'Shot in the streets with a handheld camera, cut with jumps that break every rule: the French New Wave shows that a film can be made cheaply, quickly and personally, by people who began as critics.' },
+        { ev: '2001: A Space Odyssey by Stanley Kubrick', note: 'A year before anyone stands on the Moon, Kubrick films spaceflight so convincingly, and a computer so calmly murderous, that both images outlast the real thing in the imagination.' },
+        { ev: 'Star Wars released', note: 'With Jaws two summers earlier, this invents the modern blockbuster: opening everywhere at once, selling toys, and returning in sequels. The effects company built to make it changes how all films are made.' },
+        { ev: 'Toy Story, the first fully computer-animated feature film', note: 'Every frame is computed rather than drawn or photographed. Within twenty years hand-drawn animation has almost vanished from American cinemas, and most live-action films are partly animated too.' },
+        { ev: 'Spirited Away by Hayao Miyazaki', note: 'Drawn by hand all the same, Miyazaki\'s story of a girl in a bathhouse for spirits becomes the most successful film in Japanese history for nineteen years and wins the Oscar for animation.' },
+        { ev: 'Parasite, first non-English-language film to win Best Picture', note: 'Ninety-two years after the first Academy Awards, the top prize goes to a film not in English. Its director, Bong Joon-ho, had asked audiences to get over "the one-inch-tall barrier of subtitles".' }
+      ]
+    },
+    {
       id: 'leaving-the-planet',
       title: 'Leaving the planet',
       blurb: 'Sixty-five years of spaceflight, from a beeping sphere to a telescope a million miles away.',
