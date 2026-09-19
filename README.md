@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The years 1950 to today in NVG mode: a dozen ruler swimlanes, from the emperor of Japan and the pope to the presidents of the United States, France and Russia, each run up to the dashed Today line with the sitting holder's bar; the panel is open on Emmanuel Macron, whose date reads 2017 – present; events, the Earth layer and the largest-city ribbon ending in Tokyo sit below, and the overview strip marks the view](docs/screenshot.png)
+![Step 8 of 11 of the guided tour Kingdoms and empires of Africa, in NVG mode: the view has flown to 1285–1365 and opened Mansa Musa's hajj, with its location map, links and Around this time list in the panel; the tour bar over the stage carries the narration with Back, Next and End tour buttons, above the ruler swimlanes, events, Earth layer and largest-city ribbon, and the Tours button sits in the header](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
