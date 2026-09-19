@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The Works layer on the years 1842 to 1900 in NVG mode with only the art category shown: two dozen landmark works stacked above the axis, from A Christmas Carol, Jane Eyre, Moby-Dick and La traviata through Madame Bovary, Les Misérables, Alice's Adventures in Wonderland, Tristan und Isolde and War and Peace to the Statue of Liberty, the Eiffel Tower, Water Lilies and The War of the Worlds, with the first Impressionist exhibition and the Lumière screening among them; the panel is open on War and Peace by Leo Tolstoy, 1869, with its links, an Around this time list and More in art](docs/screenshot.png)
+![The measuring tool in NVG mode on the years 2901 BCE to 400 CE: a chip reads Measuring from: Great Pyramid of Giza is completed for Khufu, a dashed ring marks the pyramid on the axis, and a bracket under the axis labelled 2,510 years runs from it to Cleopatra; the panel is open on Cleopatra, pharaoh, 51 to 30 BCE, and its Measure section says 2,510 years after the Great Pyramid, that the pyramid is closer in time to Cleopatra than to the domestication of rice, and that Cleopatra is closer to today, 2,055 years, than to the Great Pyramid](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
