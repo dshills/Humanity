@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![The Lives layer on the years 1440 to 1560 in Ops mode: twelve rows of lifespans coloured by field, among them Leonardo da Vinci, Michelangelo, Copernicus, Luther, Dürer, Machiavelli, Columbus, Magellan, Moctezuma, Pachacútec, Akbar and Zara Yaqob, under a caption reading 35 of 136 alive in this view; the panel is open on Leonardo da Vinci, 1452 to 1519, with his birthplace on the map, links, and an Alive at the same time list; events, the Earth layer and the largest-city ribbon sit below](docs/screenshot.png)
+![The Works layer on the years 1842 to 1900 in NVG mode with only the art category shown: two dozen landmark works stacked above the axis, from A Christmas Carol, Jane Eyre, Moby-Dick and La traviata through Madame Bovary, Les Misérables, Alice's Adventures in Wonderland, Tristan und Isolde and War and Peace to the Statue of Liberty, the Eiffel Tower, Water Lilies and The War of the Worlds, with the first Impressionist exhibition and the Lumière screening among them; the panel is open on War and Peace by Leo Tolstoy, 1869, with its links, an Around this time list and More in art](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
