@@ -1,5 +1,5 @@
 'use strict';
-// Tests for HT.core: the pure rules behind src/app.js (view limits, URL hash, slugs, regions, the overview
+// Tests for HT.core: the pure rules behind src/app/ (view limits, URL hash, slugs, regions, the overview
 // scale, tier selection, "on this day" parsing and the panel's neighbour lists). "now" is always passed in.
 
 const test = require('node:test');

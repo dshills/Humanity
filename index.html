@@ -12719,23 +12719,16 @@ HT.curatedCount = (HT.events || []).length;
   );
 })(typeof window !== 'undefined' ? window : globalThis);
 
-/* ======== src/app.js ======== */
-/* HT.app — rendering, interaction and URL state (CONTRACT.md §7, PROMPT.md)
- *
- * Sections
- *   1. Constants and state
- *   2. Helpers: math, view clamping, DOM
- *   3. View model: history stack, URL hash, animation, commit()
- *   4. Public navigation API: setView, zoomIn, zoomOut, home, zoomToEvent, getView
- *   5. Rendering: axis + ticks, events + lanes, cursor guide, breadcrumbs, legend
- *   6. Tooltip and detail panel
- *   7. Interaction: pointer (tap / drag / pinch), wheel, keyboard, buttons, resize, history
- *   8. init
- *
- * The script never runs on its own: the bundle calls HT.app.init() once at the end.
- */
+/* ======== src/app/*.js (25 parts) ======== */
+/* HT.app: rendering, interaction and URL state. Joined by build.mjs from src/app/ in name order. */
 (function (root) {
   'use strict';
+
+  /* ---- src/app/00-state.js ---- */
+// HT.app, part 00: Constants and state shared by every part.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
+
   const HT = root.HT || (root.HT = {});
   const C = HT.core;                      // pure rules, tested in test/core.test.js
 
@@ -12869,6 +12862,11 @@ HT.curatedCount = (HT.events || []).length;
   let searchActive = -1;
   let suppressClickUntil = 0;
 
+  /* ---- src/app/10-helpers.js ---- */
+// HT.app, part 10: Helpers: view limits and pixel mapping wrappers, DOM builders, date labels.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
+
   // ------------------------------------------------------------------
   // 2. Helpers
   // ------------------------------------------------------------------
@@ -12991,6 +12989,11 @@ HT.curatedCount = (HT.events || []).length;
   function cursorLabel(t, span) {
     return span <= 20000 ? HT.time.formatDateFull(t) : HT.time.formatAgo(t);
   }
+
+  /* ---- src/app/20-view.js ---- */
+// HT.app, part 20: View model: URL hash, breadcrumb stack, history, animation, commit().
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
 
   // ------------------------------------------------------------------
   // 3. View model: history stack, URL hash, animation, commit()
@@ -13187,6 +13190,11 @@ HT.curatedCount = (HT.events || []).length;
     if (dom && (opts.discrete || opts.url === 'push')) announceView();
   }
 
+  /* ---- src/app/25-navigation.js ---- */
+// HT.app, part 25: Public navigation API: setView, zoomIn, zoomOut, home, zoomToEvent.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
+
   // ------------------------------------------------------------------
   // 4. Public navigation API
   // ------------------------------------------------------------------
@@ -13256,6 +13264,11 @@ HT.curatedCount = (HT.events || []).length;
     const target = ev.t >= base.start && ev.t <= base.end ? fitInside(win, base) : win;
     commit(target, { animate: true, url: 'push', stack: 'push', discrete: true });
   }
+
+  /* ---- src/app/30-render.js ---- */
+// HT.app, part 30: Render loop and stage measurement.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
 
   // ------------------------------------------------------------------
   // 5. Rendering
@@ -13345,6 +13358,11 @@ HT.curatedCount = (HT.events || []).length;
     if (otdWanted(shown)) scheduleOtd();
     settleNext = false;
   }
+
+  /* ---- src/app/32-rows.js ---- */
+// HT.app, part 32: Row layers at the top of the stage: Reigns and Lives.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
 
   // --- Reign swimlanes: one row per office at the top of the stage ---
   function reignsActive() {
@@ -13514,6 +13532,11 @@ HT.curatedCount = (HT.events || []).length;
     syncLayerButtons();
     if (dom && shown) { settleNext = true; render(); }
   }
+
+  /* ---- src/app/34-earth.js ---- */
+// HT.app, part 34: Earth layer: climate, population and the largest-city ribbon; the Today marker.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
 
   // --- Earth layer: climate sparklines beneath the axis ---
   function earthSeries() {
@@ -13698,6 +13721,11 @@ HT.curatedCount = (HT.events || []).length;
     dom.gNow.replaceChildren.apply(dom.gNow, parts);
   }
 
+  /* ---- src/app/36-era-hud.js ---- */
+// HT.app, part 36: Recorded-history bracket and HUD telemetry.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
+
   // --- Recorded-history bracket: on wide views everything since writing is a sliver at the right edge, so
   // name it and make it a one-click jump. Shown on spans too wide for swimlanes while the sliver is at least 6 px. ---
   function planEra(v) {
@@ -13774,6 +13802,11 @@ HT.curatedCount = (HT.events || []).length;
       ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
   }
 
+  /* ---- src/app/38-themes.js ---- */
+// HT.app, part 38: Visual modes.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
+
   // --- Themes (sensor modes) ---
   function resolveTheme(name) {
     if (name !== 'auto') return name;
@@ -13804,6 +13837,11 @@ HT.curatedCount = (HT.events || []).length;
   }
 
   function getTheme() { return theme; }
+
+  /* ---- src/app/40-ticks.js ---- */
+// HT.app, part 40: Axis and ticks.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
 
   // --- Axis and ticks ---
   function renderTicks(v, axisY) {
@@ -13853,6 +13891,11 @@ HT.curatedCount = (HT.events || []).length;
       return !ev.life && !(ev.otd && !otdShown(v)) && passesFilters(ev, i) && !(ev.group && rowsActive());
     });
   }
+
+  /* ---- src/app/42-events.js ---- */
+// HT.app, part 42: Events: tier selection, markers, labels and lanes.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
 
   // --- Events: markers on the axis, labels packed into lanes stacked upward ---
   function renderEvents(v, axisY) {
@@ -13970,6 +14013,11 @@ HT.curatedCount = (HT.events || []).length;
     hudStats = { visible: placed.length, inWindow: inWindow, tier: tierLimit };
   }
 
+  /* ---- src/app/44-cursor-crumbs.js ---- */
+// HT.app, part 44: Cursor guide and breadcrumbs.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
+
   // --- Cursor guide line + header readout ---
   function updateCursor(clientX) {
     if (!dom || !shown) return;
@@ -14029,6 +14077,11 @@ HT.curatedCount = (HT.events || []).length;
     stack.length = i + 1;
     commit(stack[i], { animate: true, url: 'push', stack: 'keep' });
   }
+
+  /* ---- src/app/46-legend-search.js ---- */
+// HT.app, part 46: Legend, category filters and search.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
 
   // --- Legend ---
   function renderLegend() {
@@ -14225,6 +14278,11 @@ HT.curatedCount = (HT.events || []).length;
     }
   }
 
+  /* ---- src/app/50-online.js ---- */
+// HT.app, part 50: Opt-in online content for the panel: summary, image, museum object.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
+
   // --- Opt-in Wikimedia image (the only network access the page ever makes, and only when switched on) ---
   function loadImageCache() {
     if (imageCache) return imageCache;
@@ -14346,6 +14404,11 @@ HT.curatedCount = (HT.events || []).length;
     if (dom && !dom.panel.hidden && selected >= 0) { updatePanelImage(events()[selected]); updatePanelObject(events()[selected]); }
     if (dom && shown) render();                          // on-this-day events appear or leave with the switch
   }
+
+  /* ---- src/app/52-onthisday.js ---- */
+// HT.app, part 52: On this day: the opt-in day-by-day layer.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
 
   // --- On this day (opt-in): on a view of about a month or less, Wikipedia's per-day lists fill in what the
   // bundled data cannot. Entries become ordinary point events flagged `otd`; they live in memory and in a small
@@ -14510,6 +14573,11 @@ HT.curatedCount = (HT.events || []).length;
     dom.otdChip.hidden = false;
   }
 
+  /* ---- src/app/54-panel-lists.js ---- */
+// HT.app, part 54: Panel lists: neighbours, related events, outbound links.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
+
   // --- Panel: what happened around this event, and more of its kind ---
   const fmtGap = C.fmtGap;
 
@@ -14582,6 +14650,11 @@ HT.curatedCount = (HT.events || []).length;
     dom.panelMore.hidden = nodes.length === 0;
   }
 
+  /* ---- src/app/56-today.js ---- */
+// HT.app, part 56: Today in history.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
+
   // --- Today in history (opt-in): the on-this-day list for the visitor's own date, as jumps into the timeline ---
   function todayKey() {
     const d = new Date();
@@ -14644,6 +14717,11 @@ HT.curatedCount = (HT.events || []).length;
     dom.today.hidden = true;
     if (opts && opts.keepFocus) focusBack.delete('today'); else restoreFocus('today', dom.btnTours);
   }
+
+  /* ---- src/app/58-scale-measure.js ---- */
+// HT.app, part 58: Scale toggle and the measuring tool.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
 
   // --- Scale: logarithmic on the widest views by default, or linear everywhere ---
   function setScale(mode, opts) {
@@ -14736,6 +14814,11 @@ HT.curatedCount = (HT.events || []).length;
     dom.gSpan.replaceChildren.apply(dom.gSpan, parts);
   }
 
+  /* ---- src/app/60-layers-a11y.js ---- */
+// HT.app, part 60: Layers menu and accessibility helpers.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
+
   // --- Layers menu (mid-width headers): the Earth, Reigns, Lives and Legend buttons folded behind one button ---
   function layersFolded() { return !!dom.btnLayers && root.getComputedStyle(dom.btnLayers).display !== 'none'; }
 
@@ -14783,6 +14866,11 @@ HT.curatedCount = (HT.events || []).length;
       return 'Showing ' + label + '. ' + hudStats.inWindow + (hudStats.inWindow === 1 ? ' event' : ' events') + ' in view.';
     }, 700);
   }
+
+  /* ---- src/app/62-tours.js ---- */
+// HT.app, part 62: Guided tours and Your lifetime.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
 
   // --- Guided tours (HT.tours): a fixed path of events with a line of narration each. A step zooms to its
   // event and opens its panel; the step rides in the URL (tour=<id>.<n>), so Back, Forward and shared links work. ---
@@ -15034,6 +15122,11 @@ HT.curatedCount = (HT.events || []).length;
     if (!open && was && !tour) restoreFocus('tours', dom.btnTours);
   }
 
+  /* ---- src/app/64-permalinks-regions.js ---- */
+// HT.app, part 64: Permalinks and the region filter.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
+
   // --- Permalinks: ev=<slug of the title>. Titles are unique, so slugs are stable while a title is. ---
   const slugify = C.slugify;
 
@@ -15115,6 +15208,11 @@ HT.curatedCount = (HT.events || []).length;
     announce(function () { return 'Region: ' + label + '. ' + hudStats.inWindow + ' events in view.'; });
   }
 
+  /* ---- src/app/66-minimap-help.js ---- */
+// HT.app, part 66: Overview strip and the guide.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
+
   // --- Minimap: years before now on a log scale, so the last few thousand years get real width ---
   function mmU(t) { return C.mmU(t, nowT()); }
   function mmX(t, w) { return C.mmX(t, w, nowT()); }
@@ -15195,6 +15293,11 @@ HT.curatedCount = (HT.events || []).length;
       try { root.localStorage.setItem(HELP_KEY, '1'); } catch (err) { /* ignore */ }
     }
   }
+
+  /* ---- src/app/68-panel.js ---- */
+// HT.app, part 68: Panel map, tooltip and the detail panel.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
 
   // --- Panel map ---
   function eventCoords(ev) {
@@ -15364,6 +15467,11 @@ HT.curatedCount = (HT.events || []).length;
     if (typeof root.requestAnimationFrame === 'function') root.requestAnimationFrame(render);
     else render();
   }
+
+  /* ---- src/app/70-interaction.js ---- */
+// HT.app, part 70: Interaction: pointer, wheel, keyboard, resize, history.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
 
   // ------------------------------------------------------------------
   // 7. Interaction
@@ -15748,6 +15856,11 @@ HT.curatedCount = (HT.events || []).length;
       ro.observe(dom.stage);
     }
   }
+
+  /* ---- src/app/90-init.js ---- */
+// HT.app, part 90: init and the public HT.app object.
+// One of the files that build.mjs joins, in name order, inside a single closure (see src/app/README.md):
+// everything here shares scope with the other parts, so nothing is exported or imported.
 
   // ------------------------------------------------------------------
   // 8. init

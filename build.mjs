@@ -3,7 +3,8 @@
  * build.mjs — Humanity Timeline bundler (CONTRACT.md §0 and §9)
  *
  * Node ≥ 18, zero dependencies. Reads the sources in the contract order
- *   time.js, tiers.js, ticks.js, layout.js, earth.js, data/*.js (sorted by filename), app.js
+ *   time.js, tiers.js, ticks.js, layout.js, core.js, the generated modules, tours.js, data/*.js (sorted by
+ *   filename), then src/app/*.js (sorted by filename) joined inside one closure as HT.app
  * concatenates them (one comment banner per file) followed by `HT.app.init();`,
  * inlines that bundle and src/styles.css into src/index.template.html, and writes
  * ./index.html — ONE self-contained file that works from file://.
@@ -29,7 +30,8 @@ const OUT_FILE = path.join(ROOT, 'index.html');
 const TEMPLATE = 'index.template.html';
 const STYLES = 'styles.css';
 const JS_HEAD = ['time.js', 'tiers.js', 'ticks.js', 'layout.js', 'core.js', 'earth.js', 'context.js', 'map.js', 'geo.js', 'objects.js', 'tours.js'];
-const JS_TAIL = ['app.js'];
+const JS_TAIL = [];
+const APP_DIR = 'app';                 // HT.app is cut into parts by topic; they are joined inside one closure below
 const DATA_DIR = 'data';
 const STYLES_PLACEHOLDER = '<!--STYLES-->';
 const SCRIPTS_PLACEHOLDER = '<!--SCRIPTS-->';
@@ -84,6 +86,31 @@ const [template, styles, ...sources] = await Promise.all([
   readSrc(STYLES),
   ...jsOrder.map(readSrc),
 ]);
+
+// HT.app: every src/app/*.js in name order, wrapped in the same IIFE the other modules write out by hand. The
+// parts share one scope on purpose (see src/app/README.md); each must at least parse on its own.
+let appParts = [];
+try {
+  appParts = (await readdir(path.join(SRC_DIR, APP_DIR))).filter((f) => f.endsWith('.js')).sort();
+} catch (err) {
+  if (isENOENT(err)) problem(`missing directory src/${APP_DIR}/`);
+  else throw err;
+}
+if (appParts.length === 0 && errors.length === 0) problem(`no .js files in src/${APP_DIR}/`);
+const appTexts = await Promise.all(appParts.map((f) => readSrc(`${APP_DIR}/${f}`)));
+for (const part of appTexts) {
+  if (part.text === null) continue;
+  // parsed as strict code, which is what the closure makes it
+  try { new Script("'use strict';" + part.text, { filename: `src/${part.name}` }); } catch (err) { problem(`src/${part.name} does not parse: ${err.message}`); }
+}
+if (!errors.length) {
+  sources.push({
+    name: `${APP_DIR}/*.js (${appParts.length} parts)`,
+    text: `/* HT.app: rendering, interaction and URL state. Joined by build.mjs from src/${APP_DIR}/ in name order. */\n(function (root) {\n  'use strict';\n` +
+      appTexts.map((p) => `\n  /* ---- src/${p.name} ---- */\n${p.text}`).join('') +
+      `})(typeof window !== 'undefined' ? window : globalThis);\n`,
+  });
+}
 
 if (errors.length) die();
 
