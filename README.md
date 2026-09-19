@@ -10,7 +10,7 @@
   <img src="docs/mode-paper.png" width="32%" alt="Paper mode: warm ink on paper">
 </p>
 
-A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 4,059 events in 16 color-coded categories, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, nothing to install, and no network requests unless you switch on the optional Wikimedia content (images, article summaries and day-by-day events).
+A single self-contained `index.html` that draws a horizontal timeline of human history from the first Homo sapiens (300,000 years ago) to today, rendered with vanilla JavaScript and SVG. Click anywhere on the axis to zoom in by 4×; each level reveals finer ticks and more events, down to single days. 4,059 events in 16 color-coded categories and the lifespans of 1,729 notable people, each with a link for further reading, plus 800,000 years of climate data, are bundled into the page. There are no frameworks, nothing to install, and no network requests unless you switch on the optional Wikimedia content (images, article summaries and day-by-day events).
 
 ## Open it
 
@@ -111,6 +111,16 @@ Both are build-time imports; the page still makes no network requests. Nobel Pri
 - **Category filters.** The legend's entries are toggles: click to hide or show a category, Shift+click to show only that one, and use All or None to reset. A dot on the Legend button marks an active filter, and the choice is remembered. Hidden categories are excluded before tier selection, so the remaining events fill the view.
 - **Region filter.** Below the categories, the legend has a row of regions and a small world map; pick Africa, Europe, Asia, N. America, S. America or Oceania (or click the map) and only events located there remain. Regions are coarse latitude/longitude boxes, with the Middle East counted as Asia and Micronesia, Hawaii and Rapa Nui as Oceania; rulers, who carry no coordinates, are placed by their office. Events with no known location are hidden while a region is chosen, and the choice is remembered alongside the category filter.
 - **Search.** Press `/` or the Search button, type at least two characters, and pick a result with the arrow keys and Enter or a click. Title-prefix matches rank first, then word starts, then substrings, with ties going to the more significant event. Choosing a result zooms to the event and opens its panel, un-hiding its category and lifting the region filter if they would hide it.
+
+## Lives: who was alive at the same time
+
+Press **Lives** (or `P`) and the ruler rows at the top of the stage give way to lifespans: one bar per person from birth to death, packed into up to twelve rows, the most prominent first, with a caption saying how many of those alive in the view are shown. Zoom to 1440–1560 and Leonardo, Michelangelo, Copernicus, Luther, Dürer, Machiavelli, Columbus and Magellan overlap with Moctezuma, Pachacútec, Babur and Zara Yaqob. Hovering a bar gives the person's age at the date under the pointer; opening one gives the usual panel, with the birthplace on the map and an **Alive at the same time** list in place of the neighbouring events. Searching for a person turns the layer on. Lives and Reigns share the top of the stage, so turning one on turns the other off; the layer appears on views of 3,000 years or less, and respects the region filter through birthplaces.
+
+Who counts as notable is not decided here. The 1,729 people are those of English Wikipedia's [Vital articles, level 4: People](https://en.wikipedia.org/wiki/Wikipedia:Vital_articles/Level_4/People), a list of about 1,900 biographies that its editors keep balanced across eras, regions and fields, who have a recorded birth and death; `scripts/import-lives.mjs` reads the list and takes dates, descriptions and birthplaces from Wikidata (CC0) through the entity API. The living are left out: this is a history layer. People are stored as ranged events flagged `life` in `src/data/14-lives.js`, never drawn in the ordinary event lanes, and their category is inferred from their description, so expect the odd philosopher filed under science.
+
+## Your lifetime
+
+The second entry in the **Tours** list asks for the year you were born. Your years are then marked on the timeline as a tinted band, and a tour is made for you on the spot: it opens on the whole of your life with what has changed in it (the number of events on record, the world's population and the CO₂ in the air, then and now), and goes on through up to nine events spread evenly across your years, the most significant of each stretch, each with how old you were. **Change year** on the tour bar edits or forgets it. The year is kept in this browser (`ht-birth`) and nowhere else: it is never written into the URL, so a link you share from inside the tour opens the same view for someone else without your year.
 
 ## Guided tours
 
@@ -313,6 +323,7 @@ test/
                         scale, tier selection, on-this-day parsing, the panel's neighbour lists
 scripts/
   import-*.mjs          build-time importers (network at import time only)
+  import-lives.mjs      notable people's lifespans (Wikipedia's vital-articles list + Wikidata); not part of the refresh
   refresh.mjs           runs the importers whose sources move, rolls back any that fail or shrink
 e2e/
   smoke.mjs             end-to-end smoke test in headless Chrome (no dependencies)

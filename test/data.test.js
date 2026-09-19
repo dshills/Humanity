@@ -23,7 +23,7 @@ const { ROOT_START, bce, ce, now } = HT.time;
 const { CATEGORIES, tierForSpan } = HT.tiers;
 
 const DATA_DIR = path.join(__dirname, '..', 'src', 'data');
-const ALLOWED_KEYS = ['t', 'end', 'title', 'detail', 'tier', 'category', 'link', 'lat', 'lon', 'group', 'ongoing'];
+const ALLOWED_KEYS = ['t', 'end', 'title', 'detail', 'tier', 'category', 'link', 'lat', 'lon', 'group', 'ongoing', 'life'];
 const MAX_TIER = 7;
 const TITLE_MAX = 80;
 const DETAIL_MIN = 20;
@@ -348,6 +348,22 @@ describe('ongoing (optional)', () => {
     const latest = new Map();
     for (const e of globalThis.HT.events) if (e.group && (!latest.has(e.group) || e.t > latest.get(e.group).t)) latest.set(e.group, e);
     for (const e of globalThis.HT.events) if (e.ongoing) assert.strictEqual(latest.get(e.group), e, `a later holder follows ${e.title}`);
+  });
+});
+
+describe('life (optional)', () => {
+  test('marks a lifespan: ranged, at most 125 years, ended, linked to Wikipedia, never a ruler entry', () => {
+    let n = 0;
+    for (const e of globalThis.HT.events) {
+      if (e.life === undefined) continue;
+      n++;
+      assert.strictEqual(e.life, true, `life must be true when present: ${e.title}`);
+      assert.ok(Number.isFinite(e.end) && e.end > e.t && e.end - e.t <= 125, `not a plausible lifespan: ${e.title}`);
+      assert.strictEqual(e.group, undefined, `a life cannot also be a reign: ${e.title}`);
+      assert.strictEqual(e.ongoing, undefined, `the living are left out: ${e.title}`);
+      assert.match(e.link || '', /^https:\/\/en\.wikipedia\.org\/wiki\//, `life without an article: ${e.title}`);
+    }
+    assert.ok(n >= 1000, `only ${n} lives`);
   });
 });
 

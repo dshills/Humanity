@@ -150,6 +150,47 @@ const STEPS = `<script>
     check('the skip button lands on the first event', !!(document.activeElement && document.activeElement.closest && document.activeElement.closest('#timeline')), document.activeElement && document.activeElement.tagName);
     check('the panel is named by its title', $('panel').getAttribute('aria-labelledby') === 'panel-title' && !$('panel').hasAttribute('aria-label'));
 
+    // Lives: lifespans replace the ruler rows; a person opens with contemporaries; search turns the layer on.
+    HT.app.setView(1440, 1560, { animate: false }); await wait(300);
+    check('rulers are in rows and no lives are drawn by default', document.querySelectorAll('#timeline .reign').length > 0 && document.querySelectorAll('#timeline .life').length === 0);
+    key('p'); await wait(400);
+    var lifeBars = document.querySelectorAll('#timeline .life').length;
+    check('P turns the Lives layer on, in place of Reigns', lifeBars > 10 && $('btn-lives').getAttribute('aria-pressed') === 'true' && $('btn-reigns').getAttribute('aria-pressed') === 'false' && document.querySelectorAll('#timeline .reign:not(.life)').length === 0, lifeBars);
+    check('the caption counts who is shown', /Lives . \\d+ of \\d+ alive in this view/.test(document.querySelector('.lives-caption').textContent), document.querySelector('.lives-caption').textContent);
+    var leo = eventNamed(/^Leonardo da Vinci,/);
+    if (leo) { key('Enter', leo); await wait(400); }
+    check('a life opens with its years and the people alive at the same time', /Leonardo/.test($('panel-title').textContent) && /1452/.test($('panel-date').textContent) && /Alive at the same time/.test($('panel-near').textContent) && document.querySelectorAll('#panel-near-list .panel-jump').length >= 3, $('panel-near').textContent.slice(0, 60));
+    $('panel-close').click(); await wait(200);
+    key('r'); await wait(300);
+    check('R brings the rulers back and turns Lives off', document.querySelectorAll('#timeline .life').length === 0 && document.querySelectorAll('#timeline .reign').length > 0 && localStorage.getItem('ht-lives') === '0');
+    $('btn-search').click(); await wait(200);
+    $('search-input').value = 'albert einstein'; $('search-input').dispatchEvent(new Event('input', { bubbles: true })); await wait(200);
+    key('Enter', $('search-input')); await wait(900);
+    check('searching for a person turns Lives on and selects their bar', /Albert Einstein/.test($('panel-title').textContent) && !!document.querySelector('#timeline .life.selected'), $('panel-title').textContent);
+    $('panel-close').click(); await wait(200); key('r'); await wait(200);
+
+    // Your lifetime: a year typed into the form marks the band and starts a generated tour; nothing reaches the URL.
+    $('btn-tours').click(); await wait(200);
+    document.querySelector('#tours .tour-pick[data-tour="@life"]').click(); await wait(200);
+    var yearInput = $('life-year');
+    check('Your lifetime asks for a birth year', !!yearInput && document.activeElement === yearInput);
+    yearInput.value = '1850'; document.querySelector('.life-form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await wait(200);
+    check('an impossible year is refused', /between 1900 and/.test(document.querySelector('.life-msg').textContent) && localStorage.getItem('ht-birth') === null);
+    yearInput.value = '1984'; document.querySelector('.life-form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await wait(1000);
+    var lv = HT.app.getView();
+    check('a real one starts the tour on a view of the whole life', !$('tour-bar').hidden && /Your lifetime/.test($('tour-title').textContent) && /born in 1984/.test($('tour-note').textContent) && lv.start < 1984 && lv.start > 1975, $('tour-note').textContent.slice(0, 80));
+    check('the band is drawn and the year stays out of the URL', !!document.querySelector('.mylife-zone') && localStorage.getItem('ht-birth') === '1984' && !/1984/.test(location.hash.replace(/s=[^&]*&e=[^&]*/, '')), location.hash);
+    key('ArrowRight'); await wait(1000);
+    check('the next step is an event with your age at the time', /You were about \\d+ when|year you were born/.test($('tour-note').textContent) && !$('panel').hidden, $('tour-note').textContent);
+    key('Escape'); await wait(200); key('Escape'); await wait(300);
+    $('btn-tours').click(); await wait(200);
+    document.querySelector('#tours .tour-pick[data-tour="@life"]').click(); await wait(600);
+    check('once set, the entry starts the tour straight away', !$('tour-bar').hidden && /Your lifetime/.test($('tour-title').textContent));
+    $('tour-edit').click(); await wait(300);
+    [].slice.call(document.querySelectorAll('.life-actions button')).filter(function (b) { return /Forget/.test(b.textContent); })[0].click(); await wait(300);
+    check('Forget it clears the year and the band', localStorage.getItem('ht-birth') === null && !document.querySelector('.mylife-zone'));
+    key('Escape'); await wait(200);
+
     HT.app.home(); await wait(700);
     var mm = $('minimap'); var r = mm.getBoundingClientRect();
     ['pointerdown', 'pointerup'].forEach(function (type) { mm.dispatchEvent(new PointerEvent(type, { clientX: r.left + r.width * 0.45, clientY: r.top + r.height / 2, bubbles: true, pointerId: 1, button: 0, isPrimary: true })); });

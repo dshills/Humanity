@@ -726,6 +726,7 @@ html[data-theme="paper"] .earth-line.sea { fill: none; }
 .reign:hover .seg, .reign:focus-visible .seg, .reign.selected .seg { fill-opacity: 0.7; }
 .reign:hover .seg-label, .reign.selected .seg-label { fill: var(--accent); }
 .reign:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#btn-lives[aria-pressed="true"] { border-color: rgba(var(--accent-rgb), 0.45); color: var(--accent); }
 #btn-reigns[aria-pressed="true"] { border-color: rgba(var(--accent-rgb), 0.45); color: var(--accent); }
 
 /* Now marker on the axis: today's position when it is in view. */
@@ -1104,6 +1105,35 @@ html[data-theme="paper"] #panel-title { font-size: 24px; }
 }
 #skip:focus { transform: none; }
 
+.mylife-zone { fill: rgba(var(--accent-rgb), 0.07); }
+.mylife-line { stroke: var(--accent); stroke-opacity: 0.5; stroke-width: 1; stroke-dasharray: 4 3; }
+.mylife-label {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  fill: var(--accent); paint-order: stroke fill; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round;
+}
+.life-form h3 { margin: 2px 0 8px; font: 600 10px/1.3 var(--font-mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+.life-form p { margin: 0 0 12px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.life-form label { display: flex; align-items: center; gap: 10px; font: 600 10.5px/1.3 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg); }
+.life-form input {
+  width: 96px; min-height: 36px; padding: 0 10px; border: 1px solid var(--panel-border); border-radius: 4px;
+  background: var(--bg-deep); color: var(--fg); font: 500 15px/1 var(--font-mono);
+}
+.life-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.life-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.life-actions button {
+  min-height: 34px; padding: 0 12px; border: 1px solid var(--panel-border); border-radius: 4px; color: var(--fg);
+  font: 600 10px/1 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase;
+}
+.life-actions button:hover { background: var(--hover); }
+.life-actions .life-go { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.life-actions [hidden] { display: none; }
+.life-msg { min-height: 1em; margin: 10px 0 0 !important; color: var(--accent) !important; }
+#tour-edit[hidden] { display: none; }
+
+.lives-caption { fill: var(--accent); }
+.reign.life .seg { fill-opacity: 0.42; }
+.reign.life:hover .seg, .reign.life:focus-visible .seg, .reign.life.selected .seg { fill-opacity: 0.8; }
+
 /* Scale toggle: top-left of the stage, only on views wide enough for the log axis to apply */
 #scale-toggle {
   position: absolute; z-index: 4; top: 12px; left: 14px; min-height: 28px; padding: 0 12px;
@@ -1125,7 +1155,7 @@ body.embed #embed-open {
   color: var(--accent); text-decoration: underline; text-underline-offset: 3px;
 }
 body.embed #tagline, body.embed #hud, body.embed #dock, body.embed #otd-chip, body.embed #help,
-body.embed #btn-earth, body.embed #btn-reigns, body.embed #btn-tours, body.embed #btn-search,
+body.embed #btn-earth, body.embed #btn-reigns, body.embed #btn-lives, body.embed #btn-tours, body.embed #btn-search,
 body.embed #btn-legend, body.embed #btn-help, body.embed #cursor-date, body.embed #panel-online,
 body.embed #panel-copy { display: none !important; }
 body.embed #header { padding-top: 2px; padding-bottom: 2px; }
@@ -1451,7 +1481,7 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
   #btn-out::before { content: "\2212"; font-size: 15px; letter-spacing: 0; }
   #btn-help { min-width: 28px !important; font-size: 11px !important; }
   #btn-home { display: none; }                      /* the root crumb does the same job */
-  #btn-reigns { display: none; }
+  #btn-reigns, #btn-lives { display: none; }
   #help dl { grid-template-columns: 1fr; gap: 2px 0; }
   #btn-tours { display: none; }                          /* on a phone the tours are reached from the guide (?) */
   #tour-bar { bottom: 8px; padding: 10px 12px 8px; }

@@ -71,6 +71,7 @@
       <button id="btn-home" type="button">Home</button>
       <button id="btn-earth" type="button" aria-pressed="true" title="Earth layer: CO₂, Antarctic temperature, sea level, world population and the largest city (E)">Earth</button>
       <button id="btn-reigns" type="button" aria-pressed="true" title="Swimlanes of rulers, one row per office (R)">Reigns</button>
+      <button id="btn-lives" type="button" aria-pressed="false" title="Lifespans of notable people: who was alive at the same time (P). Replaces the Reigns rows while it is on.">Lives</button>
       <button id="btn-tours" type="button" aria-expanded="false" aria-controls="tours" title="Guided tours through the timeline">Tours</button>
       <button id="btn-search" type="button" aria-expanded="false" aria-controls="search" title="Search events (/)">Search</button>
       <button id="btn-legend" type="button" aria-expanded="false" aria-controls="legend" title="Categories and regions: click to show or hide">Legend</button>
@@ -121,7 +122,7 @@
         <dt><kbd>/</kbd> Search</dt><dd>Find any of the events by name and jump to it.</dd>
         <dt>Legend</dt><dd>Show or hide categories (Shift+click shows one alone) and filter by region.</dd>
         <dt class="kbd-only"><kbd>←</kbd> <kbd>→</kbd> Pan</dt><dd class="kbd-only">Slide a fifth of the view sideways (Shift: four fifths). In a guided tour the arrows step through it instead.</dd>
-        <dt class="kbd-only"><kbd>R</kbd> Reigns · <kbd>E</kbd> Earth</dt><dd class="kbd-only">Rulers as swimlanes across the top; climate, population and the largest city beneath the axis.</dd>
+        <dt class="kbd-only"><kbd>R</kbd> Reigns · <kbd>P</kbd> Lives · <kbd>E</kbd> Earth</dt><dd class="kbd-only">Rulers, or the lifespans of notable people, as rows across the top; climate, population and the largest city beneath the axis.</dd>
         <dt class="kbd-only"><kbd>1</kbd>–<kbd>6</kbd> · <kbd>T</kbd></dt><dd class="kbd-only">Visual modes: Ops, CRT, NVG, Ironbow, Noir, Paper.</dd>
         <dt class="kbd-only"><kbd>?</kbd></dt><dd class="kbd-only">This guide. <kbd>Esc</kbd> closes whatever is open.</dd>
       </dl>
@@ -143,13 +144,14 @@
       <div id="tour-controls">
         <button id="tour-prev" type="button" title="Previous step (left arrow)">‹ Back</button>
         <button id="tour-next" type="button" title="Next step (right arrow)">Next ›</button>
+        <button id="tour-edit" type="button" hidden title="Change or forget the year you entered">Change year</button>
         <button id="tour-exit" type="button" title="Leave the tour (Esc)">End tour</button>
       </div>
     </div>
     <div id="tooltip" role="tooltip" hidden></div>
     <div id="legend" hidden></div>
     <div id="search" hidden role="search">
-      <input id="search-input" type="search" placeholder="Search 4,000 events…" autocomplete="off" spellcheck="false" aria-label="Search events" aria-controls="search-results">
+      <input id="search-input" type="search" placeholder="Search 5,800 events and people…" autocomplete="off" spellcheck="false" aria-label="Search events" aria-controls="search-results">
       <ul id="search-results" role="listbox" aria-label="Matching events"></ul>
     </div>
   </main>

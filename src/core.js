@@ -350,7 +350,7 @@
     const out = [];
     for (let i = 0; i < list.length; i++) {
       const ev = list[i];
-      if (ev.group || hasEnd(ev) || !(ev.t >= 1)) continue;
+      if (ev.group || ev.life || hasEnd(ev) || !(ev.t >= 1)) continue;
       if (day === 1 && !ev.otd) continue;
       const p = HT.time.toParts(ev.t);
       if (p.month === month && p.day === day) out.push(i);
@@ -470,7 +470,7 @@
     const before = []; const after = [];
     for (let i = 0; i < list.length; i++) {
       const o = list[i];
-      if (i === index || o.group || o.otd || o.tier > cap || (passes && !passes(o, i))) continue;
+      if (i === index || o.group || o.otd || o.life || o.tier > cap || (passes && !passes(o, i))) continue;
       const d = Math.abs(o.t - ev.t) * (curated && !curated(o, i) ? 3 : 1);
       (o.t < ev.t ? before : after).push({ i: i, d: d });
     }
@@ -480,15 +480,69 @@
     return take(before).concat(take(after));
   }
 
+  // "Your lifetime": a tour made on the spot from a birth year. The first step frames the whole life; the rest
+  // are up to nine events spread across it, one per equal slice of the years, each slice giving its most
+  // significant event (lowest tier, hand-curated before generated, then nearest the middle of the slice).
+  // Returns { steps: [{ view } | { ev, note }], count } where count is every event on record since the birth.
+  function lifetimeTour(list, birthYear, now, curatedCount) {
+    const out = { steps: [], count: 0 };
+    if (!Number.isFinite(birthYear) || !(birthYear < now)) return out;
+    const start = Math.floor(birthYear);
+    const years = now - start;
+    const pool = [];
+    for (let i = 0; i < list.length; i++) {
+      const ev = list[i];
+      if (ev.group || ev.life || ev.otd || ev.t < start || ev.t > now) continue;
+      out.count++;
+      if (ev.tier <= 5) pool.push(i);
+    }
+    const pad = Math.max(1, years * 0.06);
+    out.steps.push({ view: { start: start - pad, end: endAtNow(start - pad, now) }, note: '' });
+    const slices = Math.max(1, Math.min(9, Math.floor(years / 2)));
+    const taken = new Set();
+    for (let k = 0; k < slices; k++) {
+      const a = start + (years * k) / slices;
+      const b = start + (years * (k + 1)) / slices;
+      let best = -1; let bestScore = Infinity;
+      for (let j = 0; j < pool.length; j++) {
+        const i = pool[j]; const ev = list[i];
+        if (taken.has(i) || ev.t < a || ev.t >= b) continue;
+        const score = ev.tier * 10 + (i < curatedCount ? 0 : 5) + Math.abs(ev.t - (a + b) / 2) / (b - a);
+        if (score < bestScore) { bestScore = score; best = i; }
+      }
+      if (best < 0) continue;
+      taken.add(best);
+      const age = Math.floor(list[best].t - start);
+      out.steps.push({ ev: list[best].title, note: age < 1 ? 'This happened in the year you were born.' : 'You were about ' + age + ' when this happened.' });
+    }
+    return out;
+  }
+
+  // For a life: up to `n` other lives that overlapped it by five years or more, the most prominent first
+  // (lower tier, then longer overlap), returned in order of birth.
+  function pickContemporaries(list, index, n) {
+    const ev = list[index];
+    if (!ev || !ev.life || !hasEnd(ev)) return [];
+    const pool = [];
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i];
+      if (i === index || !o.life || !hasEnd(o)) continue;
+      const overlap = Math.min(ev.end, o.end) - Math.max(ev.t, o.t);
+      if (overlap >= 5) pool.push({ i: i, tier: o.tier, overlap: overlap });
+    }
+    pool.sort(function (a, b) { return a.tier - b.tier || b.overlap - a.overlap || a.i - b.i; });
+    return pool.slice(0, n || 5).map(function (x) { return x.i; }).sort(function (a, b) { return list[a].t - list[b].t || a - b; });
+  }
+
   // Three nearest events of the same category, in time order; distance counts six-fold outside the event's region.
   function pickRelated(list, index, exclude, regionAt) {
     const ev = list[index];
-    if (!ev || ev.group || ev.otd) return [];
+    if (!ev || ev.group || ev.otd || ev.life) return [];
     const region = regionAt ? regionAt(index) : '';
     const pool = [];
     for (let i = 0; i < list.length; i++) {
       const o = list[i];
-      if (i === index || (exclude && exclude.indexOf(i) >= 0) || o.group || o.otd || o.category !== ev.category || o.tier > Math.max(ev.tier + 2, 5)) continue;
+      if (i === index || (exclude && exclude.indexOf(i) >= 0) || o.group || o.otd || o.life || o.category !== ev.category || o.tier > Math.max(ev.tier + 2, 5)) continue;
       pool.push({ i: i, d: Math.abs(o.t - ev.t) * (region && regionAt(i) === region ? 1 : 6) });
     }
     pool.sort(function (x, y) { return x.d - y.d; });
@@ -504,6 +558,6 @@
     fmtNum: fmtNum, encodeHash: encodeHash, parseHash: parseHash, slugify: slugify,
     regionOf: regionOf, officeRegion: officeRegion, mmU: mmU, mmX: mmX, mmT: mmT, effectiveTier: effectiveTier,
     otdDays: otdDays, onCalendarDay: onCalendarDay, otdRows: otdRows, otdMainTitle: otdMainTitle, otdEvents: otdEvents, wikiUrl: wikiUrl, clipWords: clipWords,
-    fmtGap: fmtGap, trimExtract: trimExtract, yearArticle: yearArticle, pickNearby: pickNearby, pickRelated: pickRelated
+    fmtGap: fmtGap, trimExtract: trimExtract, yearArticle: yearArticle, pickNearby: pickNearby, pickRelated: pickRelated, pickContemporaries: pickContemporaries, lifetimeTour: lifetimeTour
   };
 })(typeof window !== 'undefined' ? window : globalThis);

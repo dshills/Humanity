@@ -579,6 +579,51 @@ test('pickNearby gives a ruler the previous and next holder of the same office',
   assert.deepEqual(C.pickNearby(LIST, 11, null), [4], 'the first holder has only a successor');
 });
 
+test('lifetimeTour frames the life, then picks one significant event per slice of it, with the age at each', () => {
+  const list = [];
+  for (let y = 1950; y <= 2026; y++) list.push({ t: y + 0.5, tier: y % 10 === 0 ? 3 : 6, title: 'event ' + y });
+  list.push({ t: 1990.2, tier: 3, title: 'a ruler', group: 'pope' }, { t: 1991, end: 2020, tier: 3, title: 'a life', life: true }, { t: 1992.3, tier: 3, title: 'otd', otd: true });
+  const made = C.lifetimeTour(list, 1984, NOW, 0);
+  assert.equal(made.count, 2026 - 1984 + 1, 'every ordinary event since the birth year is counted, rulers, lives and feed entries are not');
+  assert.ok(made.steps[0].view && made.steps[0].view.start < 1984 && C.atNow(made.steps[0].view, NOW), 'the first step frames the whole life up to today');
+  const evs = made.steps.slice(1);
+  assert.ok(evs.length >= 4 && evs.length <= 9, String(evs.length));
+  assert.ok(evs.every((s) => /^event \d{4}$/.test(s.ev)), 'only ordinary events: ' + evs.map((s) => s.ev).join(', '));
+  assert.ok(evs.some((s) => s.ev === 'event 1990') && evs.some((s) => s.ev === 'event 2010'), 'the significant years are chosen');
+  const years = evs.map((s) => Number(s.ev.slice(6)));
+  assert.deepEqual(years, years.slice().sort((a, b) => a - b), 'in time order');
+  assert.equal(new Set(years).size, years.length, 'no event twice');
+  assert.match(evs.find((s) => s.ev === 'event 1990').note, /about 6 /);
+  assert.equal(C.lifetimeTour([{ t: 1984.2, tier: 2, title: 'x' }], 1984, NOW, 0).steps[1].note, 'This happened in the year you were born.');
+});
+
+test('lifetimeTour handles the edges: a newborn, a bad year, curated events preferred', () => {
+  assert.deepEqual(C.lifetimeTour([], NaN, NOW, 0), { steps: [], count: 0 });
+  assert.deepEqual(C.lifetimeTour([], 3000, NOW, 0), { steps: [], count: 0 });
+  const baby = C.lifetimeTour([{ t: 2026.1, tier: 5, title: 'this year' }], 2026, NOW, 0);
+  assert.equal(baby.steps.length, 2);
+  const list = [{ t: 2000.9, tier: 4, title: 'generated' }, { t: 2000.2, tier: 4, title: 'curated' }];
+  assert.equal(C.lifetimeTour(list, 2000, 2002, 0).steps[1].ev, 'generated', 'without a curated boundary the one nearer the middle of the slice wins');
+  assert.equal(C.lifetimeTour(list.slice().reverse(), 2000, 2002, 1).steps[1].ev, 'curated', 'with one, the curated event wins');
+});
+
+test('pickContemporaries lists the most prominent lives that overlapped by five years or more, in birth order', () => {
+  const lives = [
+    { t: 1452, end: 1519, tier: 4, life: true },          // 0 Leonardo: the open life
+    { t: 1475, end: 1564, tier: 4, life: true },          // 1 Michelangelo: 44 years together
+    { t: 1483, end: 1546, tier: 5, life: true },          // 2 Luther
+    { t: 1516, end: 1580, tier: 4, life: true },          // 3 born three years before he died: too brief
+    { t: 1400, end: 1460, tier: 7, life: true },          // 4 minor figure, 8 years together
+    { t: 1473, end: 1543, tier: 4, life: true },          // 5 Copernicus: 46 years together
+    { t: 1455, tier: 0 },                                 // 6 an ordinary event
+    { t: 1600, end: 1680, tier: 4, life: true },          // 7 never overlapped
+  ];
+  assert.deepEqual(C.pickContemporaries(lives, 0, 5), [4, 5, 1, 2]);
+  assert.deepEqual(C.pickContemporaries(lives, 0, 2), [5, 1], 'the cut keeps the most prominent, longest-overlapping');
+  assert.deepEqual(C.pickContemporaries(lives, 6, 5), [], 'only a life has contemporaries');
+  assert.deepEqual(C.pickNearby(lives, 6, null), [], 'and lives are never the neighbours of an event');
+});
+
 test('pickRelated returns the three nearest of the same category in time order, excluding given indices', () => {
   assert.deepEqual(C.pickRelated(LIST, 3, [], null), [0, 7, 8]);
   assert.deepEqual(C.pickRelated(LIST, 3, [0, 7], null), [9, 8]);

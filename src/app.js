@@ -30,6 +30,9 @@
   const EARTH_KEY = 'ht-earth';
   const HIDDEN_KEY = 'ht-hidden-cats';
   const REIGNS_KEY = 'ht-reigns';
+  const LIVES_KEY = 'ht-lives';
+  const BIRTH_KEY = 'ht-birth';
+  const LIVES_MAX_SPAN = 3000;            // wider than this a lifetime is a few pixels
   const IMAGES_KEY = 'ht-images';
   const REGION_KEY = 'ht-region';
   const HELP_KEY = 'ht-help-seen';
@@ -103,6 +106,11 @@
   let earthOn = true;                     // climate sparklines visible
   const hiddenCats = new Set();           // categories filtered out via the legend
   let reignsOn = true;                    // ruler swimlanes visible
+  let birthYear = null;                   // "Your lifetime": kept in this browser only, never written to the URL
+  let lifeTourDef = null;                 // the tour generated from it
+  let livesOn = false;                    // lifespans of notable people instead (the two layers share the top of the stage)
+  let livesRows = [];                     // [[event index]] per row, chosen for this frame
+  let livesStats = { shown: 0, inView: 0 };
   let imagesOn = false;                   // opt-in: fetch a thumbnail from Wikimedia for the open event
   let regionFilter = null;                // null = everywhere, else a key of REGIONS
   let regionCache = null;                 // event index -> region key | '' (unknown)
@@ -591,14 +599,16 @@
     const axisY = Math.round(h * (earthOn && h < 760 ? Math.min(AXIS_FRACTION, 0.52) : AXIS_FRACTION));
     lastAxisY = axisY;
     planReigns(shown, axisY);                           // decides rows and reserves their height before lanes are packed
+    planLives(shown, axisY);
     const era = planEra(shown);
     if (era && reignReserve < ERA_RESERVE) reignReserve = ERA_RESERVE;
     renderTicks(shown, axisY);
     renderEvents(shown, axisY);
-    renderReigns(shown);
+    if (livesRows.length || livesActive()) renderLives(shown); else renderReigns(shown);
     renderEarth(shown, axisY);
     renderNowMarker(shown, axisY);
     renderEra(era, axisY);
+    renderLifeBand(shown, axisY);
     dom.cursorLine.setAttribute('y1', 0);
     dom.cursorLine.setAttribute('y2', h);
     if (lastMouseX !== null) updateCursor(lastMouseX);  // the date under a resting pointer changes with the view
@@ -612,7 +622,14 @@
 
   // --- Reign swimlanes: one row per office at the top of the stage ---
   function reignsActive() {
-    return reignsOn && size.width >= REIGN_MIN_WIDTH;
+    return reignsOn && !livesOn && size.width >= REIGN_MIN_WIDTH;
+  }
+
+  // While either row layer is up, rulers stay out of the ordinary event lanes.
+  function rowsActive() { return reignsActive() || livesActive(); }
+
+  function livesActive() {
+    return livesOn && size.width >= REIGN_MIN_WIDTH;
   }
 
   function planReigns(v, axisY) {
@@ -683,10 +700,92 @@
     g.replaceChildren(frag);
   }
 
+  // --- Lives: the lifespans of notable people, packed into rows at the top of the stage. The most prominent
+  // get a row first; whoever does not fit is left out, and the caption says how many. ---
+  function planLives(v, axisY) {
+    livesRows = [];
+    livesStats = { shown: 0, inView: 0 };
+    if (!livesActive() || v.end - v.start > LIVES_MAX_SPAN) return;
+    const list = events();
+    const w = size.width;
+    const items = [];
+    const idx = [];
+    for (let i = 0; i < list.length; i++) {
+      const ev = list[i];
+      if (!ev.life || ev.end < v.start || ev.t > v.end || !passesFilters(ev, i)) continue;
+      const x0 = clamp(tToPx(ev.t, v), 0, w);
+      const x1 = clamp(tToPx(ev.end, v), 0, w);
+      items.push({ x0: x0, x1: Math.max(x1, x0 + 3), priority: i === selected ? -1 : ev.tier + (1 - Math.min(1, (ev.end - ev.t) / 125)) * 0.5 });
+      idx.push(i);
+    }
+    livesStats.inView = items.length;
+    if (!items.length) return;
+    const room = axisY - LANE_TOP_PAD - 4 * LANE_PITCH - REIGN_TOP;
+    const maxRows = Math.min(REIGN_MAX_ROWS, Math.max(0, Math.floor(room / REIGN_ROW_H)));
+    if (maxRows === 0) return;
+    const placed = HT.layout.packLanes(items, { gap: 3, maxLanes: maxRows }).placed;
+    let rows = 0;
+    for (let k = 0; k < placed.length; k++) {
+      const lane = placed[k].lane;
+      (livesRows[lane] || (livesRows[lane] = [])).push(idx[placed[k].index]);
+      rows = Math.max(rows, lane + 1);
+    }
+    for (let r = 0; r < rows; r++) if (!livesRows[r]) livesRows[r] = [];
+    livesStats.shown = placed.length;
+    reignReserve = REIGN_TOP + rows * REIGN_ROW_H + 8;
+  }
+
+  function renderLives(v) {
+    const g = dom.gReigns;
+    const list = events();
+    const w = size.width;
+    const frag = document.createDocumentFragment();
+    const tooWide = v.end - v.start > LIVES_MAX_SPAN;
+    const caption = tooWide ? 'Lives \u00b7 zoom in to 3,000 years or less'
+      : livesStats.inView ? 'Lives \u00b7 ' + livesStats.shown + ' of ' + livesStats.inView + ' alive in this view' : 'Lives \u00b7 nobody on record here';
+    frag.appendChild(svgEl('text', { class: 'row-label lives-caption', x: 18, y: REIGN_TOP - 7 }, caption));
+    for (let r = 0; r < livesRows.length; r++) {
+      const y = REIGN_TOP + r * REIGN_ROW_H;
+      const row = livesRows[r];
+      for (let k = 0; k < row.length; k++) {
+        const i = row[k];
+        const ev = list[i];
+        const x0 = clamp(tToPx(ev.t, v), 0, w);
+        const x1 = clamp(tToPx(ev.end, v), 0, w);
+        const width = Math.max(3, x1 - x0);
+        const seg = svgEl('g', {
+          class: 'event reign life cat-' + ev.category + (i === selected ? ' selected' : ''),
+          id: 'ev-' + i, 'data-index': i, tabindex: 0, role: 'button',
+          'aria-label': ev.title + ', ' + eventDateLabel(ev)
+        });
+        seg.appendChild(svgEl('rect', { class: 'seg', x: x0, y: y + 1, width: width, height: REIGN_ROW_H - 3, rx: 2 }));
+        if (width >= ev.title.length * 5.9 + 10) seg.appendChild(svgEl('text', { class: 'seg-label', x: x0 + 5, y: y + REIGN_ROW_H - 5 }, ev.title));
+        frag.appendChild(seg);
+      }
+    }
+    g.replaceChildren(frag);
+  }
+
+  function setLives(on) {
+    livesOn = !!on;
+    if (livesOn) reignsOn = false;                        // one layer at a time up there
+    try { root.localStorage.setItem(LIVES_KEY, livesOn ? '1' : '0'); if (livesOn) root.localStorage.setItem(REIGNS_KEY, '0'); } catch (err) { /* ignore */ }
+    syncLayerButtons();
+    if (dom && shown) { settleNext = true; render(); }
+    if (dom) announce(function () { return livesOn ? 'Lives on. ' + livesStats.shown + ' of ' + livesStats.inView + ' people alive in this view are shown.' : 'Lives off.'; });
+  }
+
+  function syncLayerButtons() {
+    if (!dom) return;
+    if (dom.btnReigns) dom.btnReigns.setAttribute('aria-pressed', String(reignsOn));
+    if (dom.btnLives) dom.btnLives.setAttribute('aria-pressed', String(livesOn));
+  }
+
   function setReigns(on) {
     reignsOn = !!on;
+    if (reignsOn && livesOn) { livesOn = false; try { root.localStorage.setItem(LIVES_KEY, '0'); } catch (err) { /* ignore */ } }
     try { root.localStorage.setItem(REIGNS_KEY, reignsOn ? '1' : '0'); } catch (err) { /* ignore */ }
-    if (dom && dom.btnReigns) dom.btnReigns.setAttribute('aria-pressed', String(reignsOn));
+    syncLayerButtons();
     if (dom && shown) { settleNext = true; render(); }
   }
 
@@ -1025,7 +1124,7 @@
   // or the tiers run out. Lane packing still trims whatever does not fit.
   function effectiveTier(list, v, span) {
     return C.effectiveTier(list, v, HT.tiers.tierForSpan(span), HT.tiers.MAX_TIER, MIN_VISIBLE, function (ev, i) {
-      return !(ev.otd && !otdShown(v)) && passesFilters(ev, i) && !(ev.group && reignsActive());
+      return !ev.life && !(ev.otd && !otdShown(v)) && passesFilters(ev, i) && !(ev.group && rowsActive());
     });
   }
 
@@ -1046,9 +1145,10 @@
 
     for (let i = 0; i < list.length; i++) {
       const ev = list[i];
+      if (ev.life) continue;                              // lifespans live in their own layer
       if (ev.otd && (!showOtd || ev.t < v.start || ev.t > v.end)) continue;       // cheap checks first: there can be thousands
       // The open event is always drawn: it bypasses the tier ceiling here and takes the first lane below.
-      if ((ev.tier > tierLimit && i !== selected) || !passesFilters(ev, i) || (ev.group && reignsActive())) continue;
+      if ((ev.tier > tierLimit && i !== selected) || !passesFilters(ev, i) || (ev.group && rowsActive())) continue;
       const ranged = hasEnd(ev);
       const tEnd = ranged ? ev.end : ev.t;
       if (tEnd < v.start || ev.t > v.end) continue;
@@ -1359,6 +1459,7 @@
   function revealEvent(i) {
     const ev = events()[i];
     if (!ev) return;
+    if (ev.life && !livesOn) setLives(true);            // a person is only ever drawn in the Lives layer
     if (hiddenCats.has(ev.category)) { hiddenCats.delete(ev.category); saveHidden(); renderLegend(); if (shown) { settleNext = true; render(); } }
     if (regionFilter !== null && eventRegion(i) !== regionFilter) setRegion(null);
   }
@@ -1692,7 +1793,7 @@
       const b = htmlEl('button', 'panel-jump');
       b.type = 'button';
       b.dataset.index = String(i);
-      b.appendChild(htmlEl('span', 'when', fmtGap(list[i].t - ref.t)));
+      b.appendChild(htmlEl('span', 'when', list[i].life ? HT.time.formatYear(list[i].t) + ' \u2013 ' + HT.time.formatYear(list[i].end) : fmtGap(list[i].t - ref.t)));
       b.appendChild(htmlEl('span', 'what', list[i].title));
       li.appendChild(b);
       return li;
@@ -1705,9 +1806,10 @@
     const list = events();
     const ev = list[index];
     const curatedCount = HT.curatedCount || 0;         // set by the build where the hand-written data files end
-    const near = C.pickNearby(list, index, passesFilters, curatedCount ? function (o, i) { return i < curatedCount; } : null);
+    const near = ev.life ? C.pickContemporaries(list, index, 5)
+      : C.pickNearby(list, index, passesFilters, curatedCount ? function (o, i) { return i < curatedCount; } : null);
     dom.panelNear.hidden = near.length === 0;
-    dom.panelNear.querySelector('h3').textContent = ev.group ? 'Before and after in this office' : 'Around this time';
+    dom.panelNear.querySelector('h3').textContent = ev.life ? 'Alive at the same time' : ev.group ? 'Before and after in this office' : 'Around this time';
     fillEventList(dom.panelNearList, near, ev);
 
     // More of the same category, preferring the same part of the world.
@@ -1724,7 +1826,7 @@
     const ev = events()[i];
     if (!ev) return;
     revealEvent(i);
-    const inView = shown && ev.t >= shown.start && ev.t <= shown.end && ev.tier <= hudStats.tier && !(ev.otd && !otdShown(shown));
+    const inView = !ev.life && shown && ev.t >= shown.start && ev.t <= shown.end && ev.tier <= hudStats.tier && !(ev.otd && !otdShown(shown));
     if (!inView) zoomToEvent(ev);
     openPanel(i);
   }
@@ -1869,7 +1971,98 @@
 
   // --- Guided tours (HT.tours): a fixed path of events with a line of narration each. A step zooms to its
   // event and opens its panel; the step rides in the URL (tour=<id>.<n>), so Back, Forward and shared links work. ---
-  function tourDefs() { return Array.isArray(HT.tours) ? HT.tours : []; }
+  function tourDefs() {
+    const base = Array.isArray(HT.tours) ? HT.tours : [];
+    const mine = lifetimeDef();
+    return mine ? base.concat([mine]) : base;
+  }
+
+  // --- Your lifetime: a band from a birth year to today, and a tour generated from the events inside it ---
+  function lifetimeDef() {
+    if (birthYear === null) return null;
+    if (lifeTourDef && lifeTourDef.birth === birthYear) return lifeTourDef;
+    const made = C.lifetimeTour(events(), birthYear, nowT(), HT.curatedCount || 0);
+    if (!made.steps.length) return null;
+    const pop = HT.context && HT.context.pop;
+    const co2 = HT.earth && HT.earth.series && HT.earth.series.co2;
+    const p0 = pop ? seriesAt(pop, birthYear + 0.5, EARTH_HOLD.pop) : null;
+    const p1 = pop ? seriesAt(pop, nowT(), EARTH_HOLD.pop) : null;
+    const c0 = co2 ? seriesAt(co2, birthYear + 0.5, EARTH_HOLD.co2) : null;
+    const c1 = co2 ? seriesAt(co2, nowT(), EARTH_HOLD.co2) : null;
+    let note = 'You were born in ' + birthYear + '. Since then this timeline records ' + made.count.toLocaleString('en-US') + ' events';
+    if (p0 && p1) note += '; the world has grown from ' + popFormat(p0).toLowerCase().replace(' b', ' billion').replace(' m', ' million') + ' to ' + popFormat(p1).toLowerCase().replace(' b', ' billion').replace(' m', ' million') + ' people';
+    if (c0 && c1) note += ', and CO\u2082 in the air from ' + Math.round(c0) + ' to ' + Math.round(c1) + ' ppm';
+    made.steps[0].note = note + '.';
+    lifeTourDef = { id: 'your-lifetime', title: 'Your lifetime', blurb: '', steps: made.steps, birth: birthYear, generated: true };
+    return lifeTourDef;
+  }
+
+  function setBirthYear(y) {
+    const year = Math.floor(Number(y));
+    const ok = Number.isFinite(year) && year >= 1900 && year <= Math.floor(nowT());
+    birthYear = ok ? year : null;
+    lifeTourDef = null;
+    try { if (ok) root.localStorage.setItem(BIRTH_KEY, String(year)); else root.localStorage.removeItem(BIRTH_KEY); } catch (err) { /* ignore */ }
+    if (!ok && tour && tour.def.generated) endTour();
+    if (dom && shown) render();
+    return ok;
+  }
+
+  function renderLifeBand(v, axisY) {
+    if (!dom.gLife) return;
+    if (birthYear === null || birthYear > v.end || nowT() < v.start) { if (dom.gLife.firstChild) dom.gLife.replaceChildren(); return; }
+    const w = size.width;
+    const x0 = clamp(tToPx(birthYear, v), 0, w);
+    const x1 = clamp(tToPx(nowT(), v), 0, w);
+    const parts = [];
+    if (x1 - x0 >= 2 && !(x0 <= 0 && x1 >= w)) parts.push(svgEl('rect', { class: 'mylife-zone', x: x0, y: 0, width: x1 - x0, height: size.height }));
+    if (x0 > 0) parts.push(svgEl('line', { class: 'mylife-line', x1: crisp(x0), x2: crisp(x0), y1: 0, y2: size.height }));
+    if (x1 - x0 >= 90) parts.push(svgEl('text', { class: 'mylife-label', x: x0 + 8, y: axisY + 42 }, 'Your lifetime \u00b7 ' + Math.floor(nowT() - birthYear) + ' years'));
+    dom.gLife.replaceChildren.apply(dom.gLife, parts);
+  }
+
+  function renderLifeForm() {
+    const wrap = htmlEl('form', 'life-form');
+    wrap.appendChild(htmlEl('h3', '', 'Your lifetime'));
+    wrap.appendChild(htmlEl('p', '', 'Enter the year you were born to see your own years marked on the timeline and take a tour of what has happened in them. It stays in this browser: it is never sent anywhere or put in a link.'));
+    const label = htmlEl('label', '', 'Year you were born ');
+    const input = htmlEl('input');
+    input.type = 'number'; input.min = '1900'; input.max = String(Math.floor(nowT())); input.step = '1'; input.inputMode = 'numeric'; input.required = true;
+    input.id = 'life-year'; if (birthYear !== null) input.value = String(birthYear);
+    label.appendChild(input);
+    wrap.appendChild(label);
+    const row = htmlEl('div', 'life-actions');
+    const go = htmlEl('button', 'life-go', 'Show my lifetime'); go.type = 'submit';
+    const clear = htmlEl('button', '', 'Forget it'); clear.type = 'button'; clear.hidden = birthYear === null;
+    const back = htmlEl('button', '', 'Back'); back.type = 'button';
+    row.appendChild(go); row.appendChild(clear); row.appendChild(back);
+    wrap.appendChild(row);
+    const msg = htmlEl('p', 'life-msg'); msg.setAttribute('role', 'alert');
+    wrap.appendChild(msg);
+    wrap.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!setBirthYear(input.value)) { msg.textContent = 'Enter a year between 1900 and ' + Math.floor(nowT()) + '.'; return; }
+      toggleTours(false);
+      startTour('your-lifetime', 0);
+    });
+    clear.addEventListener('click', function () { setBirthYear(null); announce('Your lifetime has been forgotten.'); restoreTourCard(); });
+    back.addEventListener('click', restoreTourCard);
+    dom.tours.replaceChildren(wrap);
+    try { input.focus({ preventScroll: true }); } catch (err) { /* ignore */ }
+  }
+
+  function restoreTourCard() {
+    if (!dom.tours || !dom.toursHead) return;
+    dom.tours.replaceChildren(dom.toursHead, dom.tourList);
+    refreshTourLists();
+    focusFirst(dom.tours);
+  }
+
+  function openLifeForm() {
+    if (dom.help && !dom.help.hidden) toggleHelp(false);
+    if (dom.tours.hidden) toggleTours(true);
+    renderLifeForm();
+  }
 
   function indexOfTitle(title) {
     if (!titleIndex) {
@@ -1900,13 +2093,23 @@
     dom.tourNote.textContent = tour.def.steps[tour.step].note;
     dom.tourPrev.disabled = tour.step === 0;
     dom.tourNext.textContent = tour.step === n - 1 ? 'Finish' : 'Next ›';
+    if (dom.tourEdit) dom.tourEdit.hidden = !tour.def.generated;
   }
 
   // Show step k: reveal the event, open its panel (so the URL written by the zoom already names it), zoom.
   function showTourStep(k) {
     if (!tour) return;
     tour.step = clamp(k, 0, tour.def.steps.length - 1);
-    const i = indexOfTitle(tour.def.steps[tour.step].ev);
+    const step = tour.def.steps[tour.step];
+    if (step.view) {                                      // a framing step with no event of its own
+      if (!dom.panel.hidden) closePanel({ silent: true });
+      renderTourBar();
+      const was = view;
+      commit(step.view, { animate: true, url: 'push', stack: 'push', discrete: true });
+      if (sameView(was, view)) writeUrl('push');
+      return;
+    }
+    const i = indexOfTitle(step.ev);
     renderTourBar();
     if (i < 0) { writeUrl('replace'); return; }           // a step whose event is gone: keep the narration, stay put
     revealEvent(i);
@@ -1964,7 +2167,13 @@
     todayBtn.appendChild(htmlEl('span', 'tp-title', 'Today in history'));
     todayBtn.appendChild(htmlEl('span', 'tp-blurb', 'What happened on ' + td.day + ' ' + MONTH_NAMES[td.month - 1] + ' across two thousand years. Loads the list from Wikipedia and turns on online content.'));
     todayBtn.appendChild(htmlEl('span', 'tp-steps', td.day + ' ' + MONTH_NAMES[td.month - 1].slice(0, 3)));
-    const nodes = [todayBtn].concat(tourDefs().map(function (t) {
+    const lifeBtn = htmlEl('button', 'tour-pick today-pick');
+    lifeBtn.type = 'button';
+    lifeBtn.dataset.tour = '@life';
+    lifeBtn.appendChild(htmlEl('span', 'tp-title', 'Your lifetime'));
+    lifeBtn.appendChild(htmlEl('span', 'tp-blurb', birthYear === null ? 'Enter the year you were born to see your own years on the timeline and tour what has happened in them. Kept in this browser only.' : 'Born ' + birthYear + ': your years on the timeline, and a tour of what has happened in them.'));
+    lifeBtn.appendChild(htmlEl('span', 'tp-steps', birthYear === null ? 'You' : String(birthYear)));
+    const nodes = [todayBtn, lifeBtn].concat(tourDefs().filter(function (t) { return !t.generated; }).map(function (t) {
       const b = htmlEl('button', 'tour-pick');
       b.type = 'button';
       b.dataset.tour = t.id;
@@ -1979,7 +2188,9 @@
     container.addEventListener('click', function (e) {
       const b = e.target && typeof e.target.closest === 'function' ? e.target.closest('.tour-pick') : null;
       if (!b) return;
-      if (b.dataset.tour === '@today') openToday(); else onPick(b.dataset.tour);
+      if (b.dataset.tour === '@today') openToday();
+      else if (b.dataset.tour === '@life') { if (birthYear === null) openLifeForm(); else { toggleTours(false); if (dom.help && !dom.help.hidden) toggleHelp(false); startTour('your-lifetime', 0); } }
+      else onPick(b.dataset.tour);
     });
   }
 
@@ -1997,6 +2208,7 @@
       if (dom.search && !dom.search.hidden) toggleSearch(false);
       if (dom.help && !dom.help.hidden) toggleHelp(false);
       closeToday();
+      if (dom.toursHead) dom.tours.replaceChildren(dom.toursHead, dom.tourList);   // the lifetime form may have replaced them
       refreshTourLists();
     }
     const was = !dom.tours.hidden;
@@ -2101,7 +2313,7 @@
       mmDensity = new Array(MM_BINS).fill(0);
       const list = events();
       const uMax = mmU(HT.time.ROOT_START);
-      for (let i = 0; i < list.length; i++) mmDensity[clamp(Math.floor((1 - mmU(list[i].t) / uMax) * MM_BINS), 0, MM_BINS - 1)]++;
+      for (let i = 0; i < list.length; i++) if (!list[i].life) mmDensity[clamp(Math.floor((1 - mmU(list[i].t) / uMax) * MM_BINS), 0, MM_BINS - 1)]++;
     }
     if (dom.minimap.dataset.w !== String(w) || dom.minimap.dataset.h !== String(h)) {       // static parts, rebuilt on resize
       dom.minimap.dataset.w = String(w); dom.minimap.dataset.h = String(h);
@@ -2241,6 +2453,12 @@
         htmlEl('div', 'tt-detail', ev.detail)
       );
       tip.dataset.index = String(index);
+    }
+    if (ev.life) {                                        // how old they were at the date under the pointer
+      const t = pxToT(clientX - svgLeft(), shown);
+      const age = t >= ev.t && t <= ev.end ? Math.floor(t - ev.t) : -1;
+      const line = tip.querySelector('.tt-date');
+      if (line) line.textContent = eventDateLabel(ev) + (age >= 0 ? ' \u00b7 aged ' + age + ' here' : '');
     }
     tip.hidden = false;
     positionTooltip(clientX, clientY);
@@ -2589,6 +2807,11 @@
         setReigns(!reignsOn);
         e.preventDefault();
         break;
+      case 'p':
+      case 'P':
+        setLives(!livesOn);
+        e.preventDefault();
+        break;
       case 'l':
       case 'L':
         if (dom.scaleToggle && !dom.scaleToggle.hidden) { dom.scaleToggle.click(); e.preventDefault(); }
@@ -2724,6 +2947,7 @@
     dom.gEarth = svgEl('g', { class: 'g-earth', 'pointer-events': 'none' });
     dom.gReigns = svgEl('g', { class: 'g-reigns' });
     dom.gNow = svgEl('g', { class: 'g-now', 'pointer-events': 'none' });
+    dom.gLife = svgEl('g', { class: 'g-mylife', 'pointer-events': 'none' });
     dom.gEra = svgEl('g', { class: 'g-era' });
     dom.gCursor = svgEl('g', { class: 'g-cursor', 'pointer-events': 'none' });
     dom.cursorLine = svgEl('line', { class: 'cursor-line', x1: 0, x2: 0, y1: 0, y2: 0, visibility: 'hidden' });
@@ -2735,7 +2959,7 @@
     measureEvent.appendChild(measureLabelEl);
     gMeasure.appendChild(measureTickEl);
     gMeasure.appendChild(measureEvent);
-    svg.replaceChildren(dom.gMinor, dom.gMajor, dom.gEarth, dom.gLabels, dom.gAxis, dom.gNow, dom.gReigns, dom.gEvents, dom.gEra, dom.gCursor, gMeasure);
+    svg.replaceChildren(dom.gLife, dom.gMinor, dom.gMajor, dom.gEarth, dom.gLabels, dom.gAxis, dom.gNow, dom.gReigns, dom.gEvents, dom.gEra, dom.gCursor, gMeasure);
 
     // The tooltip is positioned in stage coordinates; make sure the stage is its containing block.
     dom.tooltip.style.position = 'absolute';
@@ -2773,7 +2997,7 @@
       otdChip: $('otd-chip'), otdAction: $('otd-action'), otdDismiss: $('otd-dismiss'),
       btnTours: $('btn-tours'), tours: $('tours'), tourBar: $('tour-bar'), tourTitle: $('tour-title'), tourCount: $('tour-count'),
       tourNote: $('tour-note'), tourPrev: $('tour-prev'), tourNext: $('tour-next'), tourExit: $('tour-exit'),
-      scaleToggle: $('scale-toggle'),
+      scaleToggle: $('scale-toggle'), btnLives: $('btn-lives'), tourEdit: $('tour-edit'),
       embedOpen: $('embed-open'), srStatus: $('sr-status'), skip: $('skip'),
       helpTours: $('help-tours'), helpTourList: $('help-tour-list'), today: $('today'),
       minimap: $('minimap'), help: $('help'), helpClose: $('help-close'), helpOk: $('help-ok'), btnHelp: $('btn-help'), panelCopy: $('panel-copy'),
@@ -2808,6 +3032,8 @@
     tickClock();
     clockTimer = setInterval(tickClock, 1000);
     try { earthOn = root.localStorage.getItem(EARTH_KEY) !== '0'; } catch (err) { /* ignore */ }
+    try { const by = Number(root.localStorage.getItem(BIRTH_KEY)); if (Number.isFinite(by) && by >= 1900 && by <= Math.floor(nowT())) birthYear = Math.floor(by); } catch (err) { /* ignore */ }
+    try { livesOn = root.localStorage.getItem(LIVES_KEY) === '1'; if (livesOn) reignsOn = false; } catch (err) { /* ignore */ }
     try { scaleMode = root.localStorage.getItem(SCALE_KEY) === 'lin' ? 'lin' : 'log'; } catch (err) { /* ignore */ }
     try { reignsOn = root.localStorage.getItem(REIGNS_KEY) !== '0'; } catch (err) { /* ignore */ }
     try { imagesOn = root.localStorage.getItem(IMAGES_KEY) === '1'; } catch (err) { /* ignore */ }
@@ -2820,6 +3046,7 @@
       const head = htmlEl('h3', '', 'Guided tours');
       const list = htmlEl('div', 'tour-list');
       dom.tours.replaceChildren(head, list);
+      dom.toursHead = head;
       dom.tourList = list;
       if (dom.helpTours) dom.helpTours.hidden = false;
       refreshTourLists();
@@ -2827,9 +3054,12 @@
       dom.tourPrev.addEventListener('click', function () { tourStep(-1); });
       dom.tourNext.addEventListener('click', function () { tourStep(1); });
       dom.tourExit.addEventListener('click', endTour);
+      if (dom.tourEdit) dom.tourEdit.addEventListener('click', function () { endTour(); openLifeForm(); });
     } else if (dom.btnTours) {
       dom.btnTours.hidden = true;
     }
+    if (dom.btnLives) dom.btnLives.addEventListener('click', function () { setLives(!livesOn); });
+    syncLayerButtons();
     if (dom.scaleToggle) {
       dom.scaleToggle.addEventListener('click', function () {
         setScale(scaleMode === 'log' ? 'lin' : 'log');
@@ -2922,6 +3152,7 @@
     setReigns: setReigns,
     setImages: setImages,
     setRegion: setRegion,
+    setLives: setLives,
     THEMES: THEMES.slice()
   };
 })(typeof window !== 'undefined' ? window : globalThis);
