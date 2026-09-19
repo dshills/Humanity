@@ -118,6 +118,117 @@ test('eventWindow keeps an on-this-day event on a view narrow enough to show it'
   close((w.start + w.end) / 2, 1969.55);
 });
 
+// ---------------------------------------------------------------- scale
+test('views up to 60,000 years are exactly linear, whatever the mode', () => {
+  for (const v of [{ start: 1900, end: 2000 }, { start: -40000, end: 10000 }, C.clampView(2000, 2100, NOW)]) {
+    assert.equal(C.warpWeight(v.end - v.start, 'log'), 0);
+    for (const f of [0, 0.25, 0.5, 1, -0.5, 1.7]) {
+      const t = v.start + f * (v.end - v.start);
+      close(C.tToU(t, v, NOW, 'log'), f, 1e-12);
+      close(C.uToT(f, v, NOW, 'log'), t, 1e-6);
+    }
+  }
+  assert.equal(C.warpWeight(300000, 'lin'), 0, 'and every view is in linear mode');
+  close(C.tToU(-148000, ROOT, NOW, 'lin'), (-148000 - ROOT.start) / (ROOT.end - ROOT.start), 1e-12);
+});
+
+test('the warp fades in between 60,000 and 120,000 years', () => {
+  assert.equal(C.warpWeight(C.WARP_LO, 'log'), 0);
+  assert.equal(C.warpWeight(C.WARP_HI, 'log'), 1);
+  assert.equal(C.warpWeight(1e6, 'log'), 1);
+  let prev = 0;
+  for (let s = C.WARP_LO; s <= C.WARP_HI; s += 5000) { const w = C.warpWeight(s, 'log'); assert.ok(w >= prev && w <= 1); prev = w; }
+});
+
+test('on the warped root the ends stay put and recorded history gets real room', () => {
+  close(C.tToU(ROOT.start, ROOT, NOW, 'log'), 0, 1e-12);
+  close(C.tToU(ROOT.end, ROOT, NOW, 'log'), 1, 1e-12);
+  close(C.tToU(NOW, ROOT, NOW, 'log'), 1 - C.FUTURE_FRAC, 1e-9, 'Today keeps its margin');
+  const writing = 1 - C.FUTURE_FRAC - C.tToU(-3299, ROOT, NOW, 'log');
+  assert.ok(writing > 0.2 && writing < 0.35, `recorded history takes ${(writing * 100).toFixed(1)}% of the width`);
+  const linear = 1 - C.FUTURE_FRAC - C.tToU(-3299, ROOT, NOW, 'lin');
+  assert.ok(linear < 0.02, 'against under 2% on a linear axis');
+});
+
+test('the warped map is strictly increasing and uToT inverts it, inside and outside the view', () => {
+  for (const v of [ROOT, { start: -90000, end: -5000 }, C.clampView(-80000, 5000, NOW)]) {
+    let prev = -Infinity;
+    for (let i = -20; i <= 120; i++) {
+      const t = v.start + (i / 100) * (v.end - v.start);
+      const u = C.tToU(t, v, NOW, 'log');
+      assert.ok(u > prev, `not increasing at ${t}`);
+      prev = u;
+      close(C.uToT(u, v, NOW, 'log'), t, Math.max(1e-6, Math.abs(t) * 1e-9));
+    }
+  }
+});
+
+test('viewFromU: the whole width is the view itself, and a quarter around a point is a 4x zoom on screen', () => {
+  const whole = C.viewFromU(0, 1, ROOT, NOW, 'log');
+  close(whole.start, ROOT.start, 1e-4); close(whole.end, ROOT.end, 1e-4);
+  const lin = C.viewFromU(0.375, 0.625, { start: 1000, end: 2000 }, NOW, 'log');
+  close(lin.start, 1375, 1e-9); close(lin.end, 1625, 1e-9);
+  const u = C.tToU(-3000, ROOT, NOW, 'log');
+  const z = C.viewFromU(u - 0.125, u + 0.125, ROOT, NOW, 'log');
+  assert.ok(z.start < -3000 && z.end > -3000);
+  assert.ok(z.end - z.start < (ROOT.end - ROOT.start) / 4, 'near the present a quarter of the screen is far less than a quarter of the time');
+});
+
+test('anchorView puts a date back under the pointer when a zoom crosses the warp transition', () => {
+  const tA = -5856; const uA = C.tToU(tA, ROOT, NOW, 'log');
+  let v = ROOT;
+  for (let i = 0; i < 8; i++) {                                 // eight wheel notches in, through 120,000 and 60,000 years
+    const f = 0.8;
+    v = C.anchorView(C.viewFromU(uA - uA * f, uA + (1 - uA) * f, v, NOW, 'log'), tA, uA, NOW, 'log');
+    close(C.tToU(tA, v, NOW, 'log'), uA, 1e-4);
+  }
+  assert.ok(v.end - v.start < C.WARP_LO, 'ended on a linear view: ' + (v.end - v.start));
+  const lin = { start: 1000, end: 2000 };
+  assert.deepEqual(C.anchorView(lin, 1250, 0.25, NOW, 'log'), lin, 'linear views are left alone');
+});
+
+test('viewAtNowWithAnchor finds the view resting on now that keeps a recent date where the pointer is', () => {
+  for (const [tA, uA] of [[-3906, 0.7], [1500, 0.9], [-30000, 0.4], [-150000, 0.1]]) {
+    const v = C.viewAtNowWithAnchor(tA, uA, NOW, 'log');
+    assert.ok(v, `no view for ${tA} at ${uA}`);
+    assert.ok(C.atNow(v, NOW));
+    assert.ok(v.start >= T.ROOT_START);
+    close(C.tToU(tA, v, NOW, 'log'), uA, 1e-6);
+  }
+  const lin = C.viewAtNowWithAnchor(-3906, 0.7, NOW, 'log');
+  assert.ok(lin.end - lin.start < C.WARP_LO, 'a recent anchor lands on a linear view');
+  assert.equal(C.viewAtNowWithAnchor(NOW + 1, 0.5, NOW, 'log'), null);
+  assert.equal(C.viewAtNowWithAnchor(1900, 0.99, NOW, 'log'), null, 'nothing can sit inside the Today margin');
+  assert.equal(C.viewAtNowWithAnchor(-290000, 0.9, NOW, 'log'), null, 'and the oldest dates cannot be pushed to the right');
+  assert.equal(C.viewAtNowWithAnchor(-30000, 0.5, NOW, 'log'), null, 'nor can 30,000 BCE reach the middle: even the root has it at 42%');
+});
+
+test('logTicks gives round ages and years whose labels never touch', () => {
+  const W = 1400;
+  const ticks = C.logTicks(ROOT, NOW, W, 'log', (s) => s.length * 7);
+  assert.ok(ticks.major.length >= 5, String(ticks.major.length));
+  const labels = ticks.major.map((m) => m.label);
+  assert.ok(labels.some((l) => /100,000/.test(l)) && labels.some((l) => /10,000/.test(l)) && labels.some((l) => /^1 CE$|3000 BCE/.test(l)), labels.join(' | '));
+  let prevRight = -Infinity; let prevT = -Infinity;
+  for (const m of ticks.major) {
+    assert.ok(m.t > prevT && m.t >= ROOT.start && m.t <= NOW);
+    const x = C.tToU(m.t, ROOT, NOW, 'log') * W; const half = m.label.length * 7 / 2;
+    assert.ok(Math.max(0, x - half) >= prevRight, `"${m.label}" overlaps its neighbour`);
+    prevRight = Math.min(W, x + half); prevT = m.t;
+  }
+  for (const t of ticks.minor) assert.ok(t >= ROOT.start && t <= NOW);
+  const narrow = C.logTicks(ROOT, NOW, 360, 'log', (s) => s.length * 7);
+  assert.ok(narrow.major.length >= 2 && narrow.major.length < ticks.major.length, 'fewer labels on a phone');
+});
+
+test('the scale choice round-trips through the hash only when it is linear', () => {
+  assert.equal(C.encodeHash(ROOT, NOW, 'auto', '', null, 'lin'), '#s=-298050&e=now&sc=lin');
+  assert.equal(C.encodeHash(ROOT, NOW, 'auto', '', null, 'log'), '#s=-298050&e=now');
+  assert.equal(C.parseHash('#s=1&e=2&sc=lin', NOW).scale, 'lin');
+  assert.equal(C.parseHash('#s=1&e=2&sc=log', NOW).scale, '');
+  assert.equal(C.parseHash('#s=1&e=2', NOW).scale, '');
+});
+
 // ---------------------------------------------------------------- hash
 test('encodeHash trims numbers, writes the now token, and appends theme and event only when set', () => {
   assert.equal(C.encodeHash({ start: 1400, end: 1600 }, NOW, 'auto', ''), '#s=1400&e=1600');
@@ -139,8 +250,8 @@ test('parseHash round-trips views, including the now token with a later now', ()
 });
 
 test('parseHash reports theme and event even when the view is unusable, and nothing for an empty hash', () => {
-  assert.deepEqual(C.parseHash('', NOW), { view: null, theme: '', ev: '', tour: null });
-  assert.deepEqual(C.parseHash('#', NOW), { view: null, theme: '', ev: '', tour: null });
+  assert.deepEqual(C.parseHash('', NOW), { view: null, theme: '', ev: '', tour: null, scale: '' });
+  assert.deepEqual(C.parseHash('#', NOW), { view: null, theme: '', ev: '', tour: null, scale: '' });
   const h = C.parseHash('#m=crt&ev=some-event', NOW);
   assert.equal(h.view, null); assert.equal(h.theme, 'crt'); assert.equal(h.ev, 'some-event');
   assert.equal(C.parseHash('#s=5&e=1', NOW).view, null);

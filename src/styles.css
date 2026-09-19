@@ -1104,6 +1104,19 @@ html[data-theme="paper"] #panel-title { font-size: 24px; }
 }
 #skip:focus { transform: none; }
 
+/* Scale toggle: top-left of the stage, only on views wide enough for the log axis to apply */
+#scale-toggle {
+  position: absolute; z-index: 4; top: 12px; left: 14px; min-height: 28px; padding: 0 12px;
+  border: 1px solid var(--panel-border); border-radius: 999px; background: var(--panel-bg);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  font: 600 9.5px/1 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+  transition: color 120ms var(--ease), border-color 120ms var(--ease);
+}
+#scale-toggle[hidden] { display: none; }
+#scale-toggle[aria-pressed="true"] { color: var(--accent); border-color: rgba(var(--accent-rgb), 0.45); }
+#scale-toggle:hover { color: var(--fg); }
+body.embed #scale-toggle { display: none; }
+
 /* Embed mode (?embed=1): the timeline alone, for an iframe. The header keeps the path, Zoom out and Home, and
    the brand becomes a link to the full page; the HUD, mode dock, guide, tours, search, legend and chip go. */
 #embed-open { display: none; }

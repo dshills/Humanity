@@ -69,11 +69,34 @@ const STEPS = `<script>
     check('Start exploring closes the guide and remembers it', $('help').hidden && localStorage.getItem('ht-help-seen') === '1');
 
     var root = span();
+    check('the root opens on the log scale, with its toggle showing', !$('scale-toggle').hidden && /log/i.test($('scale-toggle').textContent) && /Logarithmic/.test($('hud-scale').textContent), $('scale-toggle').textContent);
+    var x3000 = document.querySelector('.era-bracket').getBoundingClientRect();
+    check('recorded history takes a fifth of the log root or more', x3000.width > innerWidth * 0.2, Math.round(x3000.width) + ' of ' + innerWidth);
     HT.app.zoomIn(1500); await wait(700);
-    check('a click zoom divides the span by four', Math.abs(span() - root / 4) < 1e-6 * root, span());
+    var zv = HT.app.getView();
+    check('a click on the log root zooms to the quarter of the screen around it', zv.start < 1500 && zv.end > 1500 && span() < root / 8, Math.round(zv.start) + '..' + Math.round(zv.end));
+    HT.app.zoomOut(); await wait(700);
+    // wheel in and straight back out around one point: the date under the pointer must not drift
+    var svgEl = $('timeline'); var sr = svgEl.getBoundingClientRect(); var wx = sr.left + sr.width * 0.7;
+    var wheel = function (dy) { svgEl.dispatchEvent(new WheelEvent('wheel', { clientX: wx, clientY: sr.top + 300, deltaY: dy, bubbles: true, cancelable: true })); };
+    svgEl.dispatchEvent(new PointerEvent('pointermove', { clientX: wx, clientY: sr.top + 300, bubbles: true, pointerId: 1, pointerType: 'mouse' }));
+    await wait(100); var before = $('cursor-date').textContent;
+    for (var i = 0; i < 6; i++) wheel(-120); await wait(300);
+    var mid = $('cursor-date').textContent; var midSpan = span();
+    var yearsOf = function (s) { return parseFloat(String(s).replace(/,/g, '')); };
+    check('wheel zoom from the log root keeps the date under the pointer (within a pixel or two)', Math.abs(yearsOf(mid) - yearsOf(before)) <= yearsOf(before) * 0.02 && midSpan < root / 4, before + ' -> ' + mid + ', span ' + Math.round(midSpan));
+    HT.app.home(); await wait(700);
+    key('l'); await wait(300);
+    check('L switches to a linear axis and the URL says so', /linear/i.test($('scale-toggle').textContent) && /sc=lin/.test(location.hash) && /1 px =/i.test($('hud-scale').textContent), location.hash);
+    var lin3000 = document.querySelector('.era-bracket').getBoundingClientRect();
+    check('on the linear root recorded history is a sliver again', lin3000.width < innerWidth * 0.03, Math.round(lin3000.width));
+    HT.app.zoomIn(1500); await wait(700);
+    check('a click zoom on a linear view divides the span by four', Math.abs(span() - root / 4) < 1e-6 * root, span());
     check('the hash follows the view', /^#s=-?[\\d.]+&e=(now|-?[\\d.]+)/.test(location.hash) && !/^#s=-298050&e=now/.test(location.hash), location.hash);
     HT.app.zoomOut(); await wait(700);
     check('zoom out returns to the root', /e=now/.test(location.hash) && Math.abs(span() - root) < 1e-6 * root, location.hash);
+    key('l'); await wait(300);
+    check('L again restores the log scale and drops sc= from the URL', /log/i.test($('scale-toggle').textContent) && !/sc=/.test(location.hash) && localStorage.getItem('ht-scale') === 'log', location.hash);
 
     HT.app.setView(1960, 1975, { animate: false }); await wait(300);
     var apollo = eventNamed(/^Apollo 11 lands on the Moon/);

@@ -85,6 +85,7 @@
     <div class="fx fx-grain" aria-hidden="true"></div>
     <div class="fx fx-scan" aria-hidden="true"></div>
     <div class="fx fx-vignette" aria-hidden="true"></div>
+    <button id="scale-toggle" type="button" hidden aria-pressed="true" title="On the widest views the axis is logarithmic, so recorded history is not a sliver at the edge. Switch to a linear axis to see time at its true proportions (L).">Scale · log</button>
     <div id="cursor-chip" hidden aria-hidden="true"></div>
     <div id="hud" aria-hidden="true">
       <div id="hud-left" class="hud-block">
@@ -113,7 +114,7 @@
       <button id="help-close" type="button" aria-label="Close">×</button>
       <h2 id="help-title">Reading the timeline</h2>
       <dl>
-        <dt>Click the axis</dt><dd>Zoom in four times around that moment. Keep clicking: years become months become days. On the widest views a bracket at the right edge jumps straight to recorded history.</dd>
+        <dt>Click the axis</dt><dd>Zoom in four times around that moment. Keep clicking: years become months become days. The opening view is logarithmic so that recorded history is not a sliver; the Scale button at its top left switches to a linear axis, and a bracket jumps straight to recorded history.</dd>
         <dt>Shift+click · <kbd>-</kbd> · Zoom out</dt><dd>Step back out. <kbd>0</kbd> or Home returns to all of humanity.</dd>
         <dt>Wheel · pinch · drag</dt><dd>Zoom around the pointer and pan. The strip under the header shows where you are; click or drag it to jump.</dd>
         <dt>Click an event</dt><dd>Open its panel: a map, the story, links, what else happened around then, sometimes a museum object. Copy link shares that exact event. Zoomed in to a month or less, you can load Wikipedia's day-by-day events.</dd>

@@ -89,6 +89,129 @@
   }
 
   // ------------------------------------------------------------------
+  // Scale. Narrow views are linear in time. On the widest ones a linear axis leaves all of recorded history in
+  // the last 2% of the width, so there the axis is warped: position follows -log10(age + WARP_C), which is
+  // close to linear for ages well under WARP_C years and logarithmic beyond. The warp fades in between spans of
+  // WARP_LO and WARP_HI years, so click-zooming from the root is back on a linear axis within two steps.
+  // Any part of a view that lies past `now` (the Today margin) keeps its linear share of the width.
+  // Positions are fractions u of the stage width: 0 at the view's start, 1 at its end, and defined outside
+  // that range too, which is what lets gestures be expressed as "show the stretch from u = a to u = b".
+  // ------------------------------------------------------------------
+  const WARP_C = 2000;
+  const WARP_LO = 60000;
+  const WARP_HI = 120000;
+
+  function warpWeight(span, mode) {
+    if (mode === 'lin' || !(span > WARP_LO)) return 0;
+    if (span >= WARP_HI) return 1;
+    const x = (span - WARP_LO) / (WARP_HI - WARP_LO);
+    return x * x * (3 - 2 * x);
+  }
+
+  function tToU(t, v, now, mode) {
+    const span = v.end - v.start;
+    const lin = (t - v.start) / span;
+    const w = warpWeight(span, mode);
+    if (w === 0) return lin;
+    const F = function (x) { return -Math.log10(now - x + WARP_C); };
+    const tEnd = Math.min(v.end, now);
+    const phi = (v.end - tEnd) / span;                    // share of the view that is the future
+    const g = (F(Math.min(t, now)) - F(v.start)) / (F(tEnd) - F(v.start));
+    const warped = (1 - phi) * g + Math.max(0, t - now) / span;
+    return lin + w * (warped - lin);
+  }
+
+  // Inverse of tToU. Closed form when the view is linear, bisection otherwise (the map is strictly increasing).
+  function uToT(u, v, now, mode) {
+    const span = v.end - v.start;
+    if (warpWeight(span, mode) === 0) return v.start + u * span;
+    let lo = v.start - 50 * span;
+    let hi = v.end + 50 * span;
+    if (u <= tToU(lo, v, now, mode)) return lo;
+    if (u >= tToU(hi, v, now, mode)) return hi;
+    for (let i = 0; i < 64; i++) {
+      const mid = (lo + hi) / 2;
+      if (tToU(mid, v, now, mode) < u) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+
+  // The view that shows the stretch of `v` between fractions a and b of its width.
+  function viewFromU(a, b, v, now, mode) {
+    return { start: uToT(a, v, now, mode), end: uToT(b, v, now, mode) };
+  }
+
+  // A view's warp depends on its own span, so the view cut out of another one does not quite keep a date where
+  // it was on screen. Slide it until `tAnchor` sits at fraction `uAnchor` again (a no-op on linear views).
+  function anchorView(v, tAnchor, uAnchor, now, mode) {
+    for (let i = 0; i < 6; i++) {
+      if (!(v.end > v.start)) break;
+      const off = tToU(tAnchor, v, now, mode) - uAnchor;
+      if (Math.abs(off) < 1e-5) break;
+      v = viewFromU(off, 1 + off, v, now, mode);
+    }
+    return v;
+  }
+
+  // The one view resting on the present that has `tAnchor` at fraction `uAnchor` of its width, or null when
+  // there is none inside the root. Zooming in from the log overview onto recent times needs it: once the warp
+  // fades, no view of the requested span can keep a recent date that far from the right edge, and clamping a
+  // view that tries would slide the target away from the pointer. Widening a view that ends at now moves every
+  // date to the right.
+  function viewAtNowWithAnchor(tAnchor, uAnchor, now, mode) {
+    if (!(tAnchor < now) || !(uAnchor > 0) || !(uAnchor < 1 - FUTURE_FRAC)) return null;
+    const rootStart = HT.time.ROOT_START;
+    const make = function (start) { return { start: Math.max(rootStart, start), end: endAtNow(Math.max(rootStart, start), now) }; };
+    const uAt = function (start) { return tToU(tAnchor, make(start), now, mode); };
+    // Walk outwards from the narrowest view that holds the anchor (where it sits at the left edge) until it has
+    // moved right past uAnchor, then bisect between the last two starts. Across the warp transition the position
+    // is not guaranteed to be monotonic, so the first crossing, the narrowest such view, is the one taken.
+    let inner = tAnchor - MIN_SPAN;
+    let age = Math.max(now - tAnchor, MIN_SPAN);
+    for (let k = 0; k < 400; k++) {
+      age *= 1.1;
+      const outer = now - age;
+      if (uAt(outer) >= uAnchor) {
+        let lo = outer; let hi = inner;
+        for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (uAt(mid) >= uAnchor) lo = mid; else hi = mid; }
+        return make((lo + hi) / 2);
+      }
+      if (outer <= rootStart) break;
+      inner = outer;
+    }
+    return null;
+  }
+
+  // Ticks for a warped view: round ages and round calendar years, thinned so labels never touch. Same shape as
+  // HT.ticks.computeTicks: { major: [{ t, label, labeled }], minor: [t] }. `measure(label)` gives a width in px.
+  function logTicks(v, now, width, mode, measure) {
+    const T = HT.time;
+    const cands = [];
+    const ages = [[500000, 2], [300000, 1], [200000, 1], [100000, 0], [50000, 1], [20000, 1], [10000, 0]];
+    for (let i = 0; i < ages.length; i++) cands.push({ t: T.ya(ages[i][0]), rank: ages[i][1], label: T.formatAgo(T.ya(ages[i][0])) });
+    const years = [[-4999, 1], [-2999, 0], [-1999, 2], [-999, 1], [1, 0], [500, 2], [1000, 1], [1500, 1], [1800, 2], [1900, 2], [2000, 1]];
+    for (let i = 0; i < years.length; i++) cands.push({ t: years[i][0], rank: years[i][1], label: T.formatYear(years[i][0]) });
+    const gap = 14;
+    const live = cands.filter(function (c) { return c.t >= v.start && c.t <= Math.min(v.end, now); });
+    for (let i = 0; i < live.length; i++) {
+      live[i].x = tToU(live[i].t, v, now, mode) * width;
+      live[i].half = (measure ? measure(live[i].label) : live[i].label.length * 7) / 2;
+    }
+    const placed = [];
+    live.slice().sort(function (a, b) { return a.rank - b.rank || a.t - b.t; }).forEach(function (c) {
+      const x0 = Math.max(0, c.x - c.half); const x1 = Math.min(width, c.x + c.half);
+      for (let k = 0; k < placed.length; k++) if (x0 < placed[k][1] + gap && x1 > placed[k][0] - gap) return;
+      placed.push([x0, x1]);
+      c.labeled = true;
+    });
+    live.sort(function (a, b) { return a.t - b.t; });
+    return {
+      major: live.filter(function (c) { return c.labeled; }).map(function (c) { return { t: c.t, label: c.label, labeled: true }; }),
+      minor: live.filter(function (c) { return !c.labeled; }).map(function (c) { return c.t; })
+    };
+  }
+
+  // ------------------------------------------------------------------
   // URL hash: #s=<start>&e=<end|now>&m=<theme>&ev=<slug>&tour=<id>.<step>, up to 9 decimals, trailing zeros trimmed. A view at
   // the at-now limit writes the token "now", so a shared or reloaded link still rests on the present later on.
   // ------------------------------------------------------------------
@@ -97,19 +220,20 @@
   }
 
   // `tour` is { id, step } with a zero-based step; it is written one-based, as tour=<id>.<n>.
-  function encodeHash(v, now, theme, slug, tour) {
+  function encodeHash(v, now, theme, slug, tour, scale) {
     return '#s=' + fmtNum(v.start) + '&e=' + (atNow(v, now) ? 'now' : fmtNum(v.end)) +
       (theme && theme !== 'auto' ? '&m=' + theme : '') + (slug ? '&ev=' + slug : '') +
-      (tour && tour.id ? '&tour=' + tour.id + '.' + (tour.step + 1) : '');
+      (tour && tour.id ? '&tour=' + tour.id + '.' + (tour.step + 1) : '') + (scale === 'lin' ? '&sc=lin' : '');
   }
 
-  // { view | null, theme | '', ev | '', tour | null }: the view is null when s/e are missing or do not describe a span.
+  // { view | null, theme | '', ev | '', tour | null, scale: 'lin' | '' }: the view is null when s/e are missing or do not describe a span.
   function parseHash(hash, now) {
-    const out = { view: null, theme: '', ev: '', tour: null };
+    const out = { view: null, theme: '', ev: '', tour: null, scale: '' };
     if (!hash || hash.length < 2) return out;
     const params = new URLSearchParams(String(hash).replace(/^#/, ''));
     out.theme = params.get('m') || '';
     out.ev = params.get('ev') || '';
+    out.scale = params.get('sc') === 'lin' ? 'lin' : '';
     const tm = /^([a-z0-9-]{1,40})\.(\d{1,3})$/.exec(params.get('tour') || '');
     if (tm && Number(tm[2]) >= 1) out.tour = { id: tm[1], step: Number(tm[2]) - 1 };
     const s = parseFloat(params.get('s'));
@@ -376,6 +500,7 @@
     REGIONS: REGIONS, REGION_BOXES: REGION_BOXES,
     clamp: clamp, maxEnd: maxEnd, endAtNow: endAtNow, atNow: atNow, rootView: rootView, sameView: sameView,
     contains: contains, clampView: clampView, fitInside: fitInside, hasEnd: hasEnd, eventWindow: eventWindow,
+    WARP_LO: WARP_LO, WARP_HI: WARP_HI, warpWeight: warpWeight, tToU: tToU, uToT: uToT, viewFromU: viewFromU, anchorView: anchorView, viewAtNowWithAnchor: viewAtNowWithAnchor, logTicks: logTicks,
     fmtNum: fmtNum, encodeHash: encodeHash, parseHash: parseHash, slugify: slugify,
     regionOf: regionOf, officeRegion: officeRegion, mmU: mmU, mmX: mmX, mmT: mmT, effectiveTier: effectiveTier,
     otdDays: otdDays, onCalendarDay: onCalendarDay, otdRows: otdRows, otdMainTitle: otdMainTitle, otdEvents: otdEvents, wikiUrl: wikiUrl, clipWords: clipWords,

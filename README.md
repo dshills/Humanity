@@ -29,7 +29,8 @@ Node 18 or newer, zero dependencies. The build concatenates `time.js, tiers.js, 
 
 | Action | Result |
 |---|---|
-| Click empty axis | Zoom in 4× centered on the clicked date (animated, 250 ms) |
+| Click empty axis | Zoom in 4× centered on the clicked date (animated, 250 ms): the quarter of the screen around the click fills the stage |
+| **Scale** toggle, `L` key | On views wider than 60,000 years, switch between the logarithmic axis (the default) and a linear one |
 | Shift+click, **Zoom out** button, `-` key | Zoom out: undoes the last click/button zoom, otherwise 4× around the view center |
 | **Home** button, `0` key | Back to the root view (300,000 years ago – today) |
 | `+` / `=` key | Zoom in 4× at the view center |
@@ -119,6 +120,14 @@ The step is part of the URL (`tour=story-of-writing.4`), so the browser's Back a
 
 Tours live in `src/tours.js`: an id, a title, a blurb and a list of `{ ev, note }` steps, where `ev` is the exact title of a curated event. `test/tours.test.js` checks that every step names a real event, that no tour visits one twice, that notes stay between 20 and 240 characters, and that each tour runs forward in time, so renaming or removing an event cannot silently break one.
 
+## Scale: logarithmic where it has to be
+
+Humans have existed for 300,000 years and written things down for 5,300 of them. On a linear axis that leaves all of recorded history in the last 2% of the opening view, which is honest and useless. So the widest views are drawn on a warped axis: position follows −log₁₀(age + 2,000 years), close to linear for the last couple of millennia and logarithmic beyond, with round ticks to match (300,000, 100,000, 50,000, 20,000 and 10,000 years ago, then 3000 BCE, 1000 BCE, 1 CE, 1000, 1500, 2000). Recorded history gets about a quarter of the opening screen and fifteen of the sixteen landmark events have room for a label.
+
+The warp fades out between spans of 120,000 and 60,000 years, so everything narrower, which is everything you reach within a click or two, is exactly linear, and nothing about those views has changed. The **Scale** toggle at the top left of the stage (or `L`) appears only where it matters and switches to a linear axis at any width, for anyone who wants to feel the true proportions; the choice is remembered, and a link made in linear mode says so (`sc=lin`) and opens that way without changing the recipient's own preference. The HUD reads "Logarithmic" instead of years per pixel on a warped view.
+
+Gestures never assume a linear axis. A click fills the stage with the quarter of the screen around it; the wheel, a pinch and a drag keep the date under the pointer or finger where it is, by asking which stretch of the current width should fill the stage and then correcting for the change in warp. One case needs special care: scrolling in from the overview onto recent times, no linear view of the requested span can keep a recent date far from the right edge, and the limit at today would slide the target away; that step flies straight to the one view resting on today that keeps the date under the pointer.
+
 ## Embedding
 
 Add `?embed=1` before the hash and the page becomes a quiet version of itself for an iframe: the header keeps the path, **Zoom out** and **Home**, the brand line turns into an **Open the full timeline** link to the same view on the full page, and the HUD, mode dock, guide, tours, search, legend and online-content controls are gone. Everything in the hash still works, so an embed can open on a view, an event or a tour stop, in any mode:
@@ -132,7 +141,7 @@ An embedded page never adds entries to its host's history (every URL update is a
 
 ## Accessibility
 
-- **Keyboard.** Everything is reachable without a pointer: events and reign bars are focusable buttons, `+`/`-`/`0` zoom, `←`/`→` pan a fifth of the view (four fifths with Shift), `/` searches, and a **Skip to the timeline** button appears on the first Tab. Cards and dialogs (guide, tours, Today in history, legend, search) take the focus when they open and give it back to the control that opened them when they close; Escape closes them in turn.
+- **Keyboard.** Everything is reachable without a pointer: events and reign bars are focusable buttons, `+`/`-`/`0` zoom, `L` switches the scale on wide views, `←`/`→` pan a fifth of the view (four fifths with Shift), `/` searches, and a **Skip to the timeline** button appears on the first Tab. Cards and dialogs (guide, tours, Today in history, legend, search) take the focus when they open and give it back to the control that opened them when they close; Escape closes them in turn.
 - **Screen readers.** A polite live region says where the view has landed after a jump or a pan ("Showing 1000 – 1100. 31 events in view."), what a region filter now holds and how long the Today list is; the tour narration is its own live region; the event panel is named by its title; the HUD is decorative and hidden from assistive technology.
 - **Contrast.** `test/contrast.test.js` reads the colour tokens of all six modes out of the stylesheet and holds them to WCAG AA (body text 7:1, muted and accent text 4.5:1, text on accent 4.5:1). NVG, Ironbow and Noir recolour the whole timeline through an SVG filter, so for those the tokens are pushed through the same filter before measuring; that caught Noir's tick labels at 3.4:1, now fixed.
 - **Motion.** `prefers-reduced-motion` turns off zoom animation, pulses, scanlines and transitions. Forced-colours mode is supported.

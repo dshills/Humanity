@@ -44,6 +44,7 @@
   const OTD_CACHE_KEY = 'ht-otd-cache';
   const OTD_CACHE_DAYS = 40;              // days kept in localStorage, oldest dropped first
   const OTD_HINT_KEY = 'ht-otd-hint';
+  const SCALE_KEY = 'ht-scale';
   const OTD_PARALLEL = 6;
   const OTD_ENDPOINT = 'https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/';
   const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -122,6 +123,7 @@
   let otdInView = 0;                      // on-this-day events inside the current view
   let otdHint = true;                     // offer the layer on deep views while the opt-in is off
   let otdLinkIndex = null;                // article title -> [t] of bundled events, to skip what is already here
+  let scaleMode = 'log';                  // 'log': the widest views use a warped axis (HT.core.tToU); 'lin': never
   let embed = false;                      // ?embed=1: a quiet page for an iframe (no chrome, no history entries)
   let tour = null;                        // { def, step } while a guided tour is running
   let pendingTour = null;                 // { id, step } last parsed from the URL
@@ -169,13 +171,26 @@
 
   function clampView(start, end) { return C.clampView(start, end, nowT()); }
 
+  // Time to pixels and back. Linear for ordinary views; warped on the widest ones unless the scale is set to
+  // linear (HT.core.tToU). Gestures never assume linearity: they work out which stretch of the current
+  // width should fill the stage and ask viewOfPx for the view that shows it.
   function tToPx(t, v) {
-    return (t - v.start) / (v.end - v.start) * size.width;
+    return C.tToU(t, v, nowT(), scaleMode) * size.width;
   }
 
   function pxToT(px, v) {
-    return v.start + px / size.width * (v.end - v.start);
+    return C.uToT(px / size.width, v, nowT(), scaleMode);
   }
+
+  // `anchorPx`: a pixel whose date must stay where it is (the pointer, a finger); see HT.core.anchorView.
+  function viewOfPx(px0, px1, v, anchorPx) {
+    const out = C.viewFromU(px0 / size.width, px1 / size.width, v, nowT(), scaleMode);
+    if (anchorPx === undefined || !warped(v)) return out;
+    const tA = pxToT(px0 + (anchorPx / size.width) * (px1 - px0), v);     // the date that should end up at anchorPx
+    return C.anchorView(out, tA, anchorPx / size.width, nowT(), scaleMode);
+  }
+
+  function warped(v) { return C.warpWeight(v.end - v.start, scaleMode); }
 
   function crisp(x) {
     return Math.round(x) + 0.5;
@@ -253,7 +268,7 @@
   // --- URL hash: #s=<start>&e=<end|now>&m=<theme>&ev=<slug> (format and parsing in HT.core) ---
   function encodeHash(v) {
     return C.encodeHash(v, nowT(), theme, selected >= 0 && dom && !dom.panel.hidden ? slugFor(selected) : '',
-      tour ? { id: tour.def.id, step: tour.step } : null);
+      tour ? { id: tour.def.id, step: tour.step } : null, scaleMode);
   }
 
   // Applies the hash's theme and event as side effects and returns its view (null when it names none).
@@ -264,6 +279,7 @@
     pendingEv = h.ev ? indexForSlug(h.ev) : -1;
     pendingSlug = h.ev && pendingEv < 0 ? h.ev : '';
     pendingTour = h.tour;
+    if (h.scale === 'lin' && scaleMode !== 'lin') setScale('lin', { keep: true });   // a shared linear link shows as sent, without changing the visitor's own choice
     return h.view;
   }
 
@@ -466,9 +482,15 @@
     const baseSpan = base.end - base.start;
     if (baseSpan <= MIN_SPAN * (1 + 1e-6)) return;     // already at maximum zoom: a click is a no-op
     if (!Number.isFinite(tCenter)) tCenter = (base.start + base.end) / 2;
-    const span = Math.max(MIN_SPAN, baseSpan / factor);
-    commit(fitInside({ start: tCenter - span / 2, end: tCenter + span / 2 }, base),
-      { animate: true, url: 'push', stack: 'push', discrete: true });
+    // The clicked date moves to the middle and 1/factor of the width around it fills the stage, slid back
+    // inside when it would overhang an edge. On a linear view that is a span of baseSpan / factor; on a
+    // warped one it is whatever that stretch of the screen holds.
+    const half = 0.5 / factor;
+    const uc = clamp(C.tToU(tCenter, base, nowT(), scaleMode), half, 1 - half);
+    let target = C.viewFromU(uc - half, uc + half, base, nowT(), scaleMode);
+    if (warped(base)) target = C.anchorView(target, C.uToT(uc, base, nowT(), scaleMode), 0.5, nowT(), scaleMode);   // keep the middle in the middle
+    if (target.end - target.start < MIN_SPAN) target = fitInside({ start: tCenter - MIN_SPAN / 2, end: tCenter + MIN_SPAN / 2 }, base);
+    commit(target, { animate: true, url: 'push', stack: 'push', discrete: true });
   }
 
   // Reverses the last discrete zoom-in when there is one; otherwise zooms out ×factor around the center.
@@ -583,6 +605,7 @@
     updateHud(shown);
     renderMinimap();
     updateOtdChip();
+    updateScaleToggle();
     if (otdWanted(shown)) scheduleOtd();
     settleNext = false;
   }
@@ -904,7 +927,7 @@
     dom.hudSpan.textContent = fmtSpan(capNow(v.end) - v.start);
     dom.hudEvents.textContent = hudStats.visible + ' / ' + hudStats.inWindow;
     dom.hudTier.textContent = '\u2264 ' + hudStats.tier;
-    dom.hudScale.textContent = '1 px = ' + fmtSpan(span / Math.max(1, size.width));
+    dom.hudScale.textContent = warped(v) > 0 ? 'Logarithmic' : '1 px = ' + fmtSpan(span / Math.max(1, size.width));
     const now = nowT();
     dom.hudNow.hidden = !(now >= v.start && now <= v.end);
     const tRead = capNow(lastMouseX !== null ? pxToT(lastMouseX - svgLeft(), v) : v.end);
@@ -964,7 +987,9 @@
     const major = document.createDocumentFragment();
     const labels = document.createDocumentFragment();
     if (HT.ticks && typeof HT.ticks.computeTicks === 'function') {
-      const ticks = HT.ticks.computeTicks(v.start, v.end, w, { labelWidth: measureTickLabel });
+      // A mostly warped view gets round ages and years placed by the warp; anything else the usual ladder.
+      const ticks = warped(v) >= 0.5 ? C.logTicks(v, nowT(), w, scaleMode, measureTickLabel)
+        : HT.ticks.computeTicks(v.start, v.end, w, { labelWidth: measureTickLabel });
       const labelGap = (HT.ticks.DEFAULTS && HT.ticks.DEFAULTS.labelGap) || 12;
       let prevRight = -Infinity;                        // right edge of the last label actually drawn
       const tMax = nowT() + 1e-9;                       // nothing is ticked past today
@@ -1791,6 +1816,23 @@
     if (opts && opts.keepFocus) focusBack.delete('today'); else restoreFocus('today', dom.btnTours);
   }
 
+  // --- Scale: logarithmic on the widest views by default, or linear everywhere ---
+  function setScale(mode, opts) {
+    scaleMode = mode === 'lin' ? 'lin' : 'log';
+    if (!(opts && opts.keep)) { try { root.localStorage.setItem(SCALE_KEY, scaleMode); } catch (err) { /* ignore */ } }
+    updateScaleToggle();
+    if (dom && shown) { settleNext = true; render(); if (!(opts && opts.keep) && view) writeUrl('replace'); }
+  }
+
+  // The toggle only shows where it changes anything: on views wide enough to be warped.
+  function updateScaleToggle() {
+    if (!dom || !dom.scaleToggle || !shown) return;
+    const matters = shown.end - shown.start > C.WARP_LO;
+    dom.scaleToggle.hidden = !matters;
+    dom.scaleToggle.setAttribute('aria-pressed', String(scaleMode === 'log'));
+    dom.scaleToggle.textContent = scaleMode === 'log' ? 'Scale \u00b7 log' : 'Scale \u00b7 linear';
+  }
+
   // --- Accessibility helpers ---
   // Overlays take the focus when they open and hand it back to whatever had it when they close.
   const focusBack = new Map();
@@ -2331,9 +2373,8 @@
         }
       }
       if (gesture.moved) {
-        const v = gesture.view;
-        const dt = (e.clientX - gesture.x0) / size.width * (v.end - v.start);
-        commit({ start: v.start - dt, end: v.end - dt },
+        const dxPx = e.clientX - gesture.x0;               // the content follows the pointer by this many pixels
+        commit(viewOfPx(-dxPx, size.width - dxPx, gesture.view, e.clientX - svgLeft()),
           { animate: false, url: 'replace', stack: 'replace', discrete: false });
         if (e.pointerType !== 'touch') updateCursor(e.clientX);
         return;
@@ -2395,11 +2436,12 @@
     const left = svgLeft();
     gesture = {
       type: 'pinch', ids: ids, view: shown,
-      t1: pxToT(a.x - left, shown), t2: pxToT(b.x - left, shown)
+      p1: a.x - left, p2: b.x - left                      // where the fingers started, in stage pixels
     };
   }
 
-  // Keep the t under each finger fixed: solve the linear px = (t - start) * scale.
+  // Keep what is under each finger under it: the fingers define a stretch-and-slide of the pixel axis
+  // (x' = s*x + o), and the new view is the part of the starting view that lands on the stage.
   function updatePinch() {
     const g = gesture;
     const pa = pointers.get(g.ids[0]);
@@ -2408,11 +2450,11 @@
     const left = svgLeft();
     const q1 = pa.x - left;
     const q2 = pb.x - left;
-    if (Math.abs(q2 - q1) < 10 || g.t2 === g.t1) return;
-    const scale = (q2 - q1) / (g.t2 - g.t1);           // px per year
-    if (!(scale > 0)) return;                           // fingers crossed
-    const start = g.t1 - q1 / scale;
-    commit({ start: start, end: start + size.width / scale },
+    if (Math.abs(q2 - q1) < 10 || Math.abs(g.p2 - g.p1) < 1) return;
+    const sc = (q2 - q1) / (g.p2 - g.p1);
+    if (!(sc > 0)) return;                              // fingers crossed
+    const o = q1 - sc * g.p1;
+    commit(viewOfPx(-o / sc, (size.width - o) / sc, g.view, (q1 + q2) / 2),
       { animate: false, url: 'replace', stack: 'replace', discrete: false });
   }
 
@@ -2455,18 +2497,27 @@
     if (e.deltaMode === 1) { dy *= 16; dx *= 16; }
     else if (e.deltaMode === 2) { dy *= size.height; dx *= size.width; }
     const v = shown;
-    const left = svgLeft();
-    const tc = pxToT(e.clientX - left, v);
+    const px = e.clientX - svgLeft();
     let f = 1;
     let panPx = dx;
     if (e.shiftKey && !e.ctrlKey) panPx += dy;
     else f = clamp(Math.exp(dy * (e.ctrlKey ? PINCH_K : WHEEL_K)), 0.5, 2);
-    let start = tc - (tc - v.start) * f;
-    let end = tc + (v.end - tc) * f;
-    const dt = panPx / size.width * (end - start);
-    start += dt;
-    end += dt;
-    commit({ start: start, end: end }, { animate: false, url: 'replace', stack: 'replace', discrete: false });
+    // Keep the date under the pointer where it is: the new view is the stretch of the current width from
+    // px - px*f to px + (W - px)*f, moved along by the pan.
+    const shift = panPx * f;
+    let target = viewOfPx(px - px * f + shift, px + (size.width - px) * f + shift, v, panPx ? undefined : px);
+    let fly = false;
+    if (f < 1 && !panPx && warped(v)) {
+      // Zooming in from the log overview onto recent times: the limit at today would slide the target out
+      // from under the pointer, so go straight to the view resting on today that keeps it there.
+      const tA = pxToT(px, v);
+      const held = clampView(target.start, target.end);
+      if (Math.abs(C.tToU(tA, held, nowT(), scaleMode) - px / size.width) > 0.01) {
+        const alt = C.viewAtNowWithAnchor(tA, px / size.width, nowT(), scaleMode);
+        if (alt && alt.end - alt.start < held.end - held.start) { target = alt; fly = true; }
+      }
+    }
+    commit(target, { animate: fly, url: 'replace', stack: 'replace', discrete: false });
     updateCursor(e.clientX);
   }
 
@@ -2537,6 +2588,10 @@
       case 'R':
         setReigns(!reignsOn);
         e.preventDefault();
+        break;
+      case 'l':
+      case 'L':
+        if (dom.scaleToggle && !dom.scaleToggle.hidden) { dom.scaleToggle.click(); e.preventDefault(); }
         break;
       case 'e':
       case 'E':
@@ -2718,6 +2773,7 @@
       otdChip: $('otd-chip'), otdAction: $('otd-action'), otdDismiss: $('otd-dismiss'),
       btnTours: $('btn-tours'), tours: $('tours'), tourBar: $('tour-bar'), tourTitle: $('tour-title'), tourCount: $('tour-count'),
       tourNote: $('tour-note'), tourPrev: $('tour-prev'), tourNext: $('tour-next'), tourExit: $('tour-exit'),
+      scaleToggle: $('scale-toggle'),
       embedOpen: $('embed-open'), srStatus: $('sr-status'), skip: $('skip'),
       helpTours: $('help-tours'), helpTourList: $('help-tour-list'), today: $('today'),
       minimap: $('minimap'), help: $('help'), helpClose: $('help-close'), helpOk: $('help-ok'), btnHelp: $('btn-help'), panelCopy: $('panel-copy'),
@@ -2752,6 +2808,7 @@
     tickClock();
     clockTimer = setInterval(tickClock, 1000);
     try { earthOn = root.localStorage.getItem(EARTH_KEY) !== '0'; } catch (err) { /* ignore */ }
+    try { scaleMode = root.localStorage.getItem(SCALE_KEY) === 'lin' ? 'lin' : 'log'; } catch (err) { /* ignore */ }
     try { reignsOn = root.localStorage.getItem(REIGNS_KEY) !== '0'; } catch (err) { /* ignore */ }
     try { imagesOn = root.localStorage.getItem(IMAGES_KEY) === '1'; } catch (err) { /* ignore */ }
     try { const rk = root.localStorage.getItem(REGION_KEY); if (rk && REGION_BOXES[rk]) regionFilter = rk; } catch (err) { /* ignore */ }
@@ -2772,6 +2829,12 @@
       dom.tourExit.addEventListener('click', endTour);
     } else if (dom.btnTours) {
       dom.btnTours.hidden = true;
+    }
+    if (dom.scaleToggle) {
+      dom.scaleToggle.addEventListener('click', function () {
+        setScale(scaleMode === 'log' ? 'lin' : 'log');
+        announce('Scale: ' + (scaleMode === 'log' ? 'logarithmic on wide views' : 'linear'));
+      });
     }
     if (dom.skip) {
       dom.skip.addEventListener('click', function () {
