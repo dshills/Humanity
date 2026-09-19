@@ -1116,6 +1116,28 @@ html[data-theme="paper"] #panel-title { font-size: 24px; }
 .tour-pick .tp-title { font-size: 14.5px; line-height: 1.3; }
 .tour-pick .tp-steps { font: 500 9.5px/1 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); white-space: nowrap; }
 .tour-pick .tp-blurb { grid-column: 1 / -1; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+.today-pick { border-color: rgba(var(--accent-rgb), 0.35); margin-bottom: 4px; }
+#today {
+  position: absolute; top: 14px; right: 14px; z-index: 5; width: min(440px, calc(100% - 28px));
+  max-height: calc(100% - 28px); display: flex; flex-direction: column; padding: 12px 12px 10px;
+  border: 1px solid var(--panel-border); border-radius: 6px; background: var(--panel-bg);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--shadow);
+  animation: tt-in 160ms var(--ease-out);
+}
+#today[hidden] { display: none; }
+.today-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.today-head h3 { margin: 2px 4px 6px; font: 600 10px/1.3 var(--font-mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+.today-close { width: 32px; height: 32px; border-radius: 4px; font-size: 20px; line-height: 1; color: var(--muted); }
+.today-close:hover { background: var(--hover); color: var(--fg); }
+.today-list { list-style: none; margin: 0; padding: 0; overflow: auto; min-height: 0; }
+.today-item {
+  display: grid; grid-template-columns: 58px 1fr; gap: 10px; align-items: baseline; width: 100%;
+  padding: 6px 8px; text-align: left; border-radius: 4px; color: var(--fg); transition: background-color 120ms var(--ease);
+}
+.today-item:hover, .today-item:focus-visible { background: var(--hover); }
+.today-item .when { font: 600 10.5px/1.5 var(--font-mono); letter-spacing: 0.06em; color: var(--accent); text-align: right; white-space: nowrap; }
+.today-item .what { font-size: 13px; line-height: 1.4; }
+.today-note { margin: 8px 4px 2px; font: 500 9.5px/1.4 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 #help-tours { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--panel-border); }
 #help-tours h3 { margin-left: 0; }
 #help-tour-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }

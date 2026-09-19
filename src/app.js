@@ -114,6 +114,7 @@
   let mmMoved = false;
   let imageSeq = 0;                     // guards against a slow response landing on a different event
   const otdDays = new Map();              // 'MM/DD' -> 'loading' | 'done' | 'error'
+  const otdInflight = new Map();          // 'MM/DD' -> the promise of a request under way
   let otdQueue = [];
   let otdActive = 0;
   let otdTimer = 0;
@@ -1007,7 +1008,8 @@
     for (let i = 0; i < list.length; i++) {
       const ev = list[i];
       if (ev.otd && (!showOtd || ev.t < v.start || ev.t > v.end)) continue;       // cheap checks first: there can be thousands
-      if (ev.tier > tierLimit || !passesFilters(ev, i) || (ev.group && reignsActive())) continue;
+      // The open event is always drawn: it bypasses the tier ceiling here and takes the first lane below.
+      if ((ev.tier > tierLimit && i !== selected) || !passesFilters(ev, i) || (ev.group && reignsActive())) continue;
       const ranged = hasEnd(ev);
       const tEnd = ranged ? ev.end : ev.t;
       if (tEnd < v.start || ev.t > v.end) continue;
@@ -1039,7 +1041,7 @@
       const lx0 = anchor === 'start' ? ax : ax - lw;
       const lx1 = lx0 + lw;
       const stemX = ranged ? bx0 : x;
-      items.push({ x0: Math.min(lx0, stemX - 2), x1: Math.max(lx1, stemX + 2), priority: ev.otd ? ev.tier + 1 : ev.tier });   // bundled events win a lane first
+      items.push({ x0: Math.min(lx0, stemX - 2), x1: Math.max(lx1, stemX + 2), priority: i === selected ? -1 : ev.otd ? ev.tier + 1 : ev.tier });   // the open event first, then bundled before on-this-day
       meta.push({ index: i, ev: ev, ranged: ranged, x: x, bx0: bx0, bx1: bx1, text: text, ax: ax, anchor: anchor, stemX: stemX });
     }
 
@@ -1535,8 +1537,38 @@
     if (i >= 0) { pendingSlug = ''; pendingEv = i; openPanel(i, { silent: true }); }
   }
 
-  function otdDayDone(key, state) {
-    otdDays.set(key, state);
+  // Load one calendar day, from the local cache when it is there. Resolves to 'done' or 'error'; concurrent
+  // callers for the same day share one request.
+  function loadOtdDay(key) {
+    if (otdDays.get(key) === 'done') return Promise.resolve('done');
+    if (otdInflight.has(key)) return otdInflight.get(key);
+    const cache = loadOtdCache();
+    if (cache.days[key] && Array.isArray(cache.days[key].ev)) {
+      ingestOtdDay(key, cache.days[key].ev);
+      otdDays.set(key, 'done');
+      return Promise.resolve('done');
+    }
+    if (typeof root.fetch !== 'function') return Promise.resolve('error');
+    otdDays.set(key, 'loading');
+    // A stalled request would hold its slot for good: give each day 25 s, then count it as failed.
+    const ctl = typeof root.AbortController === 'function' ? new root.AbortController() : null;
+    const timer = ctl ? setTimeout(function () { ctl.abort(); }, 25000) : 0;
+    const p = root.fetch(OTD_ENDPOINT + key, { headers: { 'Api-User-Agent': API_UA }, credentials: 'omit', referrerPolicy: 'no-referrer', signal: ctl ? ctl.signal : undefined })
+      .then(function (res) { if (!res.ok) throw new Error(String(res.status)); return res.json(); })
+      .then(function (json) {
+        const rows = C.otdRows(json);
+        saveOtdDay(key, rows);
+        ingestOtdDay(key, rows);
+        otdDays.set(key, 'done');
+        return 'done';
+      })
+      .catch(function () { otdDays.set(key, 'error'); return 'error'; })
+      .then(function (state) { if (timer) clearTimeout(timer); otdInflight.delete(key); return state; });
+    otdInflight.set(key, p);
+    return p;
+  }
+
+  function otdDayDone() {
     otdActive = Math.max(0, otdActive - 1);
     pumpOtd();
     if (otdRenderTimer) return;
@@ -1550,22 +1582,10 @@
   function pumpOtd() {
     while (otdActive < OTD_PARALLEL && otdQueue.length) {
       const key = otdQueue.shift();
-      if (otdDays.has(key)) continue;
-      otdDays.set(key, 'loading');
+      const state = otdDays.get(key);
+      if (state === 'done' || state === 'loading') continue;
       otdActive++;
-      // A stalled request would hold its slot for good: give each day 25 s, then count it as failed.
-      const ctl = typeof root.AbortController === 'function' ? new root.AbortController() : null;
-      const timer = ctl ? setTimeout(function () { ctl.abort(); }, 25000) : 0;
-      root.fetch(OTD_ENDPOINT + key, { headers: { 'Api-User-Agent': API_UA }, credentials: 'omit', referrerPolicy: 'no-referrer', signal: ctl ? ctl.signal : undefined })
-        .then(function (res) { if (!res.ok) throw new Error(String(res.status)); return res.json(); })
-        .finally(function () { if (timer) clearTimeout(timer); })
-        .then(function (json) {
-          const rows = C.otdRows(json);
-          saveOtdDay(key, rows);
-          ingestOtdDay(key, rows);
-          otdDayDone(key, 'done');
-        })
-        .catch(function () { otdDayDone(key, 'error'); });
+      loadOtdDay(key).then(otdDayDone);
     }
   }
 
@@ -1691,6 +1711,57 @@
     dom.panelMore.hidden = nodes.length === 0;
   }
 
+  // --- Today in history (opt-in): the on-this-day list for the visitor's own date, as jumps into the timeline ---
+  function todayKey() {
+    const d = new Date();
+    return { month: d.getMonth() + 1, day: d.getDate(), key: (d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1) + '/' + (d.getDate() < 10 ? '0' : '') + d.getDate() };
+  }
+
+  function renderToday(state) {
+    if (!dom.today) return;
+    const td = todayKey();
+    const head = htmlEl('div', 'today-head');
+    head.appendChild(htmlEl('h3', '', td.day + ' ' + MONTH_NAMES[td.month - 1] + ' in history'));
+    const close = htmlEl('button', 'today-close', '×');
+    close.type = 'button'; close.setAttribute('aria-label', 'Close');
+    head.appendChild(close);
+    const parts = [head];
+    if (state === 'loading') parts.push(htmlEl('p', 'today-note', 'Loading today’s list from Wikipedia …'));
+    else if (state === 'error') parts.push(htmlEl('p', 'today-note', 'Wikipedia could not be reached. Try again in a moment.'));
+    else {
+      const list = events();
+      const hits = C.onCalendarDay(list, td.month, td.day);
+      if (!hits.length) parts.push(htmlEl('p', 'today-note', 'Nothing is recorded for this date.'));
+      const ul = htmlEl('ul', 'today-list');
+      for (let k = hits.length - 1; k >= 0; k--) {          // most recent first
+        const ev = list[hits[k]];
+        const li = htmlEl('li');
+        const b = htmlEl('button', 'today-item');
+        b.type = 'button'; b.dataset.index = String(hits[k]);
+        b.appendChild(htmlEl('span', 'when', HT.time.formatYear(ev.t)));
+        b.appendChild(htmlEl('span', 'what', ev.otd ? ev.detail : ev.title));
+        li.appendChild(b);
+        ul.appendChild(li);
+      }
+      parts.push(ul);
+      parts.push(htmlEl('p', 'today-note', hits.length + ' events · text from Wikipedia, CC BY-SA 4.0'));
+    }
+    dom.today.replaceChildren.apply(dom.today, parts);
+  }
+
+  function openToday() {
+    if (!dom.today) return;
+    toggleTours(false);
+    if (dom.help && !dom.help.hidden) toggleHelp(false);
+    if (!dom.legend.hidden) toggleLegend(false);
+    if (!imagesOn) setImages(true);                       // the entry says so: this list comes from Wikipedia
+    dom.today.hidden = false;
+    renderToday('loading');
+    loadOtdDay(todayKey().key).then(function (state) { if (!dom.today.hidden) renderToday(state); });
+  }
+
+  function closeToday() { if (dom.today) dom.today.hidden = true; }
+
   // --- Guided tours (HT.tours): a fixed path of events with a line of narration each. A step zooms to its
   // event and opens its panel; the step rides in the URL (tour=<id>.<n>), so Back, Forward and shared links work. ---
   function tourDefs() { return Array.isArray(HT.tours) ? HT.tours : []; }
@@ -1778,8 +1849,17 @@
     renderTourBar();
   }
 
+  // Fills a container with the Today entry and one button per tour. It can be called again at any time (the
+  // date in the Today entry is refreshed whenever a list is shown); the click listener is bound only once.
   function tourButtons(container, onPick) {
-    const nodes = tourDefs().map(function (t) {
+    const td = todayKey();
+    const todayBtn = htmlEl('button', 'tour-pick today-pick');
+    todayBtn.type = 'button';
+    todayBtn.dataset.tour = '@today';
+    todayBtn.appendChild(htmlEl('span', 'tp-title', 'Today in history'));
+    todayBtn.appendChild(htmlEl('span', 'tp-blurb', 'What happened on ' + td.day + ' ' + MONTH_NAMES[td.month - 1] + ' across two thousand years. Loads the list from Wikipedia and turns on online content.'));
+    todayBtn.appendChild(htmlEl('span', 'tp-steps', td.day + ' ' + MONTH_NAMES[td.month - 1].slice(0, 3)));
+    const nodes = [todayBtn].concat(tourDefs().map(function (t) {
       const b = htmlEl('button', 'tour-pick');
       b.type = 'button';
       b.dataset.tour = t.id;
@@ -1787,12 +1867,21 @@
       b.appendChild(htmlEl('span', 'tp-blurb', t.blurb));
       b.appendChild(htmlEl('span', 'tp-steps', t.steps.length + ' steps'));
       return b;
-    });
+    }));
     container.replaceChildren.apply(container, nodes);
+    if (container.dataset.bound === '1') return;
+    container.dataset.bound = '1';
     container.addEventListener('click', function (e) {
       const b = e.target && typeof e.target.closest === 'function' ? e.target.closest('.tour-pick') : null;
-      if (b) onPick(b.dataset.tour);
+      if (!b) return;
+      if (b.dataset.tour === '@today') openToday(); else onPick(b.dataset.tour);
     });
+  }
+
+  function refreshTourLists() {
+    const start = function (id) { startTour(id, 0); };
+    if (dom.tourList) tourButtons(dom.tourList, start);
+    if (dom.helpTours && dom.helpTourList) tourButtons(dom.helpTourList, start);
   }
 
   function toggleTours(force) {
@@ -1802,6 +1891,8 @@
       if (!dom.legend.hidden) toggleLegend(false);
       if (dom.search && !dom.search.hidden) toggleSearch(false);
       if (dom.help && !dom.help.hidden) toggleHelp(false);
+      closeToday();
+      refreshTourLists();
     }
     dom.tours.hidden = !open;
     if (dom.btnTours) dom.btnTours.setAttribute('aria-expanded', String(open));
@@ -2321,6 +2412,7 @@
         else if (dom.search && !dom.search.hidden) { toggleSearch(false); e.preventDefault(); }
         else if (!dom.panel.hidden) { closePanel(); e.preventDefault(); }
         else if (!dom.legend.hidden) { toggleLegend(false); e.preventDefault(); }
+        else if (dom.today && !dom.today.hidden) { closeToday(); e.preventDefault(); }
         else if (dom.tours && !dom.tours.hidden) { toggleTours(false); e.preventDefault(); }
         else if (tour) { endTour(); e.preventDefault(); }
         else hideTooltip();
@@ -2541,7 +2633,7 @@
       otdChip: $('otd-chip'), otdAction: $('otd-action'), otdDismiss: $('otd-dismiss'),
       btnTours: $('btn-tours'), tours: $('tours'), tourBar: $('tour-bar'), tourTitle: $('tour-title'), tourCount: $('tour-count'),
       tourNote: $('tour-note'), tourPrev: $('tour-prev'), tourNext: $('tour-next'), tourExit: $('tour-exit'),
-      helpTours: $('help-tours'), helpTourList: $('help-tour-list'),
+      helpTours: $('help-tours'), helpTourList: $('help-tour-list'), today: $('today'),
       minimap: $('minimap'), help: $('help'), helpClose: $('help-close'), helpOk: $('help-ok'), btnHelp: $('btn-help'), panelCopy: $('panel-copy'),
       panelObject: $('panel-object'), panelObjectImg: $('panel-object-img'), panelObjectImgLink: $('panel-object-imglink'),
       panelObjectLink: $('panel-object-link'), panelObjectCredit: $('panel-object-credit')
@@ -2579,14 +2671,24 @@
       const head = htmlEl('h3', '', 'Guided tours');
       const list = htmlEl('div', 'tour-list');
       dom.tours.replaceChildren(head, list);
-      tourButtons(list, function (id) { startTour(id, 0); });
-      if (dom.helpTours) { dom.helpTours.hidden = false; tourButtons(dom.helpTourList, function (id) { startTour(id, 0); }); }
+      dom.tourList = list;
+      if (dom.helpTours) dom.helpTours.hidden = false;
+      refreshTourLists();
       dom.btnTours.addEventListener('click', function () { toggleTours(); });
       dom.tourPrev.addEventListener('click', function () { tourStep(-1); });
       dom.tourNext.addEventListener('click', function () { tourStep(1); });
       dom.tourExit.addEventListener('click', endTour);
     } else if (dom.btnTours) {
       dom.btnTours.hidden = true;
+    }
+    if (dom.today) {
+      dom.today.addEventListener('click', function (e) {
+        const t = e.target && typeof e.target.closest === 'function' ? e.target : null;
+        if (!t) return;
+        if (t.closest('.today-close')) { closeToday(); return; }
+        const b = t.closest('.today-item');
+        if (b) { closeToday(); jumpToEvent(Number(b.dataset.index)); }
+      });
     }
     if (dom.otdChip) {
       try { otdHint = root.localStorage.getItem(OTD_HINT_KEY) !== 'off'; } catch (err) { /* ignore */ }

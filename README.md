@@ -118,6 +118,10 @@ The step is part of the URL (`tour=story-of-writing.4`), so the browser's Back a
 
 Tours live in `src/tours.js`: an id, a title, a blurb and a list of `{ ev, note }` steps, where `ev` is the exact title of a curated event. `test/tours.test.js` checks that every step names a real event, that no tour visits one twice, that notes stay between 20 and 240 characters, and that each tour runs forward in time, so renaming or removing an event cannot silently break one.
 
+## Today in history
+
+The first entry in the **Tours** list (and in the guide on a phone) is **Today in history**: Wikipedia's on-this-day list for the visitor's own date, most recent first, together with any bundled event that is known to the day and falls on it. Each entry is a jump: choosing one flies to a twenty-day view around it, opens its panel and lets the surrounding days load. It needs a single request, because the feed returns every year for a calendar day at once, and it switches on the online-content opt-in, which the entry says before you press it. On the 1st of a month only feed entries are listed, since bundled events known only to the month or the year are stored on the 1st by convention.
+
 ## More in the panel
 
 Every panel now ends with ways onward, none of which touch the network until followed:
@@ -129,6 +133,9 @@ Every panel now ends with ways onward, none of which touch the network until fol
 Choosing a listed event opens it, zooming only if it is not already on screen.
 
 ## Permalinks, overview strip and guide
+
+Links pasted into a chat or a post unfurl with a title, a description and a preview image (`docs/og.png`, 1200 × 630) through Open Graph tags in the page head, and the tab has an inline SVG favicon. The card is the same for every link: a static page cannot vary it by event or tour stop.
+
 
 - **Event permalinks.** Opening an event adds `ev=<slug>` to the hash, where the slug is the event's title in lowercase ASCII with dashes (`#s=1960&e=1975&ev=apollo-11-lands-on-the-moon`). Loading or navigating to such a link opens the panel, and lifts any saved filter that would hide the event. Titles are unique across the data, so a slug stays valid for as long as its title does; an unknown slug is ignored. **Copy link to this event** puts the current URL on the clipboard.
 - **Overview strip.** The strip under the header plots every event's density against years before the present on a log scale, so the last few thousand years get as much room as the first quarter-million. The marked window behaves like a scrollbar thumb: it keeps its width on the strip as you drag, which means the span in view grows as you move back in time. A click from the root view picks a window an eighth of the strip wide.
@@ -278,12 +285,16 @@ test/
 scripts/
   import-*.mjs          build-time importers (network at import time only)
   refresh.mjs           runs the importers whose sources move, rolls back any that fail or shrink
+e2e/
+  smoke.mjs             end-to-end smoke test in headless Chrome (no dependencies)
 .github/workflows/
   test.yml              tests, and a check that the committed index.html is what the sources build
   refresh-data.yml      monthly data refresh, proposed as a pull request
 ```
 
 Tests use `node:test` and `node:assert` and load the browser scripts with `require`, reading `globalThis.HT`. They cover the pure modules. `app.js` keeps the DOM, storage, network and animation; every rule in it that can be stated without those lives in `core.js`, takes "now" as an argument, and is tested there. The same tests run on every push and pull request, along with a check that `index.html` matches a fresh build.
+
+`node e2e/smoke.mjs` is an end-to-end smoke test with no dependencies beyond a local Chrome or Chromium (`CHROME_BIN` overrides the search): it injects a small harness into a copy of the built page, runs it in headless Chrome under virtual time, and reads the results back out of the dumped DOM. In about a second it opens the guide, zooms in and out, opens an event from the keyboard, filters by region, searches, walks a tour with the arrow keys, jumps on the overview strip, switches mode and opens Today in history against a canned feed (`fetch` is stubbed, so the network is never touched), and it fails on any console error or uncaught exception. CI runs it after the unit tests. On its first run it found a real bug: on a crowded view the open event could lose its lane and not be drawn, so the open event now always takes the first lane and ignores the tier ceiling.
 
 ## Keeping the data current
 

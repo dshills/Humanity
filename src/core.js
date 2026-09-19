@@ -218,6 +218,22 @@
     return Array.from(seen.keys()).sort(function (x, y) { return seen.get(x) - seen.get(y); });
   }
 
+  // Indices of the events that fall on a calendar day in any year, oldest first. Only day-precise dates count:
+  // an event known to the year sits on 1 January by convention, and one known to the month on the 1st of it,
+  // so on the 1st of a month only on-this-day entries (which always carry a real date) are returned.
+  // Rulers and ranged events are left out.
+  function onCalendarDay(list, month, day) {
+    const out = [];
+    for (let i = 0; i < list.length; i++) {
+      const ev = list[i];
+      if (ev.group || hasEnd(ev) || !(ev.t >= 1)) continue;
+      if (day === 1 && !ev.otd) continue;
+      const p = HT.time.toParts(ev.t);
+      if (p.month === month && p.day === day) out.push(i);
+    }
+    return out.sort(function (x, y) { return list[x].t - list[y].t || x - y; });
+  }
+
   // [year, text, [article titles]] rows from the feed's JSON; everything else in the 600 KB response is dropped.
   function otdRows(json) {
     const out = [];
@@ -362,7 +378,7 @@
     contains: contains, clampView: clampView, fitInside: fitInside, hasEnd: hasEnd, eventWindow: eventWindow,
     fmtNum: fmtNum, encodeHash: encodeHash, parseHash: parseHash, slugify: slugify,
     regionOf: regionOf, officeRegion: officeRegion, mmU: mmU, mmX: mmX, mmT: mmT, effectiveTier: effectiveTier,
-    otdDays: otdDays, otdRows: otdRows, otdMainTitle: otdMainTitle, otdEvents: otdEvents, wikiUrl: wikiUrl, clipWords: clipWords,
+    otdDays: otdDays, onCalendarDay: onCalendarDay, otdRows: otdRows, otdMainTitle: otdMainTitle, otdEvents: otdEvents, wikiUrl: wikiUrl, clipWords: clipWords,
     fmtGap: fmtGap, trimExtract: trimExtract, yearArticle: yearArticle, pickNearby: pickNearby, pickRelated: pickRelated
   };
 })(typeof window !== 'undefined' ? window : globalThis);

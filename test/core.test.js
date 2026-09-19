@@ -290,6 +290,32 @@ test('otdDays spans a year boundary and includes Feb 29 only in leap years', () 
   assert.ok(!C.otdDays(T.ymd(1999, 2, 27), T.ymd(1999, 3, 2), NOW).includes('02/29'));
 });
 
+test('onCalendarDay finds day-precise events on a date in any year, oldest first', () => {
+  const list = [
+    { t: T.ymd(1969, 7, 20), tier: 0 },                       // 0
+    { t: T.ymd(1944, 7, 20), tier: 5 },                       // 1
+    { t: T.ymd(1969, 7, 21), tier: 5 },                       // 2 the day after
+    { t: T.ymd(1900, 7, 20), end: T.ymd(1901, 1, 1), tier: 5 },   // 3 ranged: skipped
+    { t: T.ymd(1950, 7, 20), tier: 5, group: 'pope' },        // 4 ruler: skipped
+    { t: T.ymd(70, 7, 20), tier: 7, otd: true },              // 5
+    { t: T.bce(100, 7, 20), tier: 5 },                        // 6 before 1 CE: skipped
+  ];
+  assert.deepEqual(C.onCalendarDay(list, 7, 20), [5, 1, 0]);
+  assert.deepEqual(C.onCalendarDay(list, 7, 21), [2]);
+  assert.deepEqual(C.onCalendarDay(list, 12, 25), []);
+});
+
+test('onCalendarDay trusts only on-this-day entries on the 1st of a month', () => {
+  const list = [
+    { t: T.ce(1500), tier: 3 },                               // a bare year lands on 1 January
+    { t: T.ymd(1844, 5, 1), tier: 4 },                        // month precision lands on the 1st
+    { t: T.ymd(1901, 1, 1), tier: 5, otd: true },
+    { t: T.ymd(1707, 5, 1), tier: 7, otd: true },
+  ];
+  assert.deepEqual(C.onCalendarDay(list, 1, 1), [2]);
+  assert.deepEqual(C.onCalendarDay(list, 5, 1), [3]);
+});
+
 const FEED = {
   events: [
     { year: 1969, text: '  Apollo program:  Apollo 11\'s crew successfully makes the first human landing on the Moon. ',

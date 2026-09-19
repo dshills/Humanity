@@ -25,3 +25,5 @@ jobs:
             echo "::error::index.html is stale: run 'node build.mjs' and commit the result"
             exit 1
           }
+      - name: End-to-end smoke test in headless Chrome
+        run: node e2e/smoke.mjs
