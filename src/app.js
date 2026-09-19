@@ -132,6 +132,7 @@
   let otdHint = true;                     // offer the layer on deep views while the opt-in is off
   let otdLinkIndex = null;                // article title -> [t] of bundled events, to skip what is already here
   let scaleMode = 'log';                  // 'log': the widest views use a warped axis (HT.core.tToU); 'lin': never
+  let measureFrom = -1;                   // index of the event being measured from, or -1
   let embed = false;                      // ?embed=1: a quiet page for an iframe (no chrome, no history entries)
   let tour = null;                        // { def, step } while a guided tour is running
   let pendingTour = null;                 // { id, step } last parsed from the URL
@@ -276,7 +277,7 @@
   // --- URL hash: #s=<start>&e=<end|now>&m=<theme>&ev=<slug> (format and parsing in HT.core) ---
   function encodeHash(v) {
     return C.encodeHash(v, nowT(), theme, selected >= 0 && dom && !dom.panel.hidden ? slugFor(selected) : '',
-      tour ? { id: tour.def.id, step: tour.step } : null, scaleMode);
+      tour ? { id: tour.def.id, step: tour.step } : null, scaleMode, measureFrom >= 0 ? slugFor(measureFrom) : '');
   }
 
   // Applies the hash's theme and event as side effects and returns its view (null when it names none).
@@ -287,6 +288,8 @@
     pendingEv = h.ev ? indexForSlug(h.ev) : -1;
     pendingSlug = h.ev && pendingEv < 0 ? h.ev : '';
     pendingTour = h.tour;
+    const fromIndex = h.from ? indexForSlug(h.from) : -1;
+    if (fromIndex !== measureFrom) { measureFrom = fromIndex; if (dom) { updateMeasureChip(); if (selected >= 0 && !dom.panel.hidden) updatePanelMeasure(selected); } }
     if (h.scale === 'lin' && scaleMode !== 'lin') setScale('lin', { keep: true });   // a shared linear link shows as sent, without changing the visitor's own choice
     return h.view;
   }
@@ -609,6 +612,7 @@
     renderNowMarker(shown, axisY);
     renderEra(era, axisY);
     renderLifeBand(shown, axisY);
+    renderMeasure(shown, axisY);
     dom.cursorLine.setAttribute('y1', 0);
     dom.cursorLine.setAttribute('y2', h);
     if (lastMouseX !== null) updateCursor(lastMouseX);  // the date under a resting pointer changes with the view
@@ -1353,6 +1357,7 @@
     frag.appendChild(reg);
     dom.legend.replaceChildren(frag);
     dom.btnLegend.classList.toggle('filtered', hiddenCats.size > 0 || regionFilter !== null);
+    if (dom.btnLayers) dom.btnLayers.classList.toggle('filtered', hiddenCats.size > 0 || regionFilter !== null);   // the dot survives the fold
   }
 
   // --- Category filters (legend buttons) ---
@@ -1935,6 +1940,94 @@
     dom.scaleToggle.textContent = scaleMode === 'log' ? 'Scale \u00b7 log' : 'Scale \u00b7 linear';
   }
 
+  // --- Measuring: pick one event, open another, and see the time between them with a comparison or two.
+  // The anchor rides in the URL as from=<slug>, so a finding can be shared. ---
+  function setMeasure(index) {
+    measureFrom = index >= 0 && events()[index] ? index : -1;
+    updateMeasureChip();
+    if (selected >= 0 && !dom.panel.hidden) updatePanelMeasure(selected);
+    if (shown) render();
+    if (view) writeUrl('replace');
+    announce(measureFrom >= 0 ? 'Measuring from ' + events()[measureFrom].title + '. Open another event to see the time between them.' : 'Stopped measuring.', 100);
+  }
+
+  function updateMeasureChip() {
+    if (!dom.measureChip) return;
+    dom.measureChip.hidden = measureFrom < 0;
+    if (measureFrom >= 0) dom.measureChipText.textContent = 'Measuring from: ' + events()[measureFrom].title;
+  }
+
+  function updatePanelMeasure(index) {
+    if (!dom.panelMeasure) return;
+    const list = events();
+    dom.measureLines.replaceChildren();
+    dom.measureStop.hidden = measureFrom < 0;
+    if (measureFrom < 0) {
+      dom.measureGap.hidden = true;
+      dom.measureStart.hidden = false;
+      dom.measureStart.textContent = 'Measure from this event';
+      return;
+    }
+    dom.measureGap.hidden = false;
+    if (measureFrom === index) {
+      dom.measureGap.textContent = 'Measuring from this event. Open any other event, or search for one, to see the time between them.';
+      dom.measureStart.hidden = true;
+      return;
+    }
+    const curatedCount = HT.curatedCount || 0;
+    const facts = C.measureFacts(list, measureFrom, index, nowT(), curatedCount ? function (o, i) { return i < curatedCount; } : null);
+    dom.measureStart.hidden = false;
+    dom.measureStart.textContent = 'Measure from this one instead';
+    if (!facts) { dom.measureGap.hidden = true; return; }
+    const anchor = list[measureFrom].title;
+    dom.measureGap.textContent = facts.gap > 0
+      ? C.fmtDuration(facts.gap) + (facts.later === index ? ' after ' : ' before ') + '\u201c' + anchor + '\u201d'
+      : 'At the same time as \u201c' + anchor + '\u201d';
+    dom.measureLines.replaceChildren.apply(dom.measureLines, facts.lines.map(function (l) { return htmlEl('li', '', l); }));
+    announce(dom.measureGap.textContent + '. ' + facts.lines.join(' '), 300);
+  }
+
+  // The span between the two events, drawn under the axis; an event off screen pins its end to that edge.
+  function renderMeasure(v, axisY) {
+    if (!dom.gSpan) return;
+    const list = events();
+    const a = measureFrom >= 0 ? list[measureFrom] : null;
+    if (!a) { if (dom.gSpan.firstChild) dom.gSpan.replaceChildren(); return; }
+    const w = size.width;
+    const parts = [];
+    const ax = tToPx(a.t, v);
+    if (ax >= 0 && ax <= w) parts.push(svgEl('circle', { class: 'measure-anchor', cx: ax, cy: axisY, r: 10 }));
+    const b = selected >= 0 && selected !== measureFrom && !dom.panel.hidden ? list[selected] : null;
+    if (b) {
+      const first = a.t <= b.t ? a : b; const second = first === a ? b : a;
+      const gap = C.gapBetween(first, second);
+      if (gap > 0) {
+        const x0 = clamp(tToPx(hasEnd(first) ? first.end : first.t, v), -4, w + 4);
+        const x1 = clamp(tToPx(second.t, v), -4, w + 4);
+        const y = axisY + 38;
+        if (x1 - x0 >= 2) {
+          parts.push(svgEl('path', { class: 'measure-span', d: 'M' + x0 + ' ' + (y - 5) + ' V' + y + ' H' + x1 + ' V' + (y - 5) }));
+          if (x1 - x0 >= 70) parts.push(svgEl('text', { class: 'measure-label', x: (Math.max(0, x0) + Math.min(w, x1)) / 2, y: y + 13, 'text-anchor': 'middle' }, C.fmtDuration(gap)));
+        }
+      }
+    }
+    dom.gSpan.replaceChildren.apply(dom.gSpan, parts);
+  }
+
+  // --- Layers menu (mid-width headers): the Earth, Reigns, Lives and Legend buttons folded behind one button ---
+  function layersFolded() { return !!dom.btnLayers && root.getComputedStyle(dom.btnLayers).display !== 'none'; }
+
+  function toggleLayers(force) {
+    if (!dom.btnLayers || !dom.layerGroup) return;
+    const was = dom.layerGroup.classList.contains('open');
+    const open = force === undefined ? !was : !!force;
+    if (open === was) return;
+    if (open) rememberFocus('layers');
+    dom.layerGroup.classList.toggle('open', open);
+    dom.btnLayers.setAttribute('aria-expanded', String(open));
+    if (open) focusFirst(dom.layerGroup); else restoreFocus('layers', dom.btnLayers);
+  }
+
   // --- Accessibility helpers ---
   // Overlays take the focus when they open and hand it back to whatever had it when they close.
   const focusBack = new Map();
@@ -2502,6 +2595,7 @@
     updatePanelImage(ev);
     updatePanelObject(ev);
     updatePanelMore(ev);
+    updatePanelMeasure(index);
     updatePanelNearby(index);
     if (typeof ev.link === 'string' && /^https:\/\//.test(ev.link)) {
       dom.panelLink.href = ev.link;
@@ -2517,6 +2611,7 @@
     document.body.classList.add('panel-open');
     markSelected();
     if (tour) renderTourBar();
+    if (measureFrom >= 0 && !wasHidden) renderMeasure(shown, lastAxisY);
     if (wasHidden) afterLayoutChange();
     try { dom.panel.focus({ preventScroll: true }); } catch (err) { /* ignore */ }
     if (!(opts && opts.silent) && view) writeUrl('replace');      // ev=<slug> makes the open event shareable
@@ -2755,7 +2850,8 @@
         e.preventDefault();
         break;
       case 'Escape':
-        if (dom.help && !dom.help.hidden) { toggleHelp(false); e.preventDefault(); }
+        if (dom.layerGroup && dom.layerGroup.classList.contains('open')) { toggleLayers(false); e.preventDefault(); }
+        else if (dom.help && !dom.help.hidden) { toggleHelp(false); e.preventDefault(); }
         else if (dom.search && !dom.search.hidden) { toggleSearch(false); e.preventDefault(); }
         else if (!dom.panel.hidden) { closePanel(); e.preventDefault(); }
         else if (!dom.legend.hidden) { toggleLegend(false); e.preventDefault(); }
@@ -2948,6 +3044,7 @@
     dom.gReigns = svgEl('g', { class: 'g-reigns' });
     dom.gNow = svgEl('g', { class: 'g-now', 'pointer-events': 'none' });
     dom.gLife = svgEl('g', { class: 'g-mylife', 'pointer-events': 'none' });
+    dom.gSpan = svgEl('g', { class: 'g-span', 'pointer-events': 'none' });
     dom.gEra = svgEl('g', { class: 'g-era' });
     dom.gCursor = svgEl('g', { class: 'g-cursor', 'pointer-events': 'none' });
     dom.cursorLine = svgEl('line', { class: 'cursor-line', x1: 0, x2: 0, y1: 0, y2: 0, visibility: 'hidden' });
@@ -2959,7 +3056,7 @@
     measureEvent.appendChild(measureLabelEl);
     gMeasure.appendChild(measureTickEl);
     gMeasure.appendChild(measureEvent);
-    svg.replaceChildren(dom.gLife, dom.gMinor, dom.gMajor, dom.gEarth, dom.gLabels, dom.gAxis, dom.gNow, dom.gReigns, dom.gEvents, dom.gEra, dom.gCursor, gMeasure);
+    svg.replaceChildren(dom.gLife, dom.gMinor, dom.gMajor, dom.gEarth, dom.gLabels, dom.gAxis, dom.gNow, dom.gReigns, dom.gEvents, dom.gSpan, dom.gEra, dom.gCursor, gMeasure);
 
     // The tooltip is positioned in stage coordinates; make sure the stage is its containing block.
     dom.tooltip.style.position = 'absolute';
@@ -2997,6 +3094,9 @@
       otdChip: $('otd-chip'), otdAction: $('otd-action'), otdDismiss: $('otd-dismiss'),
       btnTours: $('btn-tours'), tours: $('tours'), tourBar: $('tour-bar'), tourTitle: $('tour-title'), tourCount: $('tour-count'),
       tourNote: $('tour-note'), tourPrev: $('tour-prev'), tourNext: $('tour-next'), tourExit: $('tour-exit'),
+      panelMeasure: $('panel-measure'), measureGap: $('measure-gap'), measureLines: $('measure-lines'), measureStart: $('measure-start'),
+      measureStop: $('measure-stop'), measureChip: $('measure-chip'), measureChipText: $('measure-chip-text'), measureChipStop: $('measure-chip-stop'),
+      btnLayers: $('btn-layers'), layerGroup: $('layer-group'),
       scaleToggle: $('scale-toggle'), btnLives: $('btn-lives'), tourEdit: $('tour-edit'),
       embedOpen: $('embed-open'), srStatus: $('sr-status'), skip: $('skip'),
       helpTours: $('help-tours'), helpTourList: $('help-tour-list'), today: $('today'),
@@ -3066,6 +3166,19 @@
         announce('Scale: ' + (scaleMode === 'log' ? 'logarithmic on wide views' : 'linear'));
       });
     }
+    if (dom.panelMeasure) {
+      dom.measureStart.addEventListener('click', function () { if (selected >= 0) setMeasure(selected); });
+      dom.measureStop.addEventListener('click', function () { setMeasure(-1); });
+      dom.measureChipStop.addEventListener('click', function () { setMeasure(-1); });
+    }
+    if (dom.btnLayers) {
+      dom.btnLayers.addEventListener('click', function (e) { e.stopPropagation(); toggleLayers(); });
+      dom.btnLegend.addEventListener('click', function () { if (layersFolded()) toggleLayers(false); });   // the legend card replaces the menu
+      document.addEventListener('click', function (e) {
+        if (dom.layerGroup.classList.contains('open') && !dom.layerGroup.contains(e.target)) toggleLayers(false);
+      });
+      root.addEventListener('resize', function () { if (!layersFolded()) toggleLayers(false); });
+    }
     if (dom.skip) {
       dom.skip.addEventListener('click', function () {
         const first = dom.svg.querySelector('.event');
@@ -3129,6 +3242,7 @@
     render();
     renderCrumbs();
     renderLegend();                                       // region state may have been restored after the first build
+    updateMeasureChip();
     syncTourFromUrl();
     if (pendingEv >= 0) { revealEvent(pendingEv); openPanel(pendingEv, { silent: true }); }
     // First visit without a shared link: show the guide once.

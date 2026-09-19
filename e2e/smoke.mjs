@@ -176,6 +176,25 @@ const STEPS = `<script>
     check('a landmark film is on the timeline and opens from search', /Citizen Kane by Orson Welles/.test($('panel-title').textContent) && /1941/.test($('panel-date').textContent) && !!document.querySelector('#timeline .event.selected'), $('panel-title').textContent + ' ' + $('panel-date').textContent);
     $('panel-close').click(); await wait(200);
 
+    // Measuring: anchor one event, open another, read the gap and a comparison; the anchor rides in the URL.
+    HT.app.setView(1960, 1975, { animate: false }); await wait(300);
+    key('Enter', eventNamed(/^Apollo 11 lands on the Moon/)); await wait(400);
+    $('measure-start').click(); await wait(300);
+    check('Measure from this event sets the anchor, shows the chip and writes from= to the URL', !$('measure-chip').hidden && /Apollo 11/.test($('measure-chip-text').textContent) && /from=apollo-11-lands-on-the-moon/.test(location.hash) && !!document.querySelector('.measure-anchor'), location.hash);
+    key('Enter', eventNamed(/^First message sent over ARPANET/)); await wait(400);
+    check('another event shows the gap from the anchor, with a comparison', /^3 months after .Apollo 11 lands on the Moon.$/.test($('measure-gap').textContent) && document.querySelectorAll('#measure-lines li').length >= 1 && !!document.querySelector('.measure-span'), $('measure-gap').textContent + ' | ' + $('measure-lines').textContent.slice(0, 90));
+    $('btn-search').click(); await wait(200);
+    $('search-input').value = 'great pyramid of giza'; $('search-input').dispatchEvent(new Event('input', { bubbles: true })); await wait(200);
+    key('Enter', $('search-input')); await wait(900);
+    $('measure-start').click(); await wait(200);
+    $('btn-search').click(); await wait(200);
+    $('search-input').value = 'cleopatra'; $('search-input').dispatchEvent(new Event('input', { bubbles: true })); await wait(200);
+    key('Enter', $('search-input')); await wait(900);
+    check('the classic: Cleopatra is closer to today than to the Great Pyramid', /^2,[45]\\d\\d years after .Great Pyramid/.test($('measure-gap').textContent) && /Cleopatra[^\\u201d]*. is closer to today \\(2,05\\d years\\) than to .Great Pyramid/.test($('measure-lines').textContent), $('measure-gap').textContent + ' | ' + $('measure-lines').textContent);
+    $('measure-stop').click(); await wait(300);
+    check('Stop measuring clears the chip, the span and the URL', $('measure-chip').hidden && !/from=/.test(location.hash) && !document.querySelector('.measure-anchor') && /Measure from this event/.test($('measure-start').textContent), location.hash);
+    $('panel-close').click(); await wait(200); key('r'); await wait(200);
+
     // Your lifetime: a year typed into the form marks the band and starts a generated tour; nothing reaches the URL.
     $('btn-tours').click(); await wait(200);
     document.querySelector('#tours .tour-pick[data-tour="@life"]').click(); await wait(200);
@@ -226,6 +245,35 @@ const STEPS = `<script>
 })();
 </script>`;
 
+// A run at tablet width: the layer buttons fold into one menu and the zoom path keeps its place in the header.
+const MID_STEPS = `<script>
+(async function () {
+  var R = []; var $ = function (id) { return document.getElementById(id); };
+  var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  var check = function (name, ok, info) { R.push({ name: name, ok: !!ok, info: info === undefined ? '' : String(info) }); };
+  var shown = function (el) { return !!el && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 0; };
+  try {
+    await wait(400);
+    check('900 px: the layer buttons are folded behind Layers', shown($('btn-layers')) && !shown($('btn-earth')) && !shown($('btn-legend')) && shown($('btn-tours')) && shown($('btn-search')), innerWidth);
+    var crumbs = $('crumbs').getBoundingClientRect();
+    check('900 px: the zoom path is visible and readable', crumbs.width >= 160 && /1400/.test($('crumbs').textContent), Math.round(crumbs.width) + 'px ' + $('crumbs').textContent);
+    check('900 px: nothing overflows sideways', document.documentElement.scrollWidth <= innerWidth, document.documentElement.scrollWidth);
+    var hud = $('hud-left').getBoundingClientRect(); var dock = $('dock').getBoundingClientRect();
+    check('900 px: the HUD stays clear of the mode dock', hud.right <= dock.left || hud.bottom <= dock.top, Math.round(hud.right) + ' vs ' + Math.round(dock.left));
+    $('btn-layers').click(); await wait(200);
+    check('900 px: Layers opens a menu with the four toggles and takes the focus', shown($('btn-earth')) && shown($('btn-reigns')) && shown($('btn-lives')) && shown($('btn-legend')) && $('layer-group').contains(document.activeElement));
+    $('btn-lives').click(); await wait(300);
+    check('900 px: a toggle in the menu works', document.querySelectorAll('#timeline .life').length > 0);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await wait(200);
+    check('900 px: Escape closes the menu and returns focus', !shown($('btn-earth')) && document.activeElement === $('btn-layers'));
+    $('btn-layers').click(); await wait(100); $('btn-legend').click(); await wait(200);
+    check('900 px: Legend opens its card and closes the menu', !$('legend').hidden && !shown($('btn-earth')));
+  } catch (err) { check('900 px: the script ran to the end', false, err && err.stack ? err.stack : err); }
+  check('900 px: no console errors or uncaught exceptions', window.__errors.length === 0, window.__errors.join(' | '));
+  var pre = document.createElement('pre'); pre.id = 'e2e-result'; pre.textContent = JSON.stringify(R); document.body.appendChild(pre);
+})();
+</script>`;
+
 // A second, shorter run with ?embed=1: the quiet page for iframes.
 const EMBED_STEPS = `<script>
 (async function () {
@@ -257,13 +305,13 @@ const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
 if (!html.includes('<body>') || !html.includes('</body>')) { console.error('e2e: index.html has no <body>'); process.exit(1); }
 const decode = (s) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
 
-function run(steps, query) {
+function run(steps, query, size) {
   const dir = mkdtempSync(join(tmpdir(), 'humanity-e2e-'));
   const page = join(dir, 'index.html');
   writeFileSync(page, html.replace('<body>', '<body>' + HOOK).replace(/<\/body>(?![\s\S]*<\/body>)/, steps + '</body>'));
   const res = spawnSync(chrome, [
     '--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars', '--no-first-run', '--no-default-browser-check',
-    '--window-size=1400,900', '--virtual-time-budget=60000', '--dump-dom', pathToFileURL(page).href + query,
+    '--window-size=' + (size || '1400,900'), '--virtual-time-budget=60000', '--dump-dom', pathToFileURL(page).href + query,
   ], { encoding: 'utf8', timeout: 180000, maxBuffer: 256 * 1024 * 1024 });
   rmSync(dir, { recursive: true, force: true });
   const m = /<pre id="e2e-result">([\s\S]*?)<\/pre>/.exec(res.stdout || '');
@@ -274,7 +322,7 @@ function run(steps, query) {
   return JSON.parse(decode(m[1]));
 }
 
-const results = run(STEPS, '').concat(run(EMBED_STEPS, '?embed=1&ref=blog'));
+const results = run(STEPS, '').concat(run(EMBED_STEPS, '?embed=1&ref=blog'), run(MID_STEPS, '#s=1400&e=1600', '900,700'));
 let failed = 0;
 for (const r of results) {
   if (!r.ok) failed++;

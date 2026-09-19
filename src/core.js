@@ -220,20 +220,22 @@
   }
 
   // `tour` is { id, step } with a zero-based step; it is written one-based, as tour=<id>.<n>.
-  function encodeHash(v, now, theme, slug, tour, scale) {
+  function encodeHash(v, now, theme, slug, tour, scale, from) {
     return '#s=' + fmtNum(v.start) + '&e=' + (atNow(v, now) ? 'now' : fmtNum(v.end)) +
       (theme && theme !== 'auto' ? '&m=' + theme : '') + (slug ? '&ev=' + slug : '') +
-      (tour && tour.id ? '&tour=' + tour.id + '.' + (tour.step + 1) : '') + (scale === 'lin' ? '&sc=lin' : '');
+      (tour && tour.id ? '&tour=' + tour.id + '.' + (tour.step + 1) : '') + (scale === 'lin' ? '&sc=lin' : '') +
+      (from ? '&from=' + from : '');
   }
 
   // { view | null, theme | '', ev | '', tour | null, scale: 'lin' | '' }: the view is null when s/e are missing or do not describe a span.
   function parseHash(hash, now) {
-    const out = { view: null, theme: '', ev: '', tour: null, scale: '' };
+    const out = { view: null, theme: '', ev: '', tour: null, scale: '', from: '' };
     if (!hash || hash.length < 2) return out;
     const params = new URLSearchParams(String(hash).replace(/^#/, ''));
     out.theme = params.get('m') || '';
     out.ev = params.get('ev') || '';
     out.scale = params.get('sc') === 'lin' ? 'lin' : '';
+    out.from = /^[a-z0-9-]{1,80}$/.test(params.get('from') || '') ? params.get('from') : '';
     const tm = /^([a-z0-9-]{1,40})\.(\d{1,3})$/.exec(params.get('tour') || '');
     if (tm && Number(tm[2]) >= 1) out.tour = { id: tm[1], step: Number(tm[2]) - 1 };
     const s = parseFloat(params.get('s'));
@@ -480,6 +482,56 @@
     return take(before).concat(take(after));
   }
 
+  // --- Measuring. The gap between two events is the time between their nearest ends: zero when one lies inside
+  // the other or they overlap (a life and something that happened during it). ---
+  function gapBetween(a, b) {
+    const a0 = a.t; const a1 = hasEnd(a) ? a.end : a.t;
+    const b0 = b.t; const b1 = hasEnd(b) ? b.end : b.t;
+    if (a1 < b0) return b0 - a1;
+    if (b1 < a0) return a0 - b1;
+    return 0;
+  }
+
+  function fmtDuration(years) {
+    const y = Math.abs(years);
+    if (y < 1.5 / 365) return 'less than a day';
+    if (y < 60 / 365) return Math.round(y * 365) + ' days';
+    if (y < 2) return Math.round(y * 12) + ' months';
+    return Math.round(y).toLocaleString('en-US') + ' years';
+  }
+
+  // What to say about two events. `gap` in years, `earlier`/`later` as indices, and up to two comparison lines of
+  // the kind "X is closer in time to Y than to Z": for the earlier event, the best-known landmark before it that
+  // is nevertheless further away than the later event; for the later one, the same looking forward, or today.
+  // Landmarks are hand-curated point events of tier 0-2 (`curated(ev, i)`), the nearest qualifying one being the
+  // most surprising. Returns { gap, earlier, later, lines: [string] }.
+  function measureFacts(list, i, j, now, curated) {
+    const A = list[i]; const B = list[j];
+    if (!A || !B || i === j) return null;
+    const first = A.t <= B.t ? i : j;
+    const second = first === i ? j : i;
+    const E = list[first]; const L = list[second];
+    const gap = gapBetween(E, L);
+    const out = { gap: gap, earlier: first, later: second, lines: [] };
+    if (gap <= 0) { out.lines.push('They overlap in time.'); return out; }
+    const name = function (ev) { return '\u201c' + ev.title + '\u201d'; };
+    let before = -1; let after = -1;
+    for (let k = 0; k < list.length; k++) {
+      const o = list[k];
+      if (k === i || k === j || o.group || o.life || o.otd || o.tier > 2 || (curated && !curated(o, k))) continue;
+      const dBefore = gapBetween(o, E);
+      if (o.t < E.t && dBefore > gap && (before < 0 || dBefore < gapBetween(list[before], E))) before = k;
+      const dAfter = gapBetween(L, o);
+      if (o.t > L.t && dAfter > gap && (after < 0 || dAfter < gapBetween(L, list[after]))) after = k;
+    }
+    if (before >= 0) out.lines.push(name(E) + ' is closer in time to ' + name(L) + ' than to ' + name(list[before]) + ', ' + fmtDuration(gapBetween(list[before], E)) + ' before it.');
+    const lEnd = hasEnd(L) ? L.end : L.t;
+    if (after >= 0) out.lines.push(name(L) + ' is closer to ' + name(E) + ' than to ' + name(list[after]) + ', ' + fmtDuration(gapBetween(L, list[after])) + ' after it.');
+    else if (now - lEnd > gap) out.lines.push(name(L) + ' is closer to ' + name(E) + ' than to today, ' + fmtDuration(now - lEnd) + ' on.');
+    else if (now - lEnd < gap && now - lEnd > 0) out.lines.push(name(L) + ' is closer to today (' + fmtDuration(now - lEnd) + ') than to ' + name(E) + '.');
+    return out;
+  }
+
   // "Your lifetime": a tour made on the spot from a birth year. The first step frames the whole life; the rest
   // are up to nine events spread across it, one per equal slice of the years, each slice giving its most
   // significant event (lowest tier, hand-curated before generated, then nearest the middle of the slice).
@@ -558,6 +610,6 @@
     fmtNum: fmtNum, encodeHash: encodeHash, parseHash: parseHash, slugify: slugify,
     regionOf: regionOf, officeRegion: officeRegion, mmU: mmU, mmX: mmX, mmT: mmT, effectiveTier: effectiveTier,
     otdDays: otdDays, onCalendarDay: onCalendarDay, otdRows: otdRows, otdMainTitle: otdMainTitle, otdEvents: otdEvents, wikiUrl: wikiUrl, clipWords: clipWords,
-    fmtGap: fmtGap, trimExtract: trimExtract, yearArticle: yearArticle, pickNearby: pickNearby, pickRelated: pickRelated, pickContemporaries: pickContemporaries, lifetimeTour: lifetimeTour
+    fmtGap: fmtGap, trimExtract: trimExtract, yearArticle: yearArticle, pickNearby: pickNearby, pickRelated: pickRelated, gapBetween: gapBetween, fmtDuration: fmtDuration, measureFacts: measureFacts, pickContemporaries: pickContemporaries, lifetimeTour: lifetimeTour
   };
 })(typeof window !== 'undefined' ? window : globalThis);

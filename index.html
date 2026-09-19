@@ -1157,6 +1157,37 @@ html[data-theme="paper"] #panel-title { font-size: 24px; }
 .reign.life .seg { fill-opacity: 0.42; }
 .reign.life:hover .seg, .reign.life:focus-visible .seg, .reign.life.selected .seg { fill-opacity: 0.8; }
 
+/* Layers menu. On a wide header the four layer buttons sit in line (the wrapper dissolves); between phone and
+   about 1180 px they would squeeze the zoom path out of the header, so they fold into one Layers button. */
+#btn-layers { display: none; }
+#layer-group { display: contents; }
+@media (min-width: 641px) and (max-width: 1180px) {
+  #controls { position: relative; }
+  #btn-layers { display: inline-block; }
+  #btn-layers[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  #layer-group {
+    display: none; position: absolute; top: calc(100% + 8px); right: 0; z-index: 12; flex-direction: column; gap: 4px;
+    min-width: 150px; padding: 8px; border: 1px solid var(--panel-border); border-radius: 6px; background: var(--bg);
+    box-shadow: var(--shadow);
+  }
+  #layer-group.open { display: flex; }
+  #layer-group button { width: 100%; justify-content: flex-start; }
+  #tagline { display: none; }
+}
+@media (min-width: 641px) and (max-width: 900px) { #btn-home { display: none; } }   /* the root crumb does the same job */
+/* Narrower still, the zoom path takes a row of its own under the brand and buttons, as it does on a phone. */
+@media (min-width: 641px) and (max-width: 820px) {
+  #header { display: flex; flex-wrap: wrap; align-items: center; row-gap: 0; column-gap: 10px; padding: 4px 12px 4px 16px; }
+  #brand { order: 1; flex: 1 1 auto; padding-right: 0; border-right: 0; }
+  #controls { order: 2; flex: none; }
+  #crumbs { order: 3; flex: 1 1 60%; min-width: 0; min-height: 30px; }
+  #cursor-date { order: 4; flex: 0 1 auto; min-width: 0; max-width: 38%; overflow: hidden; text-overflow: ellipsis; }
+}
+/* The HUD gives way to the mode dock as the stage narrows: first its longest row, then it moves above the dock. */
+@media (min-width: 641px) and (max-width: 1040px) { .hud-earth-k, #hud-earth { display: none; } }
+@media (min-width: 641px) and (max-width: 860px) { #hud { bottom: 84px; } }
+body.embed #btn-layers, body.embed #layer-group { display: none !important; }
+
 /* Scale toggle: top-left of the stage, only on views wide enough for the log axis to apply */
 #scale-toggle {
   position: absolute; z-index: 4; top: 12px; left: 14px; min-height: 28px; padding: 0 12px;
@@ -1263,6 +1294,40 @@ body.embed #title { font-size: 15px; }
 #tour-next:hover { filter: brightness(1.08); }
 #tour-exit { margin-left: auto; color: var(--muted) !important; }
 
+/* Measuring: the panel section, the chip that says what is being measured from, and the span under the axis */
+#panel-measure { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--panel-border); }
+#panel-measure h3 { margin: 0 0 6px; font: 600 10px/1.3 var(--font-mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+#measure-gap { margin: 0 0 6px; font-size: 16px; line-height: 1.4; color: var(--fg); }
+#measure-gap[hidden] { display: none; }
+#measure-lines { margin: 0 0 8px; padding: 0 0 0 16px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+#measure-lines:empty { display: none; }
+#measure-lines li { margin-bottom: 4px; }
+.measure-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.measure-actions button {
+  min-height: 32px; padding: 0 12px; border: 1px solid var(--panel-border); border-radius: 4px; color: var(--fg);
+  font: 600 10px/1 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase;
+  transition: background-color 120ms var(--ease), border-color 120ms var(--ease);
+}
+.measure-actions button:hover { background: var(--hover); border-color: rgba(var(--accent-rgb), 0.5); }
+.measure-actions [hidden] { display: none; }
+#measure-chip {
+  position: absolute; z-index: 4; left: 50%; top: 10px; transform: translateX(-50%); display: flex; align-items: center;
+  max-width: calc(100% - 24px); padding-left: 14px; border: 1px solid rgba(var(--accent-rgb), 0.5); border-radius: 999px;
+  background: var(--panel-bg); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: var(--shadow);
+  font: 600 10px/1 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent);
+}
+#measure-chip[hidden] { display: none; }
+#measure-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 9px 0; }
+#measure-chip-stop { flex: none; width: 30px; height: 30px; border-radius: 999px; color: var(--muted); font-size: 15px; }
+#measure-chip-stop:hover { color: var(--fg); background: var(--hover); }
+.measure-anchor { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.measure-span { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.measure-label {
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+  fill: var(--accent); paint-order: stroke fill; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round;
+}
+body.embed #measure-chip, body.embed #panel-measure { display: none; }
+
 /* On-this-day chip and markers */
 #otd-chip {
   position: absolute; z-index: 4; left: 50%; bottom: 76px; transform: translateX(-50%);
@@ -1341,7 +1406,7 @@ button.legend-item {
 button.legend-item:hover { background: var(--hover); }
 button.legend-item[aria-pressed="false"] { opacity: 0.38; text-decoration: line-through; }
 button.legend-item[aria-pressed="false"] i { background: transparent !important; box-shadow: inset 0 0 0 1.5px var(--muted); }
-#btn-legend.filtered::after { content: " \2022"; color: var(--accent); }
+#btn-legend.filtered::after, #btn-layers.filtered::after { content: " \2022"; color: var(--accent); }
 
 #search {
   position: absolute;
@@ -1513,7 +1578,8 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
   body.touring #dock, body.touring #hud { display: none; }  /* the bar takes their place while a tour runs */
   #help-tour-list { grid-template-columns: 1fr 1fr; gap: 3px; }
   #help-tour-list .tp-steps { display: none; }
-  #otd-chip { bottom: auto; top: 10px; }                  /* the HUD owns the bottom of a phone stage */
+  #otd-chip { bottom: auto; top: 10px; }
+  #measure-chip { top: 46px; }                  /* the HUD owns the bottom of a phone stage */
   #help { padding: 16px 18px 14px; max-height: calc(100% - 16px); }
   #help h2 { margin-bottom: 10px; }
   #help dl { line-height: 1.38; }
@@ -1646,12 +1712,15 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
     <div id="controls">
       <button id="btn-out" type="button" aria-label="Zoom out">Zoom out</button>
       <button id="btn-home" type="button">Home</button>
-      <button id="btn-earth" type="button" aria-pressed="true" title="Earth layer: CO₂, Antarctic temperature, sea level, world population and the largest city (E)">Earth</button>
-      <button id="btn-reigns" type="button" aria-pressed="true" title="Swimlanes of rulers, one row per office (R)">Reigns</button>
-      <button id="btn-lives" type="button" aria-pressed="false" title="Lifespans of notable people: who was alive at the same time (P). Replaces the Reigns rows while it is on.">Lives</button>
+      <button id="btn-layers" type="button" aria-expanded="false" aria-controls="layer-group" title="Earth, Reigns, Lives and the legend">Layers</button>
+      <div id="layer-group">
+        <button id="btn-earth" type="button" aria-pressed="true" title="Earth layer: CO₂, Antarctic temperature, sea level, world population and the largest city (E)">Earth</button>
+        <button id="btn-reigns" type="button" aria-pressed="true" title="Swimlanes of rulers, one row per office (R)">Reigns</button>
+        <button id="btn-lives" type="button" aria-pressed="false" title="Lifespans of notable people: who was alive at the same time (P). Replaces the Reigns rows while it is on.">Lives</button>
+        <button id="btn-legend" type="button" aria-expanded="false" aria-controls="legend" title="Categories and regions: click to show or hide">Legend</button>
+      </div>
       <button id="btn-tours" type="button" aria-expanded="false" aria-controls="tours" title="Guided tours through the timeline">Tours</button>
       <button id="btn-search" type="button" aria-expanded="false" aria-controls="search" title="Search events (/)">Search</button>
-      <button id="btn-legend" type="button" aria-expanded="false" aria-controls="legend" title="Categories and regions: click to show or hide">Legend</button>
       <button id="btn-help" type="button" aria-expanded="false" aria-controls="help" title="How to use the timeline (?)" aria-label="Help">?</button>
     </div>
   </header>
@@ -1671,7 +1740,7 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
         <span class="hud-k">Events</span><span class="hud-v" id="hud-events">—</span>
         <span class="hud-k">Tier</span><span class="hud-v" id="hud-tier">—</span>
         <span class="hud-k">Scale</span><span class="hud-v" id="hud-scale">—</span>
-        <span class="hud-k">Earth</span><span class="hud-v" id="hud-earth">—</span>
+        <span class="hud-k hud-earth-k">Earth</span><span class="hud-v" id="hud-earth">—</span>
         <span class="hud-k">City</span><span class="hud-v" id="hud-city">—</span>
       </div>
       <div id="hud-right" class="hud-block">
@@ -1708,6 +1777,10 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
         <div id="help-tour-list"></div>
       </div>
       <button id="help-ok" type="button">Start exploring</button>
+    </div>
+    <div id="measure-chip" hidden>
+      <span id="measure-chip-text"></span>
+      <button id="measure-chip-stop" type="button" aria-label="Stop measuring" title="Stop measuring">×</button>
     </div>
     <div id="otd-chip" hidden>
       <button id="otd-action" type="button"></button>
@@ -1758,6 +1831,15 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
       <a id="panel-object-link" target="_blank" rel="noopener noreferrer"></a>
       <div id="panel-object-credit"></div>
     </figure>
+    <section id="panel-measure">
+      <h3>Measure</h3>
+      <p id="measure-gap" hidden></p>
+      <ul id="measure-lines"></ul>
+      <div class="measure-actions">
+        <button id="measure-start" type="button">Measure from this event</button>
+        <button id="measure-stop" type="button" hidden>Stop measuring</button>
+      </div>
+    </section>
     <section id="panel-near" hidden>
       <h3>Around this time</h3>
       <ul id="panel-near-list"></ul>
@@ -2661,20 +2743,22 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
   }
 
   // `tour` is { id, step } with a zero-based step; it is written one-based, as tour=<id>.<n>.
-  function encodeHash(v, now, theme, slug, tour, scale) {
+  function encodeHash(v, now, theme, slug, tour, scale, from) {
     return '#s=' + fmtNum(v.start) + '&e=' + (atNow(v, now) ? 'now' : fmtNum(v.end)) +
       (theme && theme !== 'auto' ? '&m=' + theme : '') + (slug ? '&ev=' + slug : '') +
-      (tour && tour.id ? '&tour=' + tour.id + '.' + (tour.step + 1) : '') + (scale === 'lin' ? '&sc=lin' : '');
+      (tour && tour.id ? '&tour=' + tour.id + '.' + (tour.step + 1) : '') + (scale === 'lin' ? '&sc=lin' : '') +
+      (from ? '&from=' + from : '');
   }
 
   // { view | null, theme | '', ev | '', tour | null, scale: 'lin' | '' }: the view is null when s/e are missing or do not describe a span.
   function parseHash(hash, now) {
-    const out = { view: null, theme: '', ev: '', tour: null, scale: '' };
+    const out = { view: null, theme: '', ev: '', tour: null, scale: '', from: '' };
     if (!hash || hash.length < 2) return out;
     const params = new URLSearchParams(String(hash).replace(/^#/, ''));
     out.theme = params.get('m') || '';
     out.ev = params.get('ev') || '';
     out.scale = params.get('sc') === 'lin' ? 'lin' : '';
+    out.from = /^[a-z0-9-]{1,80}$/.test(params.get('from') || '') ? params.get('from') : '';
     const tm = /^([a-z0-9-]{1,40})\.(\d{1,3})$/.exec(params.get('tour') || '');
     if (tm && Number(tm[2]) >= 1) out.tour = { id: tm[1], step: Number(tm[2]) - 1 };
     const s = parseFloat(params.get('s'));
@@ -2921,6 +3005,56 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
     return take(before).concat(take(after));
   }
 
+  // --- Measuring. The gap between two events is the time between their nearest ends: zero when one lies inside
+  // the other or they overlap (a life and something that happened during it). ---
+  function gapBetween(a, b) {
+    const a0 = a.t; const a1 = hasEnd(a) ? a.end : a.t;
+    const b0 = b.t; const b1 = hasEnd(b) ? b.end : b.t;
+    if (a1 < b0) return b0 - a1;
+    if (b1 < a0) return a0 - b1;
+    return 0;
+  }
+
+  function fmtDuration(years) {
+    const y = Math.abs(years);
+    if (y < 1.5 / 365) return 'less than a day';
+    if (y < 60 / 365) return Math.round(y * 365) + ' days';
+    if (y < 2) return Math.round(y * 12) + ' months';
+    return Math.round(y).toLocaleString('en-US') + ' years';
+  }
+
+  // What to say about two events. `gap` in years, `earlier`/`later` as indices, and up to two comparison lines of
+  // the kind "X is closer in time to Y than to Z": for the earlier event, the best-known landmark before it that
+  // is nevertheless further away than the later event; for the later one, the same looking forward, or today.
+  // Landmarks are hand-curated point events of tier 0-2 (`curated(ev, i)`), the nearest qualifying one being the
+  // most surprising. Returns { gap, earlier, later, lines: [string] }.
+  function measureFacts(list, i, j, now, curated) {
+    const A = list[i]; const B = list[j];
+    if (!A || !B || i === j) return null;
+    const first = A.t <= B.t ? i : j;
+    const second = first === i ? j : i;
+    const E = list[first]; const L = list[second];
+    const gap = gapBetween(E, L);
+    const out = { gap: gap, earlier: first, later: second, lines: [] };
+    if (gap <= 0) { out.lines.push('They overlap in time.'); return out; }
+    const name = function (ev) { return '\u201c' + ev.title + '\u201d'; };
+    let before = -1; let after = -1;
+    for (let k = 0; k < list.length; k++) {
+      const o = list[k];
+      if (k === i || k === j || o.group || o.life || o.otd || o.tier > 2 || (curated && !curated(o, k))) continue;
+      const dBefore = gapBetween(o, E);
+      if (o.t < E.t && dBefore > gap && (before < 0 || dBefore < gapBetween(list[before], E))) before = k;
+      const dAfter = gapBetween(L, o);
+      if (o.t > L.t && dAfter > gap && (after < 0 || dAfter < gapBetween(L, list[after]))) after = k;
+    }
+    if (before >= 0) out.lines.push(name(E) + ' is closer in time to ' + name(L) + ' than to ' + name(list[before]) + ', ' + fmtDuration(gapBetween(list[before], E)) + ' before it.');
+    const lEnd = hasEnd(L) ? L.end : L.t;
+    if (after >= 0) out.lines.push(name(L) + ' is closer to ' + name(E) + ' than to ' + name(list[after]) + ', ' + fmtDuration(gapBetween(L, list[after])) + ' after it.');
+    else if (now - lEnd > gap) out.lines.push(name(L) + ' is closer to ' + name(E) + ' than to today, ' + fmtDuration(now - lEnd) + ' on.');
+    else if (now - lEnd < gap && now - lEnd > 0) out.lines.push(name(L) + ' is closer to today (' + fmtDuration(now - lEnd) + ') than to ' + name(E) + '.');
+    return out;
+  }
+
   // "Your lifetime": a tour made on the spot from a birth year. The first step frames the whole life; the rest
   // are up to nine events spread across it, one per equal slice of the years, each slice giving its most
   // significant event (lowest tier, hand-curated before generated, then nearest the middle of the slice).
@@ -2999,7 +3133,7 @@ button.legend-item[aria-pressed="false"] i { background: transparent !important;
     fmtNum: fmtNum, encodeHash: encodeHash, parseHash: parseHash, slugify: slugify,
     regionOf: regionOf, officeRegion: officeRegion, mmU: mmU, mmX: mmX, mmT: mmT, effectiveTier: effectiveTier,
     otdDays: otdDays, onCalendarDay: onCalendarDay, otdRows: otdRows, otdMainTitle: otdMainTitle, otdEvents: otdEvents, wikiUrl: wikiUrl, clipWords: clipWords,
-    fmtGap: fmtGap, trimExtract: trimExtract, yearArticle: yearArticle, pickNearby: pickNearby, pickRelated: pickRelated, pickContemporaries: pickContemporaries, lifetimeTour: lifetimeTour
+    fmtGap: fmtGap, trimExtract: trimExtract, yearArticle: yearArticle, pickNearby: pickNearby, pickRelated: pickRelated, gapBetween: gapBetween, fmtDuration: fmtDuration, measureFacts: measureFacts, pickContemporaries: pickContemporaries, lifetimeTour: lifetimeTour
   };
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -12720,6 +12854,7 @@ HT.curatedCount = (HT.events || []).length;
   let otdHint = true;                     // offer the layer on deep views while the opt-in is off
   let otdLinkIndex = null;                // article title -> [t] of bundled events, to skip what is already here
   let scaleMode = 'log';                  // 'log': the widest views use a warped axis (HT.core.tToU); 'lin': never
+  let measureFrom = -1;                   // index of the event being measured from, or -1
   let embed = false;                      // ?embed=1: a quiet page for an iframe (no chrome, no history entries)
   let tour = null;                        // { def, step } while a guided tour is running
   let pendingTour = null;                 // { id, step } last parsed from the URL
@@ -12864,7 +12999,7 @@ HT.curatedCount = (HT.events || []).length;
   // --- URL hash: #s=<start>&e=<end|now>&m=<theme>&ev=<slug> (format and parsing in HT.core) ---
   function encodeHash(v) {
     return C.encodeHash(v, nowT(), theme, selected >= 0 && dom && !dom.panel.hidden ? slugFor(selected) : '',
-      tour ? { id: tour.def.id, step: tour.step } : null, scaleMode);
+      tour ? { id: tour.def.id, step: tour.step } : null, scaleMode, measureFrom >= 0 ? slugFor(measureFrom) : '');
   }
 
   // Applies the hash's theme and event as side effects and returns its view (null when it names none).
@@ -12875,6 +13010,8 @@ HT.curatedCount = (HT.events || []).length;
     pendingEv = h.ev ? indexForSlug(h.ev) : -1;
     pendingSlug = h.ev && pendingEv < 0 ? h.ev : '';
     pendingTour = h.tour;
+    const fromIndex = h.from ? indexForSlug(h.from) : -1;
+    if (fromIndex !== measureFrom) { measureFrom = fromIndex; if (dom) { updateMeasureChip(); if (selected >= 0 && !dom.panel.hidden) updatePanelMeasure(selected); } }
     if (h.scale === 'lin' && scaleMode !== 'lin') setScale('lin', { keep: true });   // a shared linear link shows as sent, without changing the visitor's own choice
     return h.view;
   }
@@ -13197,6 +13334,7 @@ HT.curatedCount = (HT.events || []).length;
     renderNowMarker(shown, axisY);
     renderEra(era, axisY);
     renderLifeBand(shown, axisY);
+    renderMeasure(shown, axisY);
     dom.cursorLine.setAttribute('y1', 0);
     dom.cursorLine.setAttribute('y2', h);
     if (lastMouseX !== null) updateCursor(lastMouseX);  // the date under a resting pointer changes with the view
@@ -13941,6 +14079,7 @@ HT.curatedCount = (HT.events || []).length;
     frag.appendChild(reg);
     dom.legend.replaceChildren(frag);
     dom.btnLegend.classList.toggle('filtered', hiddenCats.size > 0 || regionFilter !== null);
+    if (dom.btnLayers) dom.btnLayers.classList.toggle('filtered', hiddenCats.size > 0 || regionFilter !== null);   // the dot survives the fold
   }
 
   // --- Category filters (legend buttons) ---
@@ -14523,6 +14662,94 @@ HT.curatedCount = (HT.events || []).length;
     dom.scaleToggle.textContent = scaleMode === 'log' ? 'Scale \u00b7 log' : 'Scale \u00b7 linear';
   }
 
+  // --- Measuring: pick one event, open another, and see the time between them with a comparison or two.
+  // The anchor rides in the URL as from=<slug>, so a finding can be shared. ---
+  function setMeasure(index) {
+    measureFrom = index >= 0 && events()[index] ? index : -1;
+    updateMeasureChip();
+    if (selected >= 0 && !dom.panel.hidden) updatePanelMeasure(selected);
+    if (shown) render();
+    if (view) writeUrl('replace');
+    announce(measureFrom >= 0 ? 'Measuring from ' + events()[measureFrom].title + '. Open another event to see the time between them.' : 'Stopped measuring.', 100);
+  }
+
+  function updateMeasureChip() {
+    if (!dom.measureChip) return;
+    dom.measureChip.hidden = measureFrom < 0;
+    if (measureFrom >= 0) dom.measureChipText.textContent = 'Measuring from: ' + events()[measureFrom].title;
+  }
+
+  function updatePanelMeasure(index) {
+    if (!dom.panelMeasure) return;
+    const list = events();
+    dom.measureLines.replaceChildren();
+    dom.measureStop.hidden = measureFrom < 0;
+    if (measureFrom < 0) {
+      dom.measureGap.hidden = true;
+      dom.measureStart.hidden = false;
+      dom.measureStart.textContent = 'Measure from this event';
+      return;
+    }
+    dom.measureGap.hidden = false;
+    if (measureFrom === index) {
+      dom.measureGap.textContent = 'Measuring from this event. Open any other event, or search for one, to see the time between them.';
+      dom.measureStart.hidden = true;
+      return;
+    }
+    const curatedCount = HT.curatedCount || 0;
+    const facts = C.measureFacts(list, measureFrom, index, nowT(), curatedCount ? function (o, i) { return i < curatedCount; } : null);
+    dom.measureStart.hidden = false;
+    dom.measureStart.textContent = 'Measure from this one instead';
+    if (!facts) { dom.measureGap.hidden = true; return; }
+    const anchor = list[measureFrom].title;
+    dom.measureGap.textContent = facts.gap > 0
+      ? C.fmtDuration(facts.gap) + (facts.later === index ? ' after ' : ' before ') + '\u201c' + anchor + '\u201d'
+      : 'At the same time as \u201c' + anchor + '\u201d';
+    dom.measureLines.replaceChildren.apply(dom.measureLines, facts.lines.map(function (l) { return htmlEl('li', '', l); }));
+    announce(dom.measureGap.textContent + '. ' + facts.lines.join(' '), 300);
+  }
+
+  // The span between the two events, drawn under the axis; an event off screen pins its end to that edge.
+  function renderMeasure(v, axisY) {
+    if (!dom.gSpan) return;
+    const list = events();
+    const a = measureFrom >= 0 ? list[measureFrom] : null;
+    if (!a) { if (dom.gSpan.firstChild) dom.gSpan.replaceChildren(); return; }
+    const w = size.width;
+    const parts = [];
+    const ax = tToPx(a.t, v);
+    if (ax >= 0 && ax <= w) parts.push(svgEl('circle', { class: 'measure-anchor', cx: ax, cy: axisY, r: 10 }));
+    const b = selected >= 0 && selected !== measureFrom && !dom.panel.hidden ? list[selected] : null;
+    if (b) {
+      const first = a.t <= b.t ? a : b; const second = first === a ? b : a;
+      const gap = C.gapBetween(first, second);
+      if (gap > 0) {
+        const x0 = clamp(tToPx(hasEnd(first) ? first.end : first.t, v), -4, w + 4);
+        const x1 = clamp(tToPx(second.t, v), -4, w + 4);
+        const y = axisY + 38;
+        if (x1 - x0 >= 2) {
+          parts.push(svgEl('path', { class: 'measure-span', d: 'M' + x0 + ' ' + (y - 5) + ' V' + y + ' H' + x1 + ' V' + (y - 5) }));
+          if (x1 - x0 >= 70) parts.push(svgEl('text', { class: 'measure-label', x: (Math.max(0, x0) + Math.min(w, x1)) / 2, y: y + 13, 'text-anchor': 'middle' }, C.fmtDuration(gap)));
+        }
+      }
+    }
+    dom.gSpan.replaceChildren.apply(dom.gSpan, parts);
+  }
+
+  // --- Layers menu (mid-width headers): the Earth, Reigns, Lives and Legend buttons folded behind one button ---
+  function layersFolded() { return !!dom.btnLayers && root.getComputedStyle(dom.btnLayers).display !== 'none'; }
+
+  function toggleLayers(force) {
+    if (!dom.btnLayers || !dom.layerGroup) return;
+    const was = dom.layerGroup.classList.contains('open');
+    const open = force === undefined ? !was : !!force;
+    if (open === was) return;
+    if (open) rememberFocus('layers');
+    dom.layerGroup.classList.toggle('open', open);
+    dom.btnLayers.setAttribute('aria-expanded', String(open));
+    if (open) focusFirst(dom.layerGroup); else restoreFocus('layers', dom.btnLayers);
+  }
+
   // --- Accessibility helpers ---
   // Overlays take the focus when they open and hand it back to whatever had it when they close.
   const focusBack = new Map();
@@ -15090,6 +15317,7 @@ HT.curatedCount = (HT.events || []).length;
     updatePanelImage(ev);
     updatePanelObject(ev);
     updatePanelMore(ev);
+    updatePanelMeasure(index);
     updatePanelNearby(index);
     if (typeof ev.link === 'string' && /^https:\/\//.test(ev.link)) {
       dom.panelLink.href = ev.link;
@@ -15105,6 +15333,7 @@ HT.curatedCount = (HT.events || []).length;
     document.body.classList.add('panel-open');
     markSelected();
     if (tour) renderTourBar();
+    if (measureFrom >= 0 && !wasHidden) renderMeasure(shown, lastAxisY);
     if (wasHidden) afterLayoutChange();
     try { dom.panel.focus({ preventScroll: true }); } catch (err) { /* ignore */ }
     if (!(opts && opts.silent) && view) writeUrl('replace');      // ev=<slug> makes the open event shareable
@@ -15343,7 +15572,8 @@ HT.curatedCount = (HT.events || []).length;
         e.preventDefault();
         break;
       case 'Escape':
-        if (dom.help && !dom.help.hidden) { toggleHelp(false); e.preventDefault(); }
+        if (dom.layerGroup && dom.layerGroup.classList.contains('open')) { toggleLayers(false); e.preventDefault(); }
+        else if (dom.help && !dom.help.hidden) { toggleHelp(false); e.preventDefault(); }
         else if (dom.search && !dom.search.hidden) { toggleSearch(false); e.preventDefault(); }
         else if (!dom.panel.hidden) { closePanel(); e.preventDefault(); }
         else if (!dom.legend.hidden) { toggleLegend(false); e.preventDefault(); }
@@ -15536,6 +15766,7 @@ HT.curatedCount = (HT.events || []).length;
     dom.gReigns = svgEl('g', { class: 'g-reigns' });
     dom.gNow = svgEl('g', { class: 'g-now', 'pointer-events': 'none' });
     dom.gLife = svgEl('g', { class: 'g-mylife', 'pointer-events': 'none' });
+    dom.gSpan = svgEl('g', { class: 'g-span', 'pointer-events': 'none' });
     dom.gEra = svgEl('g', { class: 'g-era' });
     dom.gCursor = svgEl('g', { class: 'g-cursor', 'pointer-events': 'none' });
     dom.cursorLine = svgEl('line', { class: 'cursor-line', x1: 0, x2: 0, y1: 0, y2: 0, visibility: 'hidden' });
@@ -15547,7 +15778,7 @@ HT.curatedCount = (HT.events || []).length;
     measureEvent.appendChild(measureLabelEl);
     gMeasure.appendChild(measureTickEl);
     gMeasure.appendChild(measureEvent);
-    svg.replaceChildren(dom.gLife, dom.gMinor, dom.gMajor, dom.gEarth, dom.gLabels, dom.gAxis, dom.gNow, dom.gReigns, dom.gEvents, dom.gEra, dom.gCursor, gMeasure);
+    svg.replaceChildren(dom.gLife, dom.gMinor, dom.gMajor, dom.gEarth, dom.gLabels, dom.gAxis, dom.gNow, dom.gReigns, dom.gEvents, dom.gSpan, dom.gEra, dom.gCursor, gMeasure);
 
     // The tooltip is positioned in stage coordinates; make sure the stage is its containing block.
     dom.tooltip.style.position = 'absolute';
@@ -15585,6 +15816,9 @@ HT.curatedCount = (HT.events || []).length;
       otdChip: $('otd-chip'), otdAction: $('otd-action'), otdDismiss: $('otd-dismiss'),
       btnTours: $('btn-tours'), tours: $('tours'), tourBar: $('tour-bar'), tourTitle: $('tour-title'), tourCount: $('tour-count'),
       tourNote: $('tour-note'), tourPrev: $('tour-prev'), tourNext: $('tour-next'), tourExit: $('tour-exit'),
+      panelMeasure: $('panel-measure'), measureGap: $('measure-gap'), measureLines: $('measure-lines'), measureStart: $('measure-start'),
+      measureStop: $('measure-stop'), measureChip: $('measure-chip'), measureChipText: $('measure-chip-text'), measureChipStop: $('measure-chip-stop'),
+      btnLayers: $('btn-layers'), layerGroup: $('layer-group'),
       scaleToggle: $('scale-toggle'), btnLives: $('btn-lives'), tourEdit: $('tour-edit'),
       embedOpen: $('embed-open'), srStatus: $('sr-status'), skip: $('skip'),
       helpTours: $('help-tours'), helpTourList: $('help-tour-list'), today: $('today'),
@@ -15654,6 +15888,19 @@ HT.curatedCount = (HT.events || []).length;
         announce('Scale: ' + (scaleMode === 'log' ? 'logarithmic on wide views' : 'linear'));
       });
     }
+    if (dom.panelMeasure) {
+      dom.measureStart.addEventListener('click', function () { if (selected >= 0) setMeasure(selected); });
+      dom.measureStop.addEventListener('click', function () { setMeasure(-1); });
+      dom.measureChipStop.addEventListener('click', function () { setMeasure(-1); });
+    }
+    if (dom.btnLayers) {
+      dom.btnLayers.addEventListener('click', function (e) { e.stopPropagation(); toggleLayers(); });
+      dom.btnLegend.addEventListener('click', function () { if (layersFolded()) toggleLayers(false); });   // the legend card replaces the menu
+      document.addEventListener('click', function (e) {
+        if (dom.layerGroup.classList.contains('open') && !dom.layerGroup.contains(e.target)) toggleLayers(false);
+      });
+      root.addEventListener('resize', function () { if (!layersFolded()) toggleLayers(false); });
+    }
     if (dom.skip) {
       dom.skip.addEventListener('click', function () {
         const first = dom.svg.querySelector('.event');
@@ -15717,6 +15964,7 @@ HT.curatedCount = (HT.events || []).length;
     render();
     renderCrumbs();
     renderLegend();                                       // region state may have been restored after the first build
+    updateMeasureChip();
     syncTourFromUrl();
     if (pendingEv >= 0) { revealEvent(pendingEv); openPanel(pendingEv, { silent: true }); }
     // First visit without a shared link: show the guide once.

@@ -250,8 +250,8 @@ test('parseHash round-trips views, including the now token with a later now', ()
 });
 
 test('parseHash reports theme and event even when the view is unusable, and nothing for an empty hash', () => {
-  assert.deepEqual(C.parseHash('', NOW), { view: null, theme: '', ev: '', tour: null, scale: '' });
-  assert.deepEqual(C.parseHash('#', NOW), { view: null, theme: '', ev: '', tour: null, scale: '' });
+  assert.deepEqual(C.parseHash('', NOW), { view: null, theme: '', ev: '', tour: null, scale: '', from: '' });
+  assert.deepEqual(C.parseHash('#', NOW), { view: null, theme: '', ev: '', tour: null, scale: '', from: '' });
   const h = C.parseHash('#m=crt&ev=some-event', NOW);
   assert.equal(h.view, null); assert.equal(h.theme, 'crt'); assert.equal(h.ev, 'some-event');
   assert.equal(C.parseHash('#s=5&e=1', NOW).view, null);
@@ -577,6 +577,58 @@ test('pickNearby prefers curated events unless a generated one is more than thre
 test('pickNearby gives a ruler the previous and next holder of the same office', () => {
   assert.deepEqual(C.pickNearby(LIST, 4, null), [11, 10]);
   assert.deepEqual(C.pickNearby(LIST, 11, null), [4], 'the first holder has only a successor');
+});
+
+test('gapBetween measures between the nearest ends and is zero for overlaps', () => {
+  assert.equal(C.gapBetween({ t: 1000 }, { t: 1500 }), 500);
+  assert.equal(C.gapBetween({ t: 1500 }, { t: 1000 }), 500);
+  assert.equal(C.gapBetween({ t: -69, end: -30 }, { t: 2007 }), 2037, 'from a death to a later event');
+  assert.equal(C.gapBetween({ t: -2560 }, { t: -69, end: -30 }), 2491, 'from an earlier event to a birth');
+  assert.equal(C.gapBetween({ t: 1452, end: 1519 }, { t: 1492 }), 0, 'an event inside a life');
+  assert.equal(C.gapBetween({ t: 1452, end: 1519 }, { t: 1475, end: 1564 }), 0);
+});
+
+test('fmtDuration reads in days, months or years', () => {
+  assert.equal(C.fmtDuration(0), 'less than a day');
+  assert.equal(C.fmtDuration(20 / 365), '20 days');
+  assert.equal(C.fmtDuration(0.25), '3 months');
+  assert.equal(C.fmtDuration(-1.5), '18 months');
+  assert.equal(C.fmtDuration(2491), '2,491 years');
+});
+
+test('measureFacts finds the Cleopatra line: closer to the iPhone than to the Great Pyramid', () => {
+  const list = [
+    { t: -2559, tier: 2, title: 'Great Pyramid of Giza is completed for Khufu' },   // 0 landmark
+    { t: -68, end: -29, tier: 5, title: 'Cleopatra', life: true },                    // 1
+    { t: 2007.02, tier: 2, title: 'Apple unveils the iPhone' },                       // 2
+    { t: -3099, tier: 1, title: 'Narmer unifies Upper and Lower Egypt' },             // 3 a landmark further off still
+    { t: -40, tier: 6, title: 'a minor event nearby' },                               // 4 not a landmark
+    { t: -500, tier: 2, title: 'a generated landmark', generated: true },             // 5 excluded by the curated test
+  ];
+  const curated = (ev) => !ev.generated;
+  const f = C.measureFacts(list, 2, 1, T.ymd(2026, 9, 18), curated);
+  assert.equal(f.earlier, 1); assert.equal(f.later, 2);
+  close(f.gap, 2007.02 + 29, 1e-9);
+  assert.equal(f.lines.length, 2);
+  assert.equal(f.lines[0], '\u201cCleopatra\u201d is closer in time to \u201cApple unveils the iPhone\u201d than to \u201cGreat Pyramid of Giza is completed for Khufu\u201d, 2,491 years before it.');
+  assert.match(f.lines[1], /^\u201cApple unveils the iPhone\u201d is closer to today \(20 years\) than to \u201cCleopatra\u201d\.$/);
+});
+
+test('measureFacts handles overlaps, neighbours with no surprising landmark, and bad input', () => {
+  const list = [{ t: 1452, end: 1519, tier: 4, title: 'Leonardo', life: true }, { t: 1492.8, tier: 0, title: 'Columbus reaches the Americas' }, { t: 1969.55, tier: 0, title: 'Apollo 11 lands on the Moon' }, { t: 1969.8, tier: 4, title: 'First message sent over ARPANET' }];
+  assert.deepEqual(C.measureFacts(list, 0, 1, NOW, null).lines, ['They overlap in time.']);
+  const near = C.measureFacts(list, 2, 3, NOW, null);
+  assert.equal(C.fmtDuration(near.gap), '3 months');
+  assert.ok(near.lines.some((l) => /closer in time to .ARPANET. than to .Columbus/.test(l.replace(/First message sent over /, ''))), near.lines.join(' | '));
+  assert.ok(near.lines.some((l) => /than to today, 57 years on\.$/.test(l)), near.lines.join(' | '));
+  assert.equal(C.measureFacts(list, 1, 1, NOW, null), null);
+  assert.equal(C.measureFacts(list, 1, 99, NOW, null), null);
+});
+
+test('the measuring anchor round-trips through the hash and is validated', () => {
+  assert.equal(C.encodeHash({ start: 1, end: 2 }, NOW, 'auto', 'b-event', null, 'log', 'a-event'), '#s=1&e=2&ev=b-event&from=a-event');
+  assert.equal(C.parseHash('#s=1&e=2&ev=b&from=great-pyramid-of-giza', NOW).from, 'great-pyramid-of-giza');
+  for (const bad of ['#from=', '#from=%3Cscript%3E', '#from=UPPER', '#from=' + 'x'.repeat(81)]) assert.equal(C.parseHash(bad, NOW).from, '', bad);
 });
 
 test('lifetimeTour frames the life, then picks one significant event per slice of it, with the age at each', () => {

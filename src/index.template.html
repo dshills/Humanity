@@ -69,12 +69,15 @@
     <div id="controls">
       <button id="btn-out" type="button" aria-label="Zoom out">Zoom out</button>
       <button id="btn-home" type="button">Home</button>
-      <button id="btn-earth" type="button" aria-pressed="true" title="Earth layer: CO₂, Antarctic temperature, sea level, world population and the largest city (E)">Earth</button>
-      <button id="btn-reigns" type="button" aria-pressed="true" title="Swimlanes of rulers, one row per office (R)">Reigns</button>
-      <button id="btn-lives" type="button" aria-pressed="false" title="Lifespans of notable people: who was alive at the same time (P). Replaces the Reigns rows while it is on.">Lives</button>
+      <button id="btn-layers" type="button" aria-expanded="false" aria-controls="layer-group" title="Earth, Reigns, Lives and the legend">Layers</button>
+      <div id="layer-group">
+        <button id="btn-earth" type="button" aria-pressed="true" title="Earth layer: CO₂, Antarctic temperature, sea level, world population and the largest city (E)">Earth</button>
+        <button id="btn-reigns" type="button" aria-pressed="true" title="Swimlanes of rulers, one row per office (R)">Reigns</button>
+        <button id="btn-lives" type="button" aria-pressed="false" title="Lifespans of notable people: who was alive at the same time (P). Replaces the Reigns rows while it is on.">Lives</button>
+        <button id="btn-legend" type="button" aria-expanded="false" aria-controls="legend" title="Categories and regions: click to show or hide">Legend</button>
+      </div>
       <button id="btn-tours" type="button" aria-expanded="false" aria-controls="tours" title="Guided tours through the timeline">Tours</button>
       <button id="btn-search" type="button" aria-expanded="false" aria-controls="search" title="Search events (/)">Search</button>
-      <button id="btn-legend" type="button" aria-expanded="false" aria-controls="legend" title="Categories and regions: click to show or hide">Legend</button>
       <button id="btn-help" type="button" aria-expanded="false" aria-controls="help" title="How to use the timeline (?)" aria-label="Help">?</button>
     </div>
   </header>
@@ -94,7 +97,7 @@
         <span class="hud-k">Events</span><span class="hud-v" id="hud-events">—</span>
         <span class="hud-k">Tier</span><span class="hud-v" id="hud-tier">—</span>
         <span class="hud-k">Scale</span><span class="hud-v" id="hud-scale">—</span>
-        <span class="hud-k">Earth</span><span class="hud-v" id="hud-earth">—</span>
+        <span class="hud-k hud-earth-k">Earth</span><span class="hud-v" id="hud-earth">—</span>
         <span class="hud-k">City</span><span class="hud-v" id="hud-city">—</span>
       </div>
       <div id="hud-right" class="hud-block">
@@ -131,6 +134,10 @@
         <div id="help-tour-list"></div>
       </div>
       <button id="help-ok" type="button">Start exploring</button>
+    </div>
+    <div id="measure-chip" hidden>
+      <span id="measure-chip-text"></span>
+      <button id="measure-chip-stop" type="button" aria-label="Stop measuring" title="Stop measuring">×</button>
     </div>
     <div id="otd-chip" hidden>
       <button id="otd-action" type="button"></button>
@@ -181,6 +188,15 @@
       <a id="panel-object-link" target="_blank" rel="noopener noreferrer"></a>
       <div id="panel-object-credit"></div>
     </figure>
+    <section id="panel-measure">
+      <h3>Measure</h3>
+      <p id="measure-gap" hidden></p>
+      <ul id="measure-lines"></ul>
+      <div class="measure-actions">
+        <button id="measure-start" type="button">Measure from this event</button>
+        <button id="measure-stop" type="button" hidden>Stop measuring</button>
+      </div>
+    </section>
     <section id="panel-near" hidden>
       <h3>Around this time</h3>
       <ul id="panel-near-list"></ul>

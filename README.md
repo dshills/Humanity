@@ -46,6 +46,7 @@ Node 18 or newer, zero dependencies. The build concatenates `time.js, tiers.js, 
 | Hover | A vertical guide line and the date under the cursor in the header; hovering an event shows a tooltip with its date and detail |
 | Click an event | Opens the side panel (bottom sheet on narrow screens) with **Zoom to this event** and **Copy link to this event** buttons; clicking an event never triggers the axis zoom |
 | **Legend** button | Toggles the legend: category filters and the region filter |
+| **Layers** button | Between phone width and about 1,180 px, Earth, Reigns, Lives and Legend fold into this one menu so the zoom path keeps its place in the header; under 820 px the path takes a row of its own |
 | **?** button, `?` key | Opens the guide, which also appears once on a first visit that did not arrive through a shared link |
 | **Tours** button | Opens the list of guided tours; `←` / `→` step through a running tour |
 | `Escape` | Closes the guide, else search, else the panel, else the legend, else the tours list, else ends a running tour |
@@ -165,6 +166,10 @@ An embedded page never adds entries to its host's history (every URL update is a
 ## Today in history
 
 The first entry in the **Tours** list (and in the guide on a phone) is **Today in history**: Wikipedia's on-this-day list for the visitor's own date, most recent first, together with any bundled event that is known to the day and falls on it. Each entry is a jump: choosing one flies to a twenty-day view around it, opens its panel and lets the surrounding days load. It needs a single request, because the feed returns every year for a calendar day at once, and it switches on the online-content opt-in, which the entry says before you press it. On the 1st of a month only feed entries are listed, since bundled events known only to the month or the year are stored on the 1st by convention.
+
+## Measuring the time between two events
+
+Every panel has a **Measure** section. **Measure from this event** makes it the anchor (a chip at the top of the stage says what is being measured from, and a dashed ring marks it); open any other event, by clicking, searching or following a list, and the panel gives the time between the two, a span is drawn under the axis, and a comparison or two is worked out: for the earlier event, the best-known landmark before it that is nevertheless further away than the later one, and the same looking forward from the later event, or to today. Anchor the Great Pyramid and open Cleopatra, and it reports 2,510 years and that Cleopatra is closer to today than to the Great Pyramid. Gaps run between the nearest ends of ranged events and lives, so something that happened during a life is "at the same time". The anchor travels in the URL as `from=<slug>` beside `ev=`, so a finding is a link.
 
 ## More in the panel
 
