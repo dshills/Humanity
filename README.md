@@ -2,6 +2,8 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
+![A seventeen-second walk through the page: the logarithmic overview of 300,000 years zooms into recorded history and on to the years around 1500, the Lives layer shows who was alive then and opens Leonardo da Vinci, a guided tour stops at Citizen Kane, and the measuring tool reports that Cleopatra is closer to today than to the Great Pyramid](docs/demo.gif)
+
 ![The measuring tool in NVG mode on the years 2901 BCE to 400 CE: a chip reads Measuring from: Great Pyramid of Giza is completed for Khufu, a dashed ring marks the pyramid on the axis, and a bracket under the axis labelled 2,510 years runs from it to Cleopatra; the panel is open on Cleopatra, pharaoh, 51 to 30 BCE, and its Measure section says 2,510 years after the Great Pyramid, that the pyramid is closer in time to Cleopatra than to the domestication of rice, and that Cleopatra is closer to today, 2,055 years, than to the Great Pyramid](docs/screenshot.png)
 
 <p>
@@ -47,6 +49,7 @@ Node 18 or newer, zero dependencies. CI runs all three on every push, and checks
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Project layout, build and tests, and the design decisions |
 | [CONTRACT.md](CONTRACT.md) | The binding interfaces between modules |
 | [docs/DATA-SOURCES.md](docs/DATA-SOURCES.md) | The research report behind the choice of open data sources |
+| [docs/LAUNCH.md](docs/LAUNCH.md) | Draft announcement posts, links worth sharing and a pre-launch checklist |
 
 ## Data and licences
 

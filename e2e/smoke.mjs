@@ -173,7 +173,7 @@ const STEPS = `<script>
     $('btn-search').click(); await wait(200);
     $('search-input').value = 'citizen kane'; $('search-input').dispatchEvent(new Event('input', { bubbles: true })); await wait(200);
     key('Enter', $('search-input')); await wait(900);
-    check('a landmark film is on the timeline and opens from search', /Citizen Kane by Orson Welles/.test($('panel-title').textContent) && /1941/.test($('panel-date').textContent) && !!document.querySelector('#timeline .event.selected'), $('panel-title').textContent + ' ' + $('panel-date').textContent);
+    check('a landmark film is on the timeline and opens from search', /Citizen Kane by Orson Welles/.test($('panel-title').textContent) && /^1941$/.test($('panel-date').textContent.trim()) && !!document.querySelector('#timeline .event.selected'), $('panel-title').textContent + ' ' + $('panel-date').textContent);
     $('panel-close').click(); await wait(200);
 
     // Measuring: anchor one event, open another, read the gap and a comparison; the anchor rides in the URL.

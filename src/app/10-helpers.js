@@ -113,6 +113,7 @@
       const cut = range.lastIndexOf(' \u2013 ');
       return ev.ongoing === true && cut > 0 ? range.slice(0, cut) + ' \u2013 present' : range;
     }
+    if (ev.yearOnly === true) return T.formatYear(ev.t);
     if (ev.t < T.bce(10000) && (T.PRESENT - ev.t) % 100 === 0) return 'c. ' + T.formatAgo(ev.t);
     if (ev.t < 1900 && ev.t >= T.bce(20000)) {
       const p = T.toParts(ev.t);

@@ -89,6 +89,9 @@
     // Sitting office-holders are generated without an end: their reign runs to the moment the page opened.
     const all = events();
     for (let i = 0; i < all.length; i++) if (all[i].ongoing === true && !hasEnd(all[i]) && all[i].t < NOW) all[i].end = NOW;
+    // An imported point event that falls exactly on 1 January is known only to the year (the importers write
+    // ce(1941), which is that instant); saying "Jan 1, 1941" would claim a precision the source does not have.
+    for (let i = HT.curatedCount || all.length; i < all.length; i++) if (!hasEnd(all[i]) && all[i].t >= 1 && all[i].t === Math.floor(all[i].t)) all[i].yearOnly = true;
     // Theme: URL param (read in parseHash below) > stored choice > auto.
     try { const stored = root.localStorage.getItem(THEME_KEY); if (stored && THEMES.indexOf(stored) >= 0) theme = stored; } catch (err) { /* ignore */ }
     applyTheme();
