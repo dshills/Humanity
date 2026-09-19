@@ -2,7 +2,7 @@
 
 **Live:** https://dshills.github.io/Humanity/
 
-![Today in history open over the years 1900 to today in NVG mode: a card headed 19 September in history lists that date's events from Wikipedia's on-this-day feed, newest first, from 2023 back through the decades, with one bundled launch among them and a footer counting 54 events; behind it are the ruler swimlanes, the events of the twentieth century, the Earth layer and the largest-city ribbon](docs/screenshot.png)
+![The opening view in NVG mode, all 300,000 years on a logarithmic axis: ticks run from 300,000, 100,000, 50,000, 20,000 and 10,000 years ago to 3000 BCE, 1 CE, 1000, 1500 and 2000; fifteen landmark events are labelled, from the earliest Homo sapiens to Apollo 11; the recorded-history bracket spans the right quarter of the stage up to the Today line; the Scale toggle sits at the top left, the overview strip under the header, and the climate and population curves below the axis](docs/screenshot.png)
 
 <p>
   <img src="docs/mode-ops.png" width="32%" alt="Ops mode: near-black console with cyan accent">
